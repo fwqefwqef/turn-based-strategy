@@ -1,0 +1,47 @@
+Base Formula
+------------
+Lv 1 -> Lv 2: Strength +1, Magic +1
+Lv 2 -> Lv 3: Defense +1, Resistance +1
+Lv 3 -> Lv 4: Speed +1, Luck +1
+Lv 4 -> Lv 5: Strength +1, Magic +1
+Lv 5 -> Lv 6: Strength +1, Defense +1
+Lv 6 -> Lv 7: Resistance +1, Speed +1
+Lv 7 -> Lv 8: Magic +1, Strength +1
+Lv 8 -> Lv 9: Luck +1, Defense +1
+Lv 9 -> Lv 10: Resistance +1, Speed +1
+Lv 10 -> Lv 11: Strength +1, Magic +1
+Lv 11 -> Lv 12: Strength +1, Magic +1
+Lv 12 -> Lv 13: Defense +1, Resistance +1
+Lv 13 -> Lv 14: Speed +1, Luck +1
+Lv 14 -> Lv 15: Strength +1, Magic +1
+Lv 15 -> Lv 16: Strength +1, Defense +1
+Lv 16 -> Lv 17: Resistance +1, Speed +1
+Lv 17 -> Lv 18: Magic +1, Strength +1
+Lv 18 -> Lv 19: Luck +1, Defense +1
+Lv 19 -> Lv 20: Resistance +1, Speed +1
+
+Total Gains: Strength +9, Magic +7, Defense +6, Resistance +6, Speed +6, Luck +4
+
+Biased Formula
+--------------
+Lv 1 -> Lv 2: Strength +1, Magic +1
+Lv 2 -> Lv 3: Speed +1, Defense +1
+Lv 3 -> Lv 4: Resistance +1, Luck +1
+Lv 4 -> Lv 5: Strength +1, Magic +1
+Lv 5 -> Lv 6: Speed +1, Defense +1
+Lv 6 -> Lv 7: Strength +1, Resistance +1
+Lv 7 -> Lv 8: Magic +1, Strength +1
+Lv 8 -> Lv 9: Luck +1, Speed +1
+Lv 9 -> Lv 10: Defense +1, Resistance +1
+Lv 10 -> Lv 11: Magic +1, Strength +1
+Lv 11 -> Lv 12: Strength +1, Magic +1
+Lv 12 -> Lv 13: Speed +1, Defense +1
+Lv 13 -> Lv 14: Resistance +1, Luck +1
+Lv 14 -> Lv 15: Strength +1, Magic +1
+Lv 15 -> Lv 16: Speed +1, Defense +1
+Lv 16 -> Lv 17: Strength +1, Resistance +1
+Lv 17 -> Lv 18: Magic +1, Strength +1
+Lv 18 -> Lv 19: Luck +1, Speed +1
+Lv 19 -> Lv 20: Defense +1, Resistance +1
+
+Total Gains: Strength +9, Magic +7, Defense +6, Resistance +6, Speed +6, Luck +4

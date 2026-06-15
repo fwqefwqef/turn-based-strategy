@@ -1,0 +1,744 @@
+{
+  "CTRL_F_ITEMS_SECTION": "CTRL+F: ITEMS",
+  "Items": {
+    "CTRL_F_WEAPONS_SECTION": "CTRL+F: WEAPONS",
+    "Weapons": [
+      {
+        "Id": "iron_sword",
+        "Name": "Iron Sword",
+        "Description": "A simple physical weapon.",
+        "Value": 100,
+        "WeaponType": "Sword",
+        "DamageType": "Physical",
+        "Might": 5,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "magic_sword",
+        "Name": "Magic Sword",
+        "Description": "A magical blade that attacks with magic.",
+        "Value": 100,
+        "WeaponType": "Sword",
+        "DamageType": "Magic",
+        "Might": 10,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "super_bow",
+        "Name": "Super Bow",
+        "Description": "A bow that fires twice at range.",
+        "Value": 100,
+        "WeaponType": "Ranged",
+        "DamageType": "Physical",
+        "Might": 5,
+        "MinRange": 2,
+        "MaxRange": 2,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 2,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      }
+    ],
+    "CTRL_F_ACCESSORIES_SECTION": "CTRL+F: ACCESSORIES",
+    "Accessories": [
+      {
+        "Id": "shield",
+        "Name": "Shield",
+        "Description": "Def +5. A sturdy shield that increases defense.",
+        "Value": 100,
+        "StatModifiers": {
+          "Defense": 5
+        },
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "cloak",
+        "Name": "Cloak",
+        "Description": "Res +5. A cloak that improves resistance.",
+        "Value": 100,
+        "StatModifiers": {
+          "Resistance": 5
+        },
+        "GrantedSkillIds": []
+      }
+    ],
+    "CTRL_F_CONSUMABLES_SECTION": "CTRL+F: CONSUMABLES",
+    "Consumables": [
+      {
+        "Id": "potion",
+        "Name": "Potion",
+        "Description": "Restores 10 HP.",
+        "Value": 100,
+        "Charges": 3,
+        "EffectId": "heal_10",
+        "TargetType": "Self"
+      },
+      {
+        "Id": "super_potion",
+        "Name": "Super Potion",
+        "Description": "Restores 20 HP.",
+        "Value": 100,
+        "Charges": 3,
+        "EffectId": "heal_20",
+        "TargetType": "Self"
+      },
+      {
+        "Id": "invulnerability_potion",
+        "Name": "Invulnerability Potion",
+        "Description": "Grants invulnerability, reducing all damage taken to 1 for one turn.",
+        "Value": 100,
+        "Charges": 3,
+        "EffectId": "apply_invulnerable_buff",
+        "TargetType": "Self"
+      }
+    ]
+  },
+  "CTRL_F_SKILLS_SECTION": "CTRL+F: SKILLS",
+  "Skills": {
+    "Skills": [
+      {
+        "Id": "wrath_strike",
+        "Name": "Wrath Strike",
+        "Description": "A forceful physical strike with extra power and accuracy.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Sword",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": 5,
+          "Accuracy": 10,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "astra",
+        "Name": "Astra",
+        "Description": "A flurry of five rapid strikes.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": -5,
+          "Accuracy": -10,
+          "Crit": 10,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 5,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "snipe_shot",
+        "Name": "Snipe Shot",
+        "Description": "Max Range +1. A careful ranged shot with extra reach and accuracy.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Ranged",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": 1,
+          "Accuracy": 20,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "tempest_lance",
+        "Name": "Tempest Lance",
+        "Description": "A lance combat art that strikes with overwhelming force.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Lance",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": 8,
+          "Accuracy": 0,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "smash",
+        "Name": "Smash",
+        "Description": "A blunt combat art with high hit and a crushing swing.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Blunt",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": 3,
+          "Accuracy": 20,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "luna",
+        "Name": "Luna",
+        "Description": "A precise combat art that pierces through enemy defense or resistance.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "ignore_def_res",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": 0,
+          "Accuracy": 20,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "close_range_volley",
+        "Name": "Close-Range Volley",
+        "Description": "Range -1. A risky rapid volley fired at closer range.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Ranged",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": -2,
+          "Accuracy": 0,
+          "Crit": 20,
+          "MinRange": -1,
+          "MaxRange": -1,
+          "NumHits": 2,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "fireball",
+        "Name": "Fireball",
+        "Description": "A basic fire spell.",
+        "Category": "Spell",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "Might": 10,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 2,
+          "MaxRange": 2,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "thunder",
+        "Name": "Thunder",
+        "Description": "A long-range lightning spell with high crit potential.",
+        "Category": "Spell",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "Might": 12,
+          "Accuracy": 70,
+          "Crit": 30,
+          "MinRange": 3,
+          "MaxRange": 4,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "heal",
+        "Name": "Heal",
+        "Description": "Restore (Res + 10) HP to an adjacent ally.",
+        "Category": "Spell",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "heal_res_10",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "mend",
+        "Name": "Mend",
+        "Description": "Restore (Res + 25) HP to an adjacent ally.",
+        "Category": "Spell",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "heal_res_25",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "physic",
+        "Name": "Physic",
+        "Description": "Restore (Res + 10) HP to an ally from 1 to 10 range.",
+        "Category": "Spell",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "heal_res_10",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 10,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "affection",
+        "Name": "Affection",
+        "Description": "Restore (Res + 25) HP to an ally at any range.",
+        "Category": "Spell",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "heal_res_25",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 11,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "fortify",
+        "Name": "Fortify",
+        "Description": "Heal all allies in range for Res + 10.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 9,
+        "EffectId": "heal_res_10",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 5,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 1,
+          "MaxRange": 5,
+          "Radius": 2,
+          "Might": 0,
+          "IsMagic": true,
+          "AffectsAllies": true,
+          "AffectsEnemies": false
+        }
+      },
+      {
+        "Id": "sacrifice",
+        "Name": "Sacrifice",
+        "Description": "Heal all allies in range for Res + 25, but reduce the caster to 1 HP.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": true,
+        "MpCost": 9,
+        "EffectId": "sacrifice_heal_res_25",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 5,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 1,
+          "MaxRange": 5,
+          "Radius": 3,
+          "Might": 0,
+          "IsMagic": true,
+          "AffectsAllies": true,
+          "AffectsEnemies": false
+        }
+      },
+      {
+        "Id": "meteor",
+        "Name": "Meteor",
+        "Description": "Call down a meteor that deals magic damage to all enemies in range.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 9,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "Might": 10,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 10,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 1,
+          "MaxRange": 10,
+          "Radius": 1,
+          "Might": 10,
+          "IsMagic": true,
+          "AffectsAllies": false,
+          "AffectsEnemies": true
+        }
+      },
+      {
+        "Id": "disintegrate",
+        "Name": "Disintegrate",
+        "Description": "Fire a destructive line that deals magic damage to all units in its path.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 9,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "Might": 20,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 10,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Line",
+          "MinRange": 1,
+          "MaxRange": 10,
+          "Radius": 1,
+          "Might": 20,
+          "IsMagic": true,
+          "AffectsAllies": true,
+          "AffectsEnemies": true
+        }
+      },
+      {
+        "Id": "immolate",
+        "Name": "Immolate",
+        "Description": "Lose half of max HP, then deal additional magic damage equal to twice the HP lost to all enemies around you.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": true,
+        "MpCost": 9,
+        "EffectId": "immolate",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 0,
+          "MaxRange": 0,
+          "Radius": 2,
+          "Might": 0,
+          "IsMagic": true,
+          "AffectsAllies": false,
+          "AffectsEnemies": true
+        }
+      },
+      {
+        "Id": "regen",
+        "Name": "Regen",
+        "Description": "Restore 10 HP to yourself.",
+        "Category": "Misc",
+        "TargetingType": "Self",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "regen_self_10",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "shove",
+        "Name": "Shove",
+        "Description": "Push an adjacent friendly unit one tile away.",
+        "Category": "Misc",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 0,
+        "EffectId": "shove",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": false,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      }
+    ]
+  },
+  "CTRL_F_PASSIVES_SECTION": "CTRL+F: PASSIVES",
+  "Passives": {
+    "Passives": [
+      {
+        "Id": "deep_breath",
+        "Name": "Deep Breath",
+        "Description": "Restore 3 HP at the start of turn.",
+        "Cost": 1,
+        "EffectId": "restore_hp_3_turn_start"
+      },
+      {
+        "Id": "arcana_knowledge",
+        "Name": "Arcana Knowledge",
+        "Description": "Magic +5.",
+        "Cost": 0,
+        "PrimaryStatModifiers": {
+          "Magic": 5
+        }
+      },
+      {
+        "Id": "exp_aptitude",
+        "Name": "Aptitude",
+        "Description": "Gain double EXP.",
+        "Cost": 2,
+        "EffectId": "exp_x2"
+      },
+      {
+        "Id": "exp_massive_gain",
+        "Name": "Massive EXP Gain",
+        "Description": "If this unit can gain EXP, set the amount to 100.",
+        "Cost": 4,
+        "EffectId": "exp_set_100"
+      },
+      {
+        "Id": "exp_jammer",
+        "Name": "Null Experience",
+        "Description": "Attackers gain no EXP from this unit.",
+        "Cost": 0,
+        "EffectId": "prevent_exp_to_attackers"
+      }
+    ]
+  },
+  "CTRL_F_BUFFS_SECTION": "CTRL+F: BUFFS",
+  "Buffs": {
+    "CTRL_F_BUFF_LIST_SECTION": "CTRL+F: BUFF_LIST",
+    "Buffs": [
+      {
+        "Id": "attack_up",
+        "Name": "Attack Up",
+        "Description": "Increases attack power for one turn.",
+        "Duration": 1,
+        "PrimaryStatModifiers": {
+          "Attack": 2
+        }
+      },
+      {
+        "Id": "guard_up",
+        "Name": "Guard Up",
+        "Description": "Increases defense for one turn.",
+        "Duration": 1,
+        "PrimaryStatModifiers": {
+          "Defense": 2
+        }
+      },
+      {
+        "Id": "haste",
+        "Name": "Haste",
+        "Description": "Increases speed for one turn.",
+        "Duration": 1,
+        "PrimaryStatModifiers": {
+          "Speed": 2
+        }
+      },
+      {
+        "Id": "focus",
+        "Name": "Focus",
+        "Description": "Improves hit and crit for one turn.",
+        "Duration": 1,
+        "SecondaryStatModifiers": {
+          "Accuracy": 10,
+          "Crit": 10
+        }
+      },
+      {
+        "Id": "invulnerable",
+        "Name": "Invulnerable",
+        "Description": "Incoming damage is reduced to 1 for one turn.",
+        "Duration": 1,
+        "EffectId": "damage_to_one"
+      },
+      {
+        "Id": "luna",
+        "Name": "Luna",
+        "Description": "Ignores Def/Res for one round of initiated combat.",
+        "Duration": 1,
+        "EffectId": "ignore_def_res"
+      }
+    ]
+  }
+}

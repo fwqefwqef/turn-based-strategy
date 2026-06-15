@@ -1,0 +1,105 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
+  m_Name: gooby
+  m_EditorClassIdentifier: com.crookedhead.tbsf.game::Windy.Srpg.Game.Units.UnitPreset
+  PresetId: gooby
+  UnitName: gooby
+  UnitSprite: {fileID: 21300000, guid: 6d689fff3f113e34db0efaa6f4898ec6, type: 3}
+  SpriteLayout:
+    TargetSize: {x: 1.2, y: 1.2}
+    OffsetX: 0
+    OffsetY: 0
+    LegacySizeReference: 0
+    LegacyScaleMode: 0
+    LegacyFallbackWorldSize: {x: 0, y: 0}
+    LegacyScaleMultiplier: 0
+    LegacyMinScaleFactor: 0
+    LegacyMaxScaleFactor: 0
+    LegacyVerticalAnchor: 0
+    LegacyLocalOffset: {x: 0, y: 0}
+  BaseLevel: 1
+  WeaponProficiencies: -1
+  BaseStats:
+    HitPoints: 69
+    ManaPoints: 69
+    MovementPoints: 69
+    Strength: 69
+    Defense: 69
+    Magic: 69
+    Resistance: 69
+    Speed: 69
+    Luck: 69
+  GrowthRates:
+    Strength: 17
+    Magic: 17
+    Defense: 17
+    Resistance: 17
+    Speed: 16
+    Luck: 16
+  StartingInventory:
+  - ItemId: iron_sword
+    InitialCharges: -1
+    LegacyOverrideInitialCharges: 0
+    ChargesInitialized: 1
+  - ItemId: magic_sword
+    InitialCharges: -1
+    LegacyOverrideInitialCharges: 0
+    ChargesInitialized: 1
+  - ItemId: super_bow
+    InitialCharges: -1
+    LegacyOverrideInitialCharges: 0
+    ChargesInitialized: 1
+  - ItemId: potion
+    InitialCharges: -1
+    LegacyOverrideInitialCharges: 0
+    ChargesInitialized: 1
+  - ItemId: super_potion
+    InitialCharges: -1
+    LegacyOverrideInitialCharges: 0
+    ChargesInitialized: 1
+  - ItemId: invulnerability_potion
+    InitialCharges: -1
+    LegacyOverrideInitialCharges: 0
+    ChargesInitialized: 1
+  - ItemId: shield
+    InitialCharges: -1
+    LegacyOverrideInitialCharges: 0
+    ChargesInitialized: 1
+  - ItemId: cloak
+    InitialCharges: -1
+    LegacyOverrideInitialCharges: 0
+    ChargesInitialized: 1
+  StartingSkills:
+  - SkillId: wrath_strike
+  - SkillId: astra
+  - SkillId: snipe_shot
+  - SkillId: tempest_lance
+  - SkillId: smash
+  - SkillId: luna
+  - SkillId: close_range_volley
+  - SkillId: fireball
+  - SkillId: thunder
+  - SkillId: heal
+  - SkillId: mend
+  - SkillId: physic
+  - SkillId: affection
+  - SkillId: fortify
+  - SkillId: sacrifice
+  - SkillId: meteor
+  - SkillId: disintegrate
+  - SkillId: immolate
+  - SkillId: regen
+  - SkillId: shove
+  StartingUniquePassives: []
+  StartingEquipPassives: []
+  LegacyBaseMovementPoints: 7

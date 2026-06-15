@@ -1,0 +1,11 @@
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\bin\Debug\net9.0\StatGainCore.deps.json
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\bin\Debug\net9.0\StatGainCore.dll
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\bin\Debug\net9.0\StatGainCore.pdb
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\StatGainCore.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\StatGainCore.AssemblyInfoInputs.cache
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\StatGainCore.AssemblyInfo.cs
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\StatGainCore.csproj.CoreCompileInputs.cache
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\StatGainCore.dll
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\refint\StatGainCore.dll
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\StatGainCore.pdb
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\ref\StatGainCore.dll

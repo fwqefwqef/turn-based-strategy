@@ -1,0 +1,50 @@
+# Unity generated
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+*.sln
+*.slnx
+*.csproj
+*.unityproj
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Unity crash / misc
+sysinfo.txt
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Local duplicate / backup folder (not part of the active project)
+/TBS Framework - Copy/
+
+# .NET tool build output
+/Tools/**/bin/
+/Tools/**/obj/
+
+# Private framework comparison notes (keep local, not in repo)
+framework_compare_code*.csv
