@@ -7,6 +7,7 @@ using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players.AI;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.AI;
+using Windy.Srpg.Runtime.Board;
 using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Players
@@ -31,7 +32,92 @@ namespace Windy.Srpg.Game.Players
         public override void Play(CustomCellGrid cellGrid)
         {
             cellGrid.EnterAiTurnState(this);
+            if (cellGrid.UseRuntimeMovementExecution)
+            {
+                StartCoroutine(ExecuteRuntimeRoutedTurn(cellGrid));
+                return;
+            }
+
             StartCoroutine(ExecuteTurn(cellGrid));
+        }
+
+        private IEnumerator ExecuteRuntimeRoutedTurn(CustomCellGrid cellGrid)
+        {
+            BattleBoard board = cellGrid.GetComponent<BattleBoard>();
+            if (board == null)
+            {
+                yield return ExecuteTurn(cellGrid);
+                yield break;
+            }
+
+            IReadOnlyList<CustomUnit> frameworkOrder = SelectUnits(cellGrid);
+            IReadOnlyList<BattleUnit> runtimeOrder = SelectRuntimeUnits(board, cellGrid);
+            cellGrid.PrepareRuntimeRoutedAiTurn(frameworkOrder, runtimeOrder);
+
+            if (!DebugMode)
+            {
+                yield return AiTurnRunner.ExecuteTurn(
+                    this,
+                    runtimeOrder.Cast<IBattleUnit>(),
+                    board,
+                    () => cellGrid.RequestEndTurn());
+                yield break;
+            }
+
+            foreach (BattleUnit runtimeUnit in runtimeOrder)
+            {
+                CustomUnit unit = runtimeUnit?.GetComponent<CustomUnit>();
+                if (unit == null)
+                {
+                    continue;
+                }
+
+                unit.MarkAsSelected();
+                Debug.Log($"Current unit: {unit.name}, press N to continue");
+                yield return WaitForDebugKey(KeyCode.N);
+
+                AiDecisionAction[] actions = unit.GetComponentsInChildren<AiDecisionAction>();
+                foreach (AiDecisionAction action in actions)
+                {
+                    if (action == null || unit == null)
+                    {
+                        break;
+                    }
+
+                    yield return null;
+
+                    action.InitializeDecision(this, unit, board);
+                    bool shouldExecute = action.ShouldExecute(this, unit, board);
+
+                    action.Precalculate(this, unit, board);
+                    action.ShowDebugDecisionInfo(this, unit, board);
+                    Debug.Log($"Current action: {action.GetType().Name}, press A to execute");
+                    yield return WaitForDebugKey(KeyCode.A);
+
+                    if (shouldExecute)
+                    {
+                        yield return null;
+                        yield return action.ExecuteDecision(this, unit, board);
+                    }
+
+                    if (action == null || unit == null)
+                    {
+                        break;
+                    }
+
+                    action.CleanUpDecision(this, unit, board);
+                }
+
+                if (unit == null)
+                {
+                    continue;
+                }
+
+                unit.MarkAsFriendly();
+            }
+
+            cellGrid.RequestEndTurn();
+            yield return null;
         }
 
         private IEnumerator ExecuteTurn(CustomCellGrid cellGrid)
@@ -112,6 +198,22 @@ namespace Windy.Srpg.Game.Players
 
             cellGrid.RequestEndTurn();
             yield return null;
+        }
+
+        private IReadOnlyList<BattleUnit> SelectRuntimeUnits(BattleBoard board, CustomCellGrid cellGrid)
+        {
+            var selector = GetComponent<CustomUnitSelection>();
+            if (selector == null)
+            {
+                return AiTurnOrdering.OrderByMovementFreedom(board.GetCurrentPlayerUnits());
+            }
+
+            return selector
+                .SelectNext(() => cellGrid.GetCurrentPlayerCustomUnits().ToList(), cellGrid)
+                .Where(unit => unit != null)
+                .Select(unit => unit.GetComponent<BattleUnit>())
+                .Where(unit => unit != null)
+                .ToList();
         }
 
         private IReadOnlyList<CustomUnit> SelectUnits(CustomCellGrid cellGrid)

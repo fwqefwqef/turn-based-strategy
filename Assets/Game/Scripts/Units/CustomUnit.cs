@@ -546,9 +546,32 @@ namespace Windy.Srpg.Game.Units
         }
         public override void OnMouseEnter()
         {
+            CustomCellGrid grid = FindSceneCellGrid();
+            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
+            {
+                return;
+            }
+
             base.OnMouseEnter();
         }
+
         public override void OnMouseExit()
+        {
+            CustomCellGrid grid = FindSceneCellGrid();
+            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
+            {
+                return;
+            }
+
+            base.OnMouseExit();
+        }
+
+        internal void RaiseSceneHighlightEvent()
+        {
+            base.OnMouseEnter();
+        }
+
+        internal void RaiseSceneDehighlightEvent()
         {
             base.OnMouseExit();
         }
@@ -2114,12 +2137,21 @@ namespace Windy.Srpg.Game.Units
         private static void BeginCombatPresentation()
         {
             activeCombatPresentationDepth++;
+            if (activeCombatPresentationDepth == 1)
+            {
+                FindAnyObjectByType<CustomCellGrid>()?.NotifyCombatPresentationBegan();
+            }
         }
 
         private static void EndCombatPresentation()
         {
             activeCombatPresentationDepth = Mathf.Max(0, activeCombatPresentationDepth - 1);
-            FindAnyObjectByType<CustomCellGrid>()?.TryFlushDeferredDestroyQueue();
+            CustomCellGrid cellGrid = FindAnyObjectByType<CustomCellGrid>();
+            cellGrid?.TryFlushDeferredDestroyQueue();
+            if (activeCombatPresentationDepth == 0)
+            {
+                cellGrid?.NotifyCombatPresentationEnded();
+            }
         }
 
         /// <summary>

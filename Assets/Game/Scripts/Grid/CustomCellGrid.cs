@@ -41,8 +41,8 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private bool overwriteOwnedUnitSaveOnGameStarted;
         [SerializeField] private bool enablePreBattleUi = true;
         [SerializeField] private bool startBattleImmediatelyWithCurrentRoster;
-        [Tooltip("Migration toggle: when enabled on a human turn, selection/move routing, pending-move commit, end-turn routing, and movement animation use the runtime BattleUnit/BattleBoard instead of the framework. Default off.")]
-        [SerializeField] private bool useRuntimeMovementExecution;
+        [Tooltip("When enabled, human input, turn loop, battle outcome, and movement execution are routed through the runtime BattleBoard/BattleUnit. Default on.")]
+        [SerializeField] private bool useRuntimeMovementExecution = true;
         [SerializeField] private List<UnitPreset> starterOwnedUnitPresets = new List<UnitPreset>();
         private bool battleStarted;
         private bool isPreBattleDeploymentSwapMode;
@@ -71,15 +71,14 @@ namespace Windy.Srpg.Game.Grid
         public bool CanRequestEndTurn => CurrentCustomState?.BlocksEndTurn != true;
         public bool UseRuntimeMovementExecution => useRuntimeMovementExecution;
         public bool ShouldRouteHumanMovementThroughRuntime => useRuntimeMovementExecution && IsHumanTurn;
+        public bool ShouldRouteTurnLoopThroughRuntime => useRuntimeMovementExecution;
         public bool ShouldRouteBattleOutcomeThroughRuntime => useRuntimeMovementExecution;
-        public bool ShouldSuppressFrameworkSceneInput => CanBridgeHumanRuntimeSceneInput;
-        public bool CanBridgeHumanRuntimeSceneInput =>
+        public bool ShouldSuppressFrameworkSceneInput => UsesRuntimeDirectSceneInput;
+        public bool UsesRuntimeDirectSceneInput =>
             ShouldRouteHumanMovementThroughRuntime
             && !GameFinished
             && !IsPreBattlePhase
-            && (CurrentCustomState is CustomCellGridStateWaitingForInput
-                or CustomUnitSelectedState
-                or CustomCellGridStateMovePendingConfirm);
+            && IsHumanSceneInputStateActive();
 
         public List<CustomPlayer> GetOrderedCustomPlayers()
         {
@@ -251,6 +250,21 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
+            if (suppressLegacyToRuntimeStateMirror)
+            {
+                SetState(new CustomUnitSelectedState(this, unit, unit.GetBattleActions()));
+                return;
+            }
+
+            if (ShouldRouteHumanMovementThroughRuntime)
+            {
+                ResolveRuntimeBoard();
+                ApplyRuntimeDrivenState(
+                    BuildRuntimeSelectedState(unit),
+                    () => SetState(new CustomUnitSelectedState(this, unit, unit.GetBattleActions())));
+                return;
+            }
+
             SetState(new CustomUnitSelectedState(this, unit, unit.GetBattleActions()));
         }
 
@@ -259,6 +273,21 @@ namespace Windy.Srpg.Game.Grid
             if (moveAbility == null)
             {
                 EnterWaitingState();
+                return;
+            }
+
+            if (suppressLegacyToRuntimeStateMirror)
+            {
+                SetState(new CustomCellGridStateMovePendingConfirm(this, moveAbility));
+                return;
+            }
+
+            if (ShouldRouteHumanMovementThroughRuntime)
+            {
+                ResolveRuntimeBoard();
+                ApplyRuntimeDrivenState(
+                    BuildRuntimePendingMoveState(moveAbility),
+                    () => SetState(new CustomCellGridStateMovePendingConfirm(this, moveAbility)));
                 return;
             }
 
@@ -278,7 +307,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (ShouldRouteHumanMovementThroughRuntime)
+            if (ShouldRouteTurnLoopThroughRuntime)
             {
                 ProcessRuntimeRoutedEndTurn();
                 return;
@@ -306,8 +335,8 @@ namespace Windy.Srpg.Game.Grid
         }
 
         /// <summary>
-        /// Restores human input after a pending-move combat coroutine. Leaves the framework
-        /// game-over state untouched when the battle has already ended.
+        /// Restores human input after combat. When runtime turn routing is active, the runtime
+        /// board owns the post-combat return to waiting-for-input.
         /// </summary>
         public void EnterPostCombatGridState()
         {
@@ -317,7 +346,41 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
+            if (ShouldRouteTurnLoopThroughRuntime)
+            {
+                ProcessRuntimeRoutedPostCombatRecovery();
+                return;
+            }
+
             EnterWaitingState();
+        }
+
+        /// <summary>
+        /// Called when combat presentation begins (attack/skill sequences). Syncs runtime blocked
+        /// input for human turns and refreshes the runtime mirror before combat resolves.
+        /// </summary>
+        internal void NotifyCombatPresentationBegan()
+        {
+            if (!ShouldRouteTurnLoopThroughRuntime || GameFinished)
+            {
+                return;
+            }
+
+            ProcessRuntimeRoutedCombatPresentationBegan();
+        }
+
+        /// <summary>
+        /// Called when the outermost combat presentation ends. Refreshes occupancy/outcome on the
+        /// runtime board after combat mutations settle.
+        /// </summary>
+        internal void NotifyCombatPresentationEnded()
+        {
+            if (!ShouldRouteTurnLoopThroughRuntime || GameFinished)
+            {
+                return;
+            }
+
+            ProcessRuntimeRoutedCombatPresentationEnded();
         }
 
         internal void SyncCustomStateToGameOver()

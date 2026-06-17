@@ -79,12 +79,10 @@ namespace Windy.Srpg.Runtime.Board
         public bool SceneInputEnabled => sceneInputEnabled;
 
         /// <summary>
-        /// When set, scene clicks are delegated to the bridge first. Used by the framework
-        /// migration harness to route human input through runtime cells/units without also
-        /// firing legacy framework mouse handlers.
+        /// When set, scene input is handled by the coordinator (direct runtime authority path)
+        /// instead of the board state's native handlers or legacy Func bridges.
         /// </summary>
-        public Func<BattleUnit, bool> UnitClickBridge { get; set; }
-        public Func<BoardCell, bool> CellClickBridge { get; set; }
+        public IBattleBoardSceneInputCoordinator SceneInputCoordinator { get; set; }
 
         /// <summary>
         /// When true the board is being driven by the non-authoritative shadow harness:
@@ -425,6 +423,21 @@ namespace Windy.Srpg.Runtime.Board
             currentState?.OnRightClick();
         }
 
+        /// <summary>
+        /// Entry point for human right-click input. Delegates to the scene input coordinator when
+        /// active, otherwise applies the authoritative runtime board state handler.
+        /// </summary>
+        public virtual void ProcessSceneRightClick()
+        {
+            if (SceneInputCoordinator != null)
+            {
+                SceneInputCoordinator.OnSceneRightClick(this);
+                return;
+            }
+
+            ProcessRightClick();
+        }
+
         public virtual void ConfirmPendingMoveWait()
         {
             if (currentState is BoardStateUnitMovePendingConfirm pendingState)
@@ -631,8 +644,9 @@ namespace Windy.Srpg.Runtime.Board
                 return;
             }
 
-            if (CellClickBridge != null && CellClickBridge.Invoke(cell))
+            if (SceneInputCoordinator != null)
             {
+                SceneInputCoordinator.OnSceneCellClicked(this, cell);
                 return;
             }
 
@@ -646,6 +660,12 @@ namespace Windy.Srpg.Runtime.Board
                 return;
             }
 
+            if (SceneInputCoordinator != null)
+            {
+                SceneInputCoordinator.OnSceneCellHovered(this, cell);
+                return;
+            }
+
             currentState?.OnCellHovered(cell);
         }
 
@@ -653,6 +673,12 @@ namespace Windy.Srpg.Runtime.Board
         {
             if (!sceneInputEnabled)
             {
+                return;
+            }
+
+            if (SceneInputCoordinator != null)
+            {
+                SceneInputCoordinator.OnSceneCellUnhovered(this, cell);
                 return;
             }
 
@@ -666,8 +692,9 @@ namespace Windy.Srpg.Runtime.Board
                 return;
             }
 
-            if (UnitClickBridge != null && UnitClickBridge.Invoke(unit))
+            if (SceneInputCoordinator != null)
             {
+                SceneInputCoordinator.OnSceneUnitClicked(this, unit);
                 return;
             }
 
@@ -681,6 +708,12 @@ namespace Windy.Srpg.Runtime.Board
                 return;
             }
 
+            if (SceneInputCoordinator != null)
+            {
+                SceneInputCoordinator.OnSceneUnitHovered(this, unit);
+                return;
+            }
+
             currentState?.OnUnitHovered(unit);
         }
 
@@ -688,6 +721,12 @@ namespace Windy.Srpg.Runtime.Board
         {
             if (!sceneInputEnabled)
             {
+                return;
+            }
+
+            if (SceneInputCoordinator != null)
+            {
+                SceneInputCoordinator.OnSceneUnitUnhovered(this, unit);
                 return;
             }
 
@@ -704,5 +743,21 @@ namespace Windy.Srpg.Runtime.Board
                 observedUnit?.MovementPointsRemaining ?? 0f,
                 observedUnit?.IsFinishedForTurn ?? false);
         }
+    }
+
+    /// <summary>
+    /// Handles runtime board scene input directly (no Func-bridge indirection). The coordinator
+    /// owns human input when migration toggle is on; BattleBoard forwards clicks/hover here
+    /// instead of through legacy bridge callbacks.
+    /// </summary>
+    public interface IBattleBoardSceneInputCoordinator
+    {
+        void OnSceneUnitClicked(BattleBoard board, BattleUnit unit);
+        void OnSceneCellClicked(BattleBoard board, BoardCell cell);
+        void OnSceneRightClick(BattleBoard board);
+        void OnSceneUnitHovered(BattleBoard board, BattleUnit unit);
+        void OnSceneUnitUnhovered(BattleBoard board, BattleUnit unit);
+        void OnSceneCellHovered(BattleBoard board, BoardCell cell);
+        void OnSceneCellUnhovered(BattleBoard board, BoardCell cell);
     }
 }

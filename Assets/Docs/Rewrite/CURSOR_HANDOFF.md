@@ -322,7 +322,7 @@ These were already present and are relied on by the work above:
 | `LogPendingAttackParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` pending attackable enemy parity |
 | `LogRuntimeRoutingParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` live routing decisions (move/end-turn) |
 | `LogTurnLoopParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` end-turn plan + post-turn player sync |
-| `LogBattleOutcomeParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` win/lose outcome on unit death / game end |
+| `LogMirroredBoardStateParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` framework vs runtime board state after mirror/bridged input |
 
 ---
 
@@ -336,10 +336,14 @@ These were already present and are relied on by the work above:
 6. **Combat post-game / AI counterattack recovery** — **implemented** (`EnterPostCombatGridState`, AI attack wait on player host, game-over during AI turn).
 7. **Battle outcome shadow parity** — **done** (user smoke-tested MATCH incl. `Battle ended`).
 8. **Win/lose runtime routing (toggle ON)** — **done** (user smoke-tested: shadow + routing MATCH, `TryApplyBattleOutcome` on win).
-9. **Framework scene input suppression (toggle ON)** — **implemented** (runtime `sceneInputEnabled` + framework mouse suppress + click bridge to existing state handlers).
-10. **Input/turn-loop authority flip** — enable `BattleBoard.sceneInputEnabled` without bridge. Blocked until parity proven.
-11. **Cell identity collapse** — explicitly deferred.
-12. **Phases 10–13** of `CLEAN_RUNTIME_REWRITE_PLAN.md` — not started.
+9. **Framework scene input suppression (toggle ON)** — **implemented + smoke-tested OK** (runtime clicks, framework mouse blocked).
+10. **Runtime hover bridge (toggle ON)** — **implemented + smoke-tested OK**.
+11. **Mirrored board state parity + pending-move mirror sync** — **implemented** (logs on state mirror + bridged clicks; syncs runtime pending move from framework).
+12. **Deferred destroy queue** — **implemented** (combat coroutines finish before `Destroy`; counter-EXP / AI counter-kill stable).
+13. **Counterattack EXP + AI turn stall during EXP HUD** — **implemented + smoke-tested OK**.
+14. **Input/turn-loop authority flip** — enable `BattleBoard.sceneInputEnabled` without bridge. Blocked until parity proven.
+14. **Cell identity collapse** — explicitly deferred.
+15. **Phases 10–13** of `CLEAN_RUNTIME_REWRITE_PLAN.md` — not started.
 
 ---
 
@@ -485,8 +489,15 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | Combat recovery (game over / AI counter) | **Implemented** |
 | Battle outcome shadow | **Done** (user smoke-tested MATCH) |
 | Win/lose runtime routing | **Implemented + smoke-tested OK** |
-| Framework scene input suppression | **Implemented** (toggle ON: runtime clicks, framework mouse blocked) |
-| Input/turn-loop flip | **Not started** |
+| Framework scene input suppression | **Implemented + smoke-tested OK** |
+| Runtime hover bridge | **Implemented + smoke-tested OK** |
+| Mirrored board state parity | **Implemented + smoke-tested OK** (all MATCH) |
+| Runtime-led EnterSelected/PendingMove | **Implemented + smoke-tested OK** |
+| Runtime-direct scene input routing | **Implemented + smoke-tested OK** (unit/cell click) |
+| Runtime-direct right-click routing | **Implemented + smoke-tested OK** |
+| Deferred destroy queue | **Implemented** |
+| Counterattack EXP + AI turn stall | **Implemented + smoke-tested OK** |
+| Input/turn-loop flip | **Human scene input authority on runtime board** (framework states legacy-only when toggle ON) |
 | Cell collapse | **Explicitly deferred** |
 
-**Next action:** Smoke test framework input suppression (toggle ON → select/move/attack/cancel still work; no double-click). Then runtime hover bridge if needed.
+**Next action:** Smoke test human movement loop with toggle ON (parity should remain MATCH). Then AI runtime turn authority beyond shadow.

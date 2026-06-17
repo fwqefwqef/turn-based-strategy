@@ -132,6 +132,11 @@ namespace Windy.Srpg.Runtime.Board
             occupants.Remove(unit);
         }
 
+        public virtual void ClearOccupants()
+        {
+            occupants.Clear();
+        }
+
         public virtual void ApplyHighlight(CellHighlightKind highlightKind)
         {
             ActiveHighlight = highlightKind;

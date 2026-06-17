@@ -84,7 +84,7 @@ namespace Windy.Srpg.Game.Grid
             }
 
             subscribedCells.Clear();
-            ClearRuntimeSceneInputBridge();
+            ClearRuntimeSceneInputCoordinator();
         }
 
         private void OnApplicationPause(bool pauseStatus)

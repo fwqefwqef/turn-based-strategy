@@ -21,6 +21,8 @@ namespace Windy.Srpg.Game.Diagnostics
     /// </summary>
     public static class RuntimeParityDiagnostics
     {
+        public static bool EnableRuntimeParityDiagnostics = false;
+
         public static bool LogReachableParity = true;
         public static bool LogSelectionParity = true;
         public static bool LogRightClickParity = true;
@@ -28,15 +30,21 @@ namespace Windy.Srpg.Game.Diagnostics
         public static bool LogPendingMoveParity = true;
         public static bool LogPendingAttackParity = true;
         public static bool LogRuntimeRoutingParity = true;
+        public static bool LogMirroredBoardStateParity = true;
         public static bool LogTurnLoopParity = true;
         public static bool LogBattleOutcomeParity = true;
+
+        private static bool IsLoggingEnabled(bool categoryEnabled)
+        {
+            return EnableRuntimeParityDiagnostics && categoryEnabled;
+        }
 
         public static void CompareBattleOutcome(
             string eventLabel,
             BattleOutcome frameworkOutcome,
             BattleOutcome runtimeOutcome)
         {
-            if (!LogBattleOutcomeParity)
+            if (!IsLoggingEnabled(LogBattleOutcomeParity))
             {
                 return;
             }
@@ -73,7 +81,7 @@ namespace Windy.Srpg.Game.Diagnostics
             BattleOutcome frameworkOutcome,
             BattleOutcome runtimeOutcome)
         {
-            if (!LogTurnLoopParity)
+            if (!IsLoggingEnabled(LogTurnLoopParity))
             {
                 return;
             }
@@ -135,7 +143,7 @@ namespace Windy.Srpg.Game.Diagnostics
 
         public static void CompareCurrentPlayerSync(int frameworkPlayerId, int runtimePlayerId)
         {
-            if (!LogTurnLoopParity)
+            if (!IsLoggingEnabled(LogTurnLoopParity))
             {
                 return;
             }
@@ -152,6 +160,43 @@ namespace Windy.Srpg.Game.Diagnostics
             else
             {
                 Debug.LogWarning(message);
+            }
+        }
+
+        public static void CompareAiTurnUnitOrder(
+            IReadOnlyList<CustomUnit> frameworkOrder,
+            IReadOnlyList<BattleUnit> runtimeOrder)
+        {
+            if (!IsLoggingEnabled(LogTurnLoopParity))
+            {
+                return;
+            }
+
+            List<string> frameworkNames = frameworkOrder?
+                .Where(unit => unit != null)
+                .Select(unit => unit.name)
+                .ToList()
+                ?? new List<string>();
+            List<string> runtimeNames = runtimeOrder?
+                .Where(unit => unit != null)
+                .Select(unit => unit.name)
+                .ToList()
+                ?? new List<string>();
+
+            bool match = frameworkNames.SequenceEqual(runtimeNames);
+            var sb = new StringBuilder();
+            sb.AppendLine("[RuntimeShadow] AI turn unit order");
+            sb.AppendLine($"  framework ({frameworkNames.Count}): {string.Join(" -> ", frameworkNames)}");
+            sb.AppendLine($"  runtime ({runtimeNames.Count}): {string.Join(" -> ", runtimeNames)}");
+            sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
+
+            if (match)
+            {
+                Debug.Log(sb.ToString());
+            }
+            else
+            {
+                Debug.LogWarning(sb.ToString());
             }
         }
 
@@ -209,7 +254,7 @@ namespace Windy.Srpg.Game.Diagnostics
             IEnumerable<CustomUnit> frameworkAttackables,
             IEnumerable<CustomUnit> runtimeAttackables)
         {
-            if (!LogPendingAttackParity || actor == null)
+            if (!IsLoggingEnabled(LogPendingAttackParity) || actor == null)
             {
                 return;
             }
@@ -253,7 +298,7 @@ namespace Windy.Srpg.Game.Diagnostics
             CustomCellGrid.RuntimeBattleOutcomeDecision shadowDecision,
             CustomCellGrid.RuntimeBattleOutcomeDecision processDecision)
         {
-            if (!LogRuntimeRoutingParity)
+            if (!IsLoggingEnabled(LogRuntimeRoutingParity))
             {
                 return;
             }
@@ -284,7 +329,7 @@ namespace Windy.Srpg.Game.Diagnostics
             CustomCellGrid.RuntimeEndTurnTransitionDecision shadowDecision,
             CustomCellGrid.RuntimeEndTurnTransitionDecision processDecision)
         {
-            if (!LogRuntimeRoutingParity)
+            if (!IsLoggingEnabled(LogRuntimeRoutingParity))
             {
                 return;
             }
@@ -318,7 +363,7 @@ namespace Windy.Srpg.Game.Diagnostics
             CustomCellGrid.RuntimeStateTransitionDecision shadowDecision,
             CustomCellGrid.RuntimeStateTransitionDecision processDecision)
         {
-            if (!LogRuntimeRoutingParity)
+            if (!IsLoggingEnabled(LogRuntimeRoutingParity))
             {
                 return;
             }
@@ -357,7 +402,7 @@ namespace Windy.Srpg.Game.Diagnostics
             BattleUnit runtimeDecided,
             BattleUnit expectedRuntime)
         {
-            if (!LogSelectionParity)
+            if (!IsLoggingEnabled(LogSelectionParity))
             {
                 return;
             }
@@ -391,7 +436,7 @@ namespace Windy.Srpg.Game.Diagnostics
             BattleUnit runtimeSelectedAfterRightClick,
             BattleUnit expectedRuntimeAfterRightClick)
         {
-            if (!LogRightClickParity)
+            if (!IsLoggingEnabled(LogRightClickParity))
             {
                 return;
             }
@@ -424,7 +469,7 @@ namespace Windy.Srpg.Game.Diagnostics
             BattleUnit expectedRuntimeSelected,
             BoardCell expectedRuntimePendingDestination)
         {
-            if (!LogSelectedMoveParity)
+            if (!IsLoggingEnabled(LogSelectedMoveParity))
             {
                 return;
             }
@@ -465,7 +510,7 @@ namespace Windy.Srpg.Game.Diagnostics
             bool frameworkFinishedAfterTransition,
             BattleBoard.ShadowTransitionSnapshot runtimeSnapshot)
         {
-            if (!LogPendingMoveParity)
+            if (!IsLoggingEnabled(LogPendingMoveParity))
             {
                 return;
             }
@@ -500,7 +545,7 @@ namespace Windy.Srpg.Game.Diagnostics
 
         public static void CompareReachable(CustomUnit frameworkUnit, IReadOnlyList<Cell> frameworkCells, HashSet<Cell> frameworkReachable)
         {
-            if (!LogReachableParity || frameworkUnit == null)
+            if (!IsLoggingEnabled(LogReachableParity) || frameworkUnit == null)
             {
                 return;
             }

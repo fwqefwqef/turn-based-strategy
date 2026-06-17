@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TbsFramework.Cells;
 using Windy.Srpg.Runtime.Board;
 using Windy.Srpg.Runtime.Units;
@@ -41,6 +42,49 @@ namespace Windy.Srpg.Game.Units
             SyncMirroredRuntimeMovementPoints();
             SyncMirroredRuntimeTurnState();
             SyncMirroredRuntimeCell(Cell);
+            SyncMirroredRuntimePendingMove();
+        }
+
+        private void SyncMirroredRuntimePendingMove()
+        {
+            BattleUnit runtimeUnit = ResolveRuntimeUnit();
+            if (runtimeUnit == null)
+            {
+                return;
+            }
+
+            if (!HasPendingMove)
+            {
+                if (runtimeUnit.HasPendingMove)
+                {
+                    runtimeUnit.CancelPendingMove();
+                }
+
+                return;
+            }
+
+            PendingMove pending = _pendingMove.Value;
+            BoardCell runtimeDestination = ResolveLinkedRuntimeCell(pending.ToCell);
+            if (runtimeDestination == null)
+            {
+                return;
+            }
+
+            if (runtimeUnit.HasPendingMove && runtimeUnit.PreviewCell == runtimeDestination)
+            {
+                return;
+            }
+
+            if (pending.ToCell == pending.FromCell)
+            {
+                runtimeUnit.BeginPendingMoveInPlace();
+                return;
+            }
+
+            if (TryBuildRuntimeMovementPath(pending.Path, out List<BoardCell> runtimePath))
+            {
+                runtimeUnit.BeginPendingMove(runtimeDestination, runtimePath);
+            }
         }
 
         private void SyncMirroredRuntimeTurnState()

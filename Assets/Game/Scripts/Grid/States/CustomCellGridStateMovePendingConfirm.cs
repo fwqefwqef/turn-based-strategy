@@ -28,6 +28,11 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnCustomUnitClicked(CustomUnit customUnit)
         {
+            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
+            {
+                return;
+            }
+
             customMoveAbility?.OnPendingMoveUnitClicked(customUnit, _cellGrid);
         }
 
@@ -43,6 +48,11 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnCellClicked(IBattleCell cell)
         {
+            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
+            {
+                return;
+            }
+
             customMoveAbility?.OnPendingMoveCellClicked(ResolveLegacyCell(cell), _cellGrid);
         }
 
@@ -58,6 +68,11 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnRightClick()
         {
+            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
+            {
+                return;
+            }
+
             customMoveAbility?.OnPendingMoveRightClicked(_cellGrid);
         }
     }

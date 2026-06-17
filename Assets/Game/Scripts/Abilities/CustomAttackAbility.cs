@@ -57,6 +57,11 @@ namespace Windy.Srpg.Game.Abilities
 
         protected override void OnCellClicked(Cell cell, CustomCellGrid cellGrid)
         {
+            if (cell == null)
+            {
+                return;
+            }
+
             cellGrid?.EnterWaitingState();
         }
 

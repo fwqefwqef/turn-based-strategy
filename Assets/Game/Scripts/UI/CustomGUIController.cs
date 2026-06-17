@@ -111,9 +111,9 @@ namespace Windy.Srpg.Game.UI
                 EndTurn();
             }
 
-            if (Input.GetMouseButtonDown(1) && CellGrid.CurrentCustomState is ICustomRightClickHandler rightClickHandler)
+            if (Input.GetMouseButtonDown(1) && CellGrid.CurrentCustomState is ICustomRightClickHandler)
             {
-                rightClickHandler.OnRightClick();
+                CellGrid.ProcessSceneRightClick();
             }
         }
 

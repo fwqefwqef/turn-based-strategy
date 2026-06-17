@@ -29,6 +29,38 @@ namespace Windy.Srpg.Game.Grid
             base.OnMouseDown();
         }
 
+        public override void OnMouseEnter()
+        {
+            CustomCellGrid grid = FindAnyObjectByType<CustomCellGrid>();
+            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
+            {
+                return;
+            }
+
+            base.OnMouseEnter();
+        }
+
+        public override void OnMouseExit()
+        {
+            CustomCellGrid grid = FindAnyObjectByType<CustomCellGrid>();
+            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
+            {
+                return;
+            }
+
+            base.OnMouseExit();
+        }
+
+        internal void RaiseSceneHighlightEvent()
+        {
+            base.OnMouseEnter();
+        }
+
+        internal void RaiseSceneDehighlightEvent()
+        {
+            base.OnMouseExit();
+        }
+
         public virtual void MarkAsAttackPreview()
         {
             MarkAsAttackPreviewFn?.ForEach(o => o.Apply(this));

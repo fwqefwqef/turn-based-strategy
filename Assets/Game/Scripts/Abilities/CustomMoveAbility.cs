@@ -783,14 +783,22 @@ namespace Windy.Srpg.Game.Abilities
 
                     if (cellGrid != null && cellGrid.ShouldRouteHumanMovementThroughRuntime)
                     {
-                        var shadowDecision = cellGrid.EvaluateRuntimePendingMoveWait(
-                            UnitReference,
-                            UnitReference.PreviewCell);
+                        CustomCellGrid.RuntimeStateTransitionDecision shadowDecision = default;
+                        if (Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.EnableRuntimeParityDiagnostics)
+                        {
+                            shadowDecision = cellGrid.EvaluateRuntimePendingMoveWait(
+                                UnitReference,
+                                UnitReference.PreviewCell);
+                        }
+
                         var runtimeDecision = cellGrid.ProcessRuntimePendingMoveWait();
-                        RuntimeParityDiagnostics.CompareRuntimeStateDecision(
-                            $"Pending move wait for {UnitReference.name}",
-                            shadowDecision,
-                            runtimeDecision);
+                        if (Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.EnableRuntimeParityDiagnostics)
+                        {
+                            RuntimeParityDiagnostics.CompareRuntimeStateDecision(
+                                $"Pending move wait for {UnitReference.name}",
+                                shadowDecision,
+                                runtimeDecision);
+                        }
 
                         if (UnitReference.HasPendingMove)
                         {
@@ -827,14 +835,24 @@ namespace Windy.Srpg.Game.Abilities
 
         public void OnPendingMoveRightClicked(CustomCellGrid cellGrid)
         {
-            if (!UnitReference.HasPendingMove)
+            if (TryHandlePendingMoveRightClickUiModes(cellGrid))
             {
                 return;
             }
 
+            CancelPendingMoveAndRestoreSelection(cellGrid);
+        }
+
+        internal bool TryHandlePendingMoveRightClickUiModes(CustomCellGrid cellGrid)
+        {
+            if (!UnitReference.HasPendingMove)
+            {
+                return false;
+            }
+
             if (showingInventoryMenu)
             {
-                return;
+                return true;
             }
 
             if (awaitingAttackTargetSelection)
@@ -847,7 +865,8 @@ namespace Windy.Srpg.Game.Abilities
                 {
                     CancelAttackTargeting(cellGrid);
                 }
-                return;
+
+                return true;
             }
 
             if (awaitingSkillTargetSelection)
@@ -864,43 +883,36 @@ namespace Windy.Srpg.Game.Abilities
                 {
                     CancelSkillTargeting(cellGrid);
                 }
-                return;
+
+                return true;
             }
 
             if (awaitingTradeTargetSelection)
             {
                 CancelTradeTargeting(cellGrid);
-                return;
+                return true;
             }
 
-            if (cellGrid != null && cellGrid.ShouldRouteHumanMovementThroughRuntime)
+            return false;
+        }
+
+        internal void ApplyLegacyEffectsAfterRuntimePendingMoveRightClick(
+            CustomCellGrid cellGrid,
+            CustomCellGrid.RuntimeStateTransitionDecision runtimeDecision)
+        {
+            if (runtimeDecision.StateLabel == "Selected"
+                && runtimeDecision.SelectedUnit == UnitReference)
             {
-                var shadowDecision = cellGrid.EvaluateRuntimePendingMoveRightClick(
-                    UnitReference,
-                    UnitReference.PreviewCell);
-                var runtimeDecision = cellGrid.ProcessRuntimePendingMoveRightClick();
-                RuntimeParityDiagnostics.CompareRuntimeStateDecision(
-                    $"Pending move right-click for {UnitReference.name}",
-                    shadowDecision,
-                    runtimeDecision);
-
-                if (runtimeDecision.StateLabel == "Selected" && runtimeDecision.SelectedUnit == UnitReference)
-                {
-                    CancelPendingMoveAndRestoreSelection(cellGrid);
-                    return;
-                }
-
-                if (runtimeDecision.StateLabel == "Waiting")
-                {
-                    UnitReference.CancelPendingMove();
-                    FindActionMenuUI()?.Hide();
-                    cellGrid.ApplyLegacyStateFromRuntime(cellGrid.EnterWaitingState);
-                }
-
+                CancelPendingMoveAndRestoreSelection(cellGrid);
                 return;
             }
 
-            CancelPendingMoveAndRestoreSelection(cellGrid);
+            if (runtimeDecision.StateLabel == "Waiting")
+            {
+                UnitReference.CancelPendingMove();
+                FindActionMenuUI()?.Hide();
+                cellGrid.ApplyLegacyStateFromRuntime(cellGrid.EnterWaitingState);
+            }
         }
 
         private void BeginAttackTargeting(CustomCellGrid cellGrid)
@@ -1305,7 +1317,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private void LogPendingMoveWaitParity(CustomCellGrid cellGrid)
         {
-            if (cellGrid == null || !UnitReference.HasPendingMove)
+            if (cellGrid == null || !UnitReference.HasPendingMove
+                || !Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.EnableRuntimeParityDiagnostics)
             {
                 return;
             }
@@ -1324,7 +1337,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private void LogPendingMoveRestoreSelectionParity(CustomCellGrid cellGrid)
         {
-            if (cellGrid == null || !UnitReference.HasPendingMove)
+            if (cellGrid == null || !UnitReference.HasPendingMove
+                || !Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.EnableRuntimeParityDiagnostics)
             {
                 return;
             }
@@ -1451,7 +1465,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private void LogPendingAttackParity(CustomCellGrid cellGrid)
         {
-            if (cellGrid == null || UnitReference == null || !UnitReference.HasPendingMove)
+            if (cellGrid == null || UnitReference == null || !UnitReference.HasPendingMove
+                || !Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.EnableRuntimeParityDiagnostics)
             {
                 return;
             }
@@ -4142,12 +4157,20 @@ namespace Windy.Srpg.Game.Abilities
 
         private void RefreshAvailableDestinations(CustomCellGrid cellGrid, bool compareParity)
         {
+            bool shouldCompareParity = compareParity
+                && Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.EnableRuntimeParityDiagnostics;
+
+            if (shouldCompareParity && cellGrid != null)
+            {
+                cellGrid.RefreshSceneCellOccupancyNow();
+            }
+
             List<Cell> allCells = ResolveGridCells(cellGrid);
             UnitReference.CachePaths(allCells);
             availableDestinations = UnitReference.GetAvailableDestinations(allCells);
             cachedOccupancyRevision = cellGrid != null ? cellGrid.OccupancyRevision : cachedOccupancyRevision;
 
-            if (compareParity)
+            if (shouldCompareParity)
             {
                 Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.CompareReachable(UnitReference, allCells, availableDestinations);
             }

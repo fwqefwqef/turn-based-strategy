@@ -7,7 +7,6 @@ using UnityEngine;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Board;
 using Windy.Srpg.Runtime.Units;
-using Windy.Srpg.Game.Diagnostics;
 
 namespace Windy.Srpg.Game.Grid.States
 {
@@ -57,7 +56,6 @@ namespace Windy.Srpg.Game.Grid.States
         {
             if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
             {
-                HandleRuntimeRoutedUnitClick(unit);
                 return;
             }
 
@@ -80,7 +78,6 @@ namespace Windy.Srpg.Game.Grid.States
         {
             if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
             {
-                HandleRuntimeRoutedCellClick(cell);
                 return;
             }
 
@@ -101,77 +98,8 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnRightClick()
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                var shadowDecision = _cellGrid.EvaluateRuntimeSelectedStateRightClick(selectedUnit);
-                var runtimeDecision = _cellGrid.ProcessRuntimeRightClick();
-                RuntimeParityDiagnostics.CompareRuntimeStateDecision(
-                    $"Selected right-click for {selectedUnit.name}",
-                    shadowDecision,
-                    runtimeDecision);
-
-                if (runtimeDecision.StateLabel == "Waiting")
-                {
-                    _cellGrid.ApplyLegacyStateFromRuntime(_cellGrid.EnterWaitingState);
-                    return;
-                }
-
-                if (runtimeDecision.StateLabel == "Selected" && runtimeDecision.SelectedUnit != null)
-                {
-                    _cellGrid.ApplyLegacyStateFromRuntime(() => _cellGrid.EnterSelectedState(runtimeDecision.SelectedUnit));
-                }
-
-                return;
-            }
-
             _cellGrid.ShadowCompareRightClick(selectedUnit, null);
             _cellGrid.EnterWaitingState();
-        }
-
-        private void HandleRuntimeRoutedUnitClick(CustomUnit unit)
-        {
-            bool isFriendlyCurrentPlayerUnit =
-                unit != null
-                && _cellGrid.GetCurrentPlayerCustomUnits().Contains(unit);
-
-            if (!isFriendlyCurrentPlayerUnit)
-            {
-                IBattleUnit battleUnit = unit;
-                abilities.ForEach(action => action.OnUnitClicked(battleUnit, _cellGrid));
-                return;
-            }
-
-            var shadowDecision = _cellGrid.EvaluateRuntimeSelectedStateUnitClick(selectedUnit, unit);
-            var runtimeDecision = _cellGrid.ProcessRuntimeSelectedStateUnitClick(unit);
-            RuntimeParityDiagnostics.CompareRuntimeStateDecision(
-                $"Selected unit click on {unit.name}",
-                shadowDecision,
-                runtimeDecision);
-
-            if (runtimeDecision.StateLabel == "PendingMoveConfirm" && runtimeDecision.SelectedUnit == selectedUnit)
-            {
-                var customMoveAbility = abilities.OfType<CustomMoveAbility>().FirstOrDefault();
-                if (customMoveAbility != null)
-                {
-                    customMoveAbility.OnSelectedUnitClicked(_cellGrid);
-                    return;
-                }
-            }
-
-            if (runtimeDecision.StateLabel == "Selected" && runtimeDecision.SelectedUnit != null)
-            {
-                _cellGrid.ApplyLegacyStateFromRuntime(() => _cellGrid.EnterSelectedState(runtimeDecision.SelectedUnit));
-                return;
-            }
-
-            if (runtimeDecision.StateLabel == "Waiting")
-            {
-                _cellGrid.ApplyLegacyStateFromRuntime(_cellGrid.EnterWaitingState);
-                return;
-            }
-
-            IBattleUnit routedBattleUnit = unit;
-            abilities.ForEach(action => action.OnUnitClicked(routedBattleUnit, _cellGrid));
         }
 
         private void HandleLegacyUnitClick(CustomUnit unit)
@@ -206,29 +134,6 @@ namespace Windy.Srpg.Game.Grid.States
 
             IBattleUnit battleUnit = unit;
             abilities.ForEach(action => action.OnUnitClicked(battleUnit, _cellGrid));
-        }
-
-        private void HandleRuntimeRoutedCellClick(IBattleCell cell)
-        {
-            Cell legacyCell = ResolveLegacyCell(cell);
-            var shadowDecision = _cellGrid.EvaluateRuntimeSelectedStateCellClick(selectedUnit, legacyCell);
-            var runtimeDecision = _cellGrid.ProcessRuntimeSelectedStateCellClick(legacyCell);
-            RuntimeParityDiagnostics.CompareRuntimeStateDecision(
-                $"Selected cell click on {Describe(legacyCell)}",
-                shadowDecision,
-                runtimeDecision);
-
-            if (runtimeDecision.StateLabel == "Waiting")
-            {
-                _cellGrid.ApplyLegacyStateFromRuntime(_cellGrid.EnterWaitingState);
-                return;
-            }
-
-            if (runtimeDecision.StateLabel == "PendingMoveConfirm"
-                && runtimeDecision.SelectedUnit == selectedUnit)
-            {
-                abilities.ForEach(action => action.OnCellClicked(cell, _cellGrid));
-            }
         }
 
         private static string Describe(Cell cell)

@@ -4,6 +4,7 @@ using TbsFramework.Cells;
 using UnityEngine;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -51,8 +52,47 @@ namespace Windy.Srpg.Game.Grid
                 }
             }
 
+            RebuildRuntimeBoardCellOccupancy();
             occupancyRevision++;
             CustomUnit.InvalidateAllCachedPaths();
+        }
+
+        private void RebuildRuntimeBoardCellOccupancy()
+        {
+            foreach (Cell cell in GetAllCells())
+            {
+                BoardCell runtimeCell = GetRuntimeCell(cell);
+                runtimeCell?.ClearOccupants();
+            }
+
+            foreach (CustomUnit unit in GetAllSceneCustomUnitsFromHierarchy())
+            {
+                if (unit == null || unit.ExcludedFromBattle)
+                {
+                    continue;
+                }
+
+                BattleUnit runtimeUnit = unit.GetComponent<BattleUnit>();
+                if (runtimeUnit == null)
+                {
+                    continue;
+                }
+
+                if (unit.Cell == null)
+                {
+                    runtimeUnit.ClearCurrentCell();
+                    continue;
+                }
+
+                BoardCell runtimeCell = GetRuntimeCell(unit.Cell);
+                if (runtimeCell == null)
+                {
+                    runtimeUnit.ClearCurrentCell();
+                    continue;
+                }
+
+                runtimeUnit.AssignCellImmediate(runtimeCell, syncTransform: false);
+            }
         }
 
         private static bool ShouldSyncRuntimeCellOccupancy(CustomUnit unit)
