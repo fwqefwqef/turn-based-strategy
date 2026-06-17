@@ -1,6 +1,6 @@
 # Cursor Handoff — Framework Rewrite Work Log
 
-Last updated: 2026-06-16  
+Last updated: 2026-06-17  
 Workspace: `C:\Users\sjkim\Turn Based Strategy`  
 Prior chat transcript: `C:\Users\sjkim\.cursor\projects\c-Users-sjkim-Turn-Based-Strategy\agent-transcripts\235f9eff-6e30-49c4-8ef9-729c8c24e36a\235f9eff-6e30-49c4-8ef9-729c8c24e36a.jsonl`
 
@@ -144,7 +144,73 @@ Toggle location: `CustomCellGrid` component in scene — field `useRuntimeMoveme
 
 ---
 
-### Shadow Harness — Selection parity (in progress, awaiting smoke test)
+### Codex backup commit (`8a1314d`) — Movement ability runtime expansion
+
+Codex extended the movement migration beyond animation-only into **runtime board states + pending-move model + human input routing**.
+
+**Runtime additions:**
+
+- `BoardStateUnitMovePendingConfirm` — pending destination, `BeginPendingMove` / `BeginPendingMoveInPlace` on enter, cancel/right-click/wait handling
+- `BattleUnit` pending move API — `BeginPendingMove`, `BeginPendingMoveInPlace`, `ConfirmPendingMove`, `CancelPendingMove`, `HasPendingMove`, runtime snapshots for shadow eval
+- `BattleBoard.ProcessUnitClick/ProcessCellClick/ProcessRightClick/ConfirmPendingMoveWait` — authoritative runtime input dispatch (when routed)
+- `CustomCellGrid.ShouldRouteHumanMovementThroughRuntime` — `useRuntimeMovementExecution && IsHumanTurn`
+- `CustomCellGrid.ApplyLegacyStateFromRuntime` — applies framework state without re-mirroring runtime (prevents loops)
+- `CustomCellGrid.RuntimeMirror` — `ProcessRuntime*` methods, legacy↔runtime state builders, shadow compare helpers (parity logging infrastructure retained)
+
+**Framework bridge changes:**
+
+- `CustomCellGridStateWaitingForInput` / `CustomUnitSelectedState` — when toggle **on**, runtime decides selection/cell-click/right-click; framework UI/abilities follow via `ApplyLegacyStateFromRuntime`
+- `CustomMoveAbility` — pending wait/right-click consult runtime when toggle on
+- `CustomUnit.ConfirmPendingMove` — when toggle on, commits via `TryCommitPendingMoveViaRuntime` (runtime owns occupancy/MP, framework synced back)
+- `CustomUnit.Move` — when toggle on, can commit direct moves via runtime path authority
+
+**Shadow parity (user-reported):**
+
+- Right-click deselect from selected unit: **`[RuntimeShadow] RightClick ... RESULT: MATCH`**
+
+**Cursor follow-up (2026-06-17):**
+
+Codex had wired runtime routing **unconditionally** (even with toggle off). Restored gated cutover:
+
+- Toggle **off** → legacy framework input + shadow logging (same as pre-Codex behavior)
+- Toggle **on** → runtime routes human selection/move/pending confirm
+- `CancelPendingMove` / `BeginPendingMoveInPlace` now sync runtime `BattleUnit` pending state
+- `TryUseRuntimePathAuthority` gated behind same toggle (was applying runtime commits to AI/direct moves always)
+
+**Cursor slice — runtime-owned reachable/path highlighting (2026-06-17):**
+
+When `ShouldRouteHumanMovementThroughRuntime` is true, `CustomMoveAbility` draws blue reachable tiles and hover path via `BoardCell.ApplyHighlight` / `RuntimeSampleSquareHighlighter` instead of framework `SampleSquare.MarkAsReachable/MarkAsPath`. `CustomCellGrid.ClearAllCellHighlights()` clears both layers on state enter.
+
+**Cursor slice — pending-move + routing parity on toggle-ON path (2026-06-17):**
+
+- `ShadowComparePendingMoveWait/RightClick` wired on wait and cancel-restore (both toggles)
+- `CompareRuntimeStateDecision` logs shadow-eval vs live `ProcessRuntime*` on toggle-ON routing (selection, cell click, right-click, pending wait/right-click)
+- Flag: `LogRuntimeRoutingParity` (default true)
+
+**Cursor slice — pending-state attack routing (2026-06-17):**
+
+- `GetActingCellForPendingActions` — when toggle ON, attack/skill queries use `ResolveRuntimeActingCell` (runtime `BattleUnit.PreviewCell` → legacy `Cell`); toggle OFF uses `PreviewCell`
+- Attack menu visibility, attackable enemy list, weapon legality, attack preview cells, and action menu anchor all use acting cell
+- Runtime attack-range highlighting via `CellHighlightKind.Attack` when toggle ON (framework `MarkAsAttackPreview` when OFF)
+- `ComparePendingAttackables` + `LogPendingAttackParity` log framework vs runtime attackable sets when action menu opens and attack targeting begins
+
+**Smoke test (toggle ON):** move adjacent to enemy → action menu shows Attack → enter attack targeting → red preview cells + defending enemy highlight → Console `[RuntimeShadow] Pending attackables … RESULT: MATCH`
+
+**Still framework-only:** ~~skill/heal/item/trade pending actions~~ **implemented** (acting cell wired; item menu uses acting-cell anchor; execution still framework-owned)
+
+**Cursor slice — pending-state skill/heal/item/trade acting cell (2026-06-17):**
+
+- Skill menu visibility, valid targets, range preview, area projection, weapon legality, and skill preview UI all use `GetActingCellForPendingActions`
+- Trade menu visibility, adjacent partner query, trade-range highlights use acting cell
+- Inventory menu anchor uses acting cell
+- Runtime highlights when toggle ON: skill range (`Attack`/`Support` by targeting mode), trade adjacent tiles (`Support`)
+- Cancel skill/trade targeting on acting-cell click (same as attack)
+
+**Smoke test (toggle ON):** move to preview tile → verify Heal/Skill/Item/Trade buttons match pre-migration when in range → enter each targeting mode → cancel via acting-cell click
+
+---
+
+### Shadow Harness — Selection / move parity
 
 **Context:** User chose to pursue the **input/turn-loop flip** eventually, but agreed to the **shadow harness** path because runtime board states/AI are skeletal. An immediate input flip would break the game (runtime `BoardStateUnitSelected` has no cell-click movement; `BoardStateAiTurn` is empty; no runtime ability/AI/end-turn logic).
 
@@ -246,55 +312,78 @@ These were already present and are relied on by the work above:
 
 | Flag | Location | Default | Purpose |
 |------|----------|---------|---------|
-| `useRuntimeMovementExecution` | `CustomCellGrid` (Inspector) | off | Runtime animates human movement walk |
+| `useRuntimeMovementExecution` | `CustomCellGrid` (Inspector) | off | Human turn: runtime routes selection/move, commits pending moves, end turn, animates walks |
+| `ShouldRouteHumanMovementThroughRuntime` | `CustomCellGrid` (code) | derived | `useRuntimeMovementExecution && IsHumanTurn` |
 | `LogReachableParity` | `RuntimeParityDiagnostics` | true | `[RuntimeParity]` reachable logs |
-| `LogSelectionParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` selection logs |
-
-Consider gating selection logs behind the same Inspector toggle if Console noise is a problem.
+| `LogSelectionParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` selection logs (toggle off path) |
+| `LogRightClickParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` right-click logs (toggle off path) |
+| `LogSelectedMoveParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` selected-state unit/cell click logs (toggle off path) |
+| `LogPendingMoveParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` pending wait/right-click logs |
+| `LogPendingAttackParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` pending attackable enemy parity |
+| `LogRuntimeRoutingParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` live routing decisions (move/end-turn) |
+| `LogTurnLoopParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` end-turn plan + post-turn player sync |
+| `LogBattleOutcomeParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` win/lose outcome on unit death / game end |
 
 ---
 
 ## What Is NOT Done Yet
 
-1. **Selection shadow smoke test** — implemented, user has not yet reported results.
-2. **Shadow harness for other input behaviors:**
-   - Deselect / right-click
-   - Cell click → move (reachable highlighting + path preview + commit)
-   - Ability invocation (attack, skill, item, trade, wait)
-   - End turn / turn transitions
-   - AI decisions
-   - Win/lose evaluation
-3. **Runtime-owned reachable/path highlighting** — deferred; would validate runtime cell rendering via `BoardCell.ApplyHighlight`.
-4. **Runtime-owned move commit** — occupancy/cell/MP authority transfer; higher risk.
-5. **Input/turn-loop authority flip** — enable `BattleBoard.sceneInputEnabled`, disable framework input loop. **Blocked** until shadow parity is proven across all behaviors.
-6. **Cell identity collapse** — explicitly deferred; prefab dual-component mirror stays.
-7. **Phases 10–13** of `CLEAN_RUNTIME_REWRITE_PLAN.md` (full scene rewire, namespace rename, publication audit) — not started.
+1. ~~**Full smoke test with toggle ON** for movement loop~~ — **Done** (user confirmed MATCH).
+2. ~~**Shadow logging on toggle ON path**~~ — wired for selection, move, pending wait/right-click, routing, reachable.
+3. ~~**Runtime-owned reachable/path highlighting**~~ — **implemented**.
+4. **Pending-state attack routing** — **implemented** (acting cell + attack highlights + parity); skill/heal/item/trade still use `PreviewCell`.
+5. **End turn runtime routing (human, toggle ON)** — **implemented** (user smoke-tested OK).
+6. **Combat post-game / AI counterattack recovery** — **implemented** (`EnterPostCombatGridState`, AI attack wait on player host, game-over during AI turn).
+7. **Battle outcome shadow parity** — **done** (user smoke-tested MATCH incl. `Battle ended`).
+8. **Win/lose runtime routing (toggle ON)** — **done** (user smoke-tested: shadow + routing MATCH, `TryApplyBattleOutcome` on win).
+9. **Input/turn-loop authority flip** — enable `BattleBoard.sceneInputEnabled`. Blocked until parity proven.
+10. **Cell identity collapse** — explicitly deferred.
+11. **Phases 10–13** of `CLEAN_RUNTIME_REWRITE_PLAN.md` — not started.
 
 ---
 
-## Recommended Next Steps For Codex
+## Recommended Next Steps
 
-### Immediate
+### Immediate (smoke test — attack slice)
 
-1. Confirm project compiles cleanly.
-2. Run **selection shadow smoke test** (see table above). Fix any MISMATCH before proceeding.
-3. If MATCH across cases, extend shadow harness to **deselect/right-click** and **cell-click while unit selected** (compare framework `CustomUnitSelectedState` + `CustomMoveAbility` decisions vs runtime).
+With `useRuntimeMovementExecution` **ON**:
 
-### Short term (shadow buildout order)
+1. Select unit → move adjacent to enemy → action menu at preview tile
+2. Attack option visible when in range
+3. Click Attack → red attack-range cells + attackable enemies highlighted
+4. Click enemy → weapon preview → confirm attack (framework execution unchanged)
+5. Click acting cell → cancels attack targeting
+6. Console: `[RuntimeShadow] Pending attackables … RESULT: MATCH` on menu open and attack targeting
 
-1. Selection parity ✅ (implemented, verify)
-2. Deselect / right-click parity
-3. Move-on-click parity (reachable set already proven; add decision parity for destination choice)
-4. Ability menu / action parity
-5. End-turn / turn-loop parity
-6. AI parity (runtime `BoardStateAiTurn` + `AiBattlePlayerController` need real logic)
-7. Win/lose parity
+**Cursor slice — end-turn / turn-loop shadow parity (2026-06-17):**
 
-### Medium term (ownership flips, each gated + smoke-tested)
+- `ShadowCompareEndTurn` on `RequestEndTurn` — compares framework vs runtime `RoundRobinBattleFlow.ResolveTurn` + `EvaluateLastSideStanding` before turn executes
+- `ShadowCompareCurrentPlayerSync` on framework `TurnEnded` — verifies runtime mirror current player matches after transition
+- Flag: `LogTurnLoopParity` (default true)
 
-1. Runtime-owned reachable/path highlighting (cosmetic, low risk)
-2. Runtime-owned move commit (occupancy/MP — use parity diagnostics heavily)
-3. Full input/turn-loop flip (only after shadow proves click-for-click parity)
+**Smoke test:** press M or End Turn button → Console `[RuntimeShadow] End turn from player … RESULT: MATCH` (plan parity + routing) then `[RuntimeShadow] Current player sync … RESULT: MATCH`
+
+**Cursor slice — gated runtime end-turn routing (2026-06-17):**
+
+- `ProcessRuntimeRoutedEndTurn` when `ShouldRouteHumanMovementThroughRuntime` — runtime `EndCurrentTurn(kickTurnPlayerPlay: false)` then framework `CommitTurnTransition` (avoids double AI kick)
+- `CellGrid.EndUnitsForCurrentPlayerTurn` / `CommitTurnTransition` — shared handoff extracted from `EndTurnExecute`
+- `BattleBoard.EndCurrentTurn` ends current-player units; `ShadowEvaluateEndCurrentTurn` for routing parity
+- `CompareRuntimeEndTurnRouting` — shadow vs live next player + post-turn state label
+
+### Short term
+
+1. ~~End-turn / turn-loop shadow parity~~ **done** (user smoke-tested MATCH)
+2. ~~Gated runtime `RequestEndTurn` routing when toggle ON~~ **done** (user smoke-tested OK)
+3. ~~Combat freeze fixes~~ **done** (game-over after human attack; AI counterattack kill)
+4. ~~Battle outcome shadow parity~~ **done** (user smoke-tested MATCH)
+5. ~~Win/lose runtime routing when toggle ON~~ **done** (user smoke-tested: shadow + routing MATCH)
+
+### Medium term
+
+1. Framework input suppression when toggle ON (prep for `sceneInputEnabled` flip)
+2. Full input/turn-loop flip after click-for-click parity
+3. AI runtime turn authority beyond shadow
+4. Publication phases per `CLEAN_RUNTIME_REWRITE_PLAN.md`
 
 ### Do not do without explicit user approval
 
@@ -384,11 +473,18 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 
 | Item | Status |
 |------|--------|
-| Compiles cleanly | User confirmed (post IList fix) |
+| Compiles cleanly | Verify in Unity after this session |
 | Reachable parity | **MATCH** (proven) |
 | Movement animation flip | **Implemented + smoke-tested OK** |
-| Selection shadow harness | **Implemented, smoke test pending** |
-| Input/turn-loop flip | **Not started** (blocked on shadow buildout) |
+| Runtime pending move + input routing | **Implemented by Codex; gated behind toggle (Cursor fix)** |
+| Shadow parity (toggle off) | Right-click **MATCH**; selection/cell-click helpers wired |
+| Shadow parity (toggle on) | Movement + routing + reachable + pending attack **MATCH** (user smoke-tested) |
+| Pending attack routing | **Implemented** (acting cell, attack highlights, parity logs) |
+| End-turn runtime routing | **Implemented** (user smoke-tested OK) |
+| Combat recovery (game over / AI counter) | **Implemented** |
+| Battle outcome shadow | **Done** (user smoke-tested MATCH) |
+| Win/lose runtime routing | **Implemented + smoke-tested OK** (shadow + routing MATCH; `TryApplyBattleOutcome` on win) |
+| Input/turn-loop flip | **Not started** |
 | Cell collapse | **Explicitly deferred** |
 
-**Next action for Codex:** Run selection shadow smoke test, report MATCH/MISMATCH, then continue shadow buildout per recommended order above.
+**Next action:** Framework input suppression when toggle ON (prep for `sceneInputEnabled` flip without double-click handling).

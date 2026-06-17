@@ -366,12 +366,17 @@ namespace TbsFramework.Grid
         private void EndTurnExecute(bool isNetworkInvoked=false)
         {
             cellGridState = new CellGridStateBlockInput(this);
-            bool isGameFinished = CheckGameFinished();
-            if (isGameFinished)
+            if (CheckGameFinished())
             {
                 return;
             }
 
+            EndUnitsForCurrentPlayerTurn();
+            CommitTurnTransition(ResolveNextTurnPlan(), isNetworkInvoked);
+        }
+
+        protected void EndUnitsForCurrentPlayerTurn()
+        {
             var playableUnits = PlayableUnits();
             for (int i = 0; i < playableUnits.Count; i++)
             {
@@ -384,7 +389,10 @@ namespace TbsFramework.Grid
                 unit.OnTurnEnd();
                 NotifyTurnEnded(unit);
             }
-            RoundRobinTurnPlan plan = ResolveNextTurnPlan();
+        }
+
+        protected void CommitTurnTransition(RoundRobinTurnPlan plan, bool isNetworkInvoked = false)
+        {
             PlayableUnits = CreatePlayableUnitsAccessor(plan);
 
             if (plan.NextPlayer == null)
@@ -396,11 +404,13 @@ namespace TbsFramework.Grid
             CurrentPlayerNumber = plan.NextPlayer.PlayerId;
 
             if (TurnEnded != null)
+            {
                 TurnEnded.Invoke(this, isNetworkInvoked);
+            }
 
             Debug.Log(string.Format("Player {0} turn", CurrentPlayerNumber));
 
-            playableUnits = PlayableUnits();
+            var playableUnits = PlayableUnits();
             for (int i = 0; i < playableUnits.Count; i++)
             {
                 var unit = playableUnits[i];
@@ -412,6 +422,7 @@ namespace TbsFramework.Grid
                 NotifyTurnStarted(unit);
                 unit.OnTurnStart();
             }
+
             if (CurrentRuntimePlayer != null && this is IBattleBoard battleBoard)
             {
                 CurrentRuntimePlayer.PlayTurn(battleBoard);
@@ -437,17 +448,30 @@ namespace TbsFramework.Grid
 
         public bool CheckGameFinished()
         {
-            BattleOutcome outcome = ResolveBattleOutcome();
-            if (outcome.IsFinished)
-            {
-                cellGridState = new CellGridStateGameOver(this);
-                GameFinished = true;
-                if (GameEnded != null)
-                {
-                    GameEnded.Invoke(this, new GameEndedArgs(CreateGameResult(outcome)));
-                }
-            }
+            TryApplyBattleOutcome(ResolveBattleOutcome());
             return GameFinished;
+        }
+
+        protected bool TryApplyBattleOutcome(BattleOutcome outcome)
+        {
+            if (GameFinished)
+            {
+                return true;
+            }
+
+            if (!outcome.IsFinished)
+            {
+                return false;
+            }
+
+            cellGridState = new CellGridStateGameOver(this);
+            GameFinished = true;
+            if (GameEnded != null)
+            {
+                GameEnded.Invoke(this, new GameEndedArgs(CreateGameResult(outcome)));
+            }
+
+            return true;
         }
 
         private RoundRobinTurnPlan ResolveStartPlan()

@@ -55,6 +55,18 @@ namespace Windy.Srpg.Runtime.Board
             public bool ObservedUnitFinished { get; }
         }
 
+        public readonly struct EndTurnShadowSnapshot
+        {
+            public EndTurnShadowSnapshot(int nextPlayerId, string postTurnStateLabel)
+            {
+                NextPlayerId = nextPlayerId;
+                PostTurnStateLabel = postTurnStateLabel;
+            }
+
+            public int NextPlayerId { get; }
+            public string PostTurnStateLabel { get; }
+        }
+
         public IReadOnlyList<BoardCell> Cells => cells;
         public IReadOnlyList<BattleUnit> Units => units;
         public IReadOnlyList<IBattlePlayer> Players => players;
@@ -316,8 +328,13 @@ namespace Windy.Srpg.Runtime.Board
             battleStarted = started;
         }
 
-        public virtual void EndCurrentTurn()
+        public virtual void EndCurrentTurn(bool kickTurnPlayerPlay = true)
         {
+            foreach (var unit in GetCurrentPlayerUnits())
+            {
+                unit?.EndTurn();
+            }
+
             var player = CurrentPlayer;
             if (player != null)
             {
@@ -331,7 +348,43 @@ namespace Windy.Srpg.Runtime.Board
 
             RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveTurn(this);
             SetCurrentPlayerById(plan.NextPlayer?.PlayerId ?? -1);
-            BeginCurrentTurn();
+            BeginCurrentTurn(kickTurnPlayerPlay);
+        }
+
+        public EndTurnShadowSnapshot ShadowEvaluateEndCurrentTurn(bool kickTurnPlayerPlay = true)
+        {
+            BoardState savedState = currentState;
+            int savedPlayerIndex = currentPlayerIndex;
+            bool savedShadow = ShadowMode;
+            var savedUnitSnapshots = new List<(BattleUnit unit, BattleUnit.RuntimeSnapshot snapshot)>();
+            for (int i = 0; i < units.Count; i++)
+            {
+                BattleUnit unit = units[i];
+                if (unit != null)
+                {
+                    savedUnitSnapshots.Add((unit, unit.CaptureRuntimeSnapshot()));
+                }
+            }
+
+            ShadowMode = true;
+            try
+            {
+                EndCurrentTurn(kickTurnPlayerPlay);
+                return new EndTurnShadowSnapshot(
+                    CurrentPlayerId,
+                    currentState?.DiagnosticStateLabel ?? "<null>");
+            }
+            finally
+            {
+                ShadowMode = savedShadow;
+                currentPlayerIndex = savedPlayerIndex;
+                currentState = savedState;
+                for (int i = 0; i < savedUnitSnapshots.Count; i++)
+                {
+                    (BattleUnit unit, BattleUnit.RuntimeSnapshot snapshot) = savedUnitSnapshots[i];
+                    unit?.RestoreRuntimeSnapshot(snapshot);
+                }
+            }
         }
 
         public virtual BattleOutcome EvaluateBattleOutcome()
@@ -492,7 +545,7 @@ namespace Windy.Srpg.Runtime.Board
             UnitUnregistered?.Invoke(unit);
         }
 
-        private void BeginCurrentTurn()
+        private void BeginCurrentTurn(bool kickTurnPlayerPlay = true)
         {
             foreach (var unit in GetCurrentPlayerUnits())
             {
@@ -509,10 +562,13 @@ namespace Windy.Srpg.Runtime.Board
             else
             {
                 SetState(new BoardStateAiTurn(this));
-                RequestAiTurn();
+                if (kickTurnPlayerPlay)
+                {
+                    RequestAiTurn();
+                }
             }
 
-            if (player is IBattleTurnPlayer turnPlayer)
+            if (kickTurnPlayerPlay && player is IBattleTurnPlayer turnPlayer)
             {
                 turnPlayer.PlayTurn(this);
             }

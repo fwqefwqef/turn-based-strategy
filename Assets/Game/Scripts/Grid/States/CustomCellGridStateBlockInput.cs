@@ -8,4 +8,11 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override bool BlocksEndTurn => true;
     }
+
+    public sealed class CustomCellGridStateGameOver : CustomCellGridState
+    {
+        public CustomCellGridStateGameOver(CustomCellGrid cellGrid) : base(cellGrid)
+        {
+        }
+    }
 }

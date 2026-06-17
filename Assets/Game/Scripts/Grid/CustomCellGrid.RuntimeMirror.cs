@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using TbsFramework.Cells;
 using UnityEngine;
@@ -13,7 +14,7 @@ namespace Windy.Srpg.Game.Grid
 {
     public partial class CustomCellGrid
     {
-        internal readonly struct RuntimeStateTransitionDecision
+        public readonly struct RuntimeStateTransitionDecision
         {
             public RuntimeStateTransitionDecision(string stateLabel, CustomUnit selectedUnit, Cell pendingDestination)
             {
@@ -137,7 +138,10 @@ namespace Windy.Srpg.Game.Grid
             CustomMoveAbility moveAbility = pendingState?.MoveAbility;
             CustomUnit legacyUnit = moveAbility != null ? moveAbility.GetComponent<CustomUnit>() : null;
             BattleUnit runtimeUnit = GetRuntimeUnit(legacyUnit);
-            BoardCell runtimeDestination = GetRuntimeCell(legacyUnit?.PreviewCell);
+            Cell legacyDestination = legacyUnit != null && legacyUnit.HasPendingMove
+                ? legacyUnit.PreviewCell
+                : moveAbility?.Destination ?? legacyUnit?.PreviewCell ?? legacyUnit?.Cell;
+            BoardCell runtimeDestination = GetRuntimeCell(legacyDestination);
 
             return runtimeUnit != null
                 ? new BoardStateUnitMovePendingConfirm(runtimeBoard, runtimeUnit, runtimeDestination)
@@ -187,6 +191,262 @@ namespace Windy.Srpg.Game.Grid
             }
 
             ApplyRuntimeBoardMirror();
+        }
+
+        public void ClearAllCellHighlights()
+        {
+            foreach (Cell cell in GetAllCells())
+            {
+                if (cell == null)
+                {
+                    continue;
+                }
+
+                cell.UnMark();
+                GetRuntimeCell(cell)?.ClearHighlight();
+            }
+        }
+
+        public readonly struct RuntimeEndTurnTransitionDecision
+        {
+            public RuntimeEndTurnTransitionDecision(int endingPlayerId, int nextPlayerId, string postTurnStateLabel)
+            {
+                EndingPlayerId = endingPlayerId;
+                NextPlayerId = nextPlayerId;
+                PostTurnStateLabel = postTurnStateLabel;
+            }
+
+            public int EndingPlayerId { get; }
+            public int NextPlayerId { get; }
+            public string PostTurnStateLabel { get; }
+        }
+
+        public readonly struct RuntimeBattleOutcomeDecision
+        {
+            public RuntimeBattleOutcomeDecision(
+                bool isFinished,
+                IReadOnlyList<int> winningPlayerIds,
+                IReadOnlyList<int> defeatedPlayerIds)
+            {
+                IsFinished = isFinished;
+                WinningPlayerIds = winningPlayerIds ?? System.Array.Empty<int>();
+                DefeatedPlayerIds = defeatedPlayerIds ?? System.Array.Empty<int>();
+            }
+
+            public bool IsFinished { get; }
+            public IReadOnlyList<int> WinningPlayerIds { get; }
+            public IReadOnlyList<int> DefeatedPlayerIds { get; }
+
+            public static RuntimeBattleOutcomeDecision From(BattleOutcome outcome)
+            {
+                return new RuntimeBattleOutcomeDecision(
+                    outcome.IsFinished,
+                    outcome.WinningPlayerIds,
+                    outcome.DefeatedPlayerIds);
+            }
+        }
+
+        internal bool ProcessRuntimeRoutedBattleOutcomeEvaluation()
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                bool legacyFinished = CheckGameFinished();
+                ShadowCompareBattleOutcome(legacyFinished ? "Battle ended" : "Battle outcome");
+                if (legacyFinished)
+                {
+                    SyncCustomStateToGameOver();
+                }
+
+                return legacyFinished;
+            }
+
+            if (GameFinished)
+            {
+                SyncCustomStateToGameOver();
+                return true;
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleOutcome frameworkOutcome = RoundRobinBattleFlow.EvaluateLastSideStanding(this);
+            BattleOutcome runtimeOutcome = runtimeBoard.EvaluateBattleOutcome();
+            string shadowLabel = frameworkOutcome.IsFinished || runtimeOutcome.IsFinished
+                ? "Battle ended (shadow)"
+                : "Battle outcome (shadow)";
+            Diagnostics.RuntimeParityDiagnostics.CompareBattleOutcome(
+                shadowLabel,
+                frameworkOutcome,
+                runtimeOutcome);
+
+            RuntimeBattleOutcomeDecision shadowDecision = RuntimeBattleOutcomeDecision.From(frameworkOutcome);
+            RuntimeBattleOutcomeDecision processDecision = RuntimeBattleOutcomeDecision.From(runtimeOutcome);
+            Diagnostics.RuntimeParityDiagnostics.CompareRuntimeBattleOutcomeRouting(
+                runtimeOutcome.IsFinished ? "Battle ended" : "Battle outcome",
+                shadowDecision,
+                processDecision);
+
+            bool finished = TryApplyBattleOutcome(runtimeOutcome);
+            if (finished)
+            {
+                SyncCustomStateToGameOver();
+            }
+
+            return finished;
+        }
+
+        internal void ProcessRuntimeRoutedEndTurn()
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                ShadowCompareEndTurn();
+                EndTurn();
+                return;
+            }
+
+            EnterBlockedInputState();
+            if (RequestBattleOutcomeEvaluation())
+            {
+                return;
+            }
+
+            ShadowCompareEndTurn();
+
+            EndUnitsForCurrentPlayerTurn();
+
+            RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveTurn(this);
+            if (plan.NextPlayer == null)
+            {
+                Debug.LogError("CustomCellGrid: No valid battle turn resolver or next player was found.");
+                return;
+            }
+
+            SyncRuntimeMirrorNow();
+
+            const bool kickRuntimeTurnPlayerPlay = false;
+            RuntimeEndTurnTransitionDecision shadowDecision = EvaluateRuntimeEndTurnTransition(kickRuntimeTurnPlayerPlay);
+            int endingPlayerId = runtimeBoard.CurrentPlayerId;
+            runtimeBoard.EndCurrentTurn(kickRuntimeTurnPlayerPlay);
+            RuntimeEndTurnTransitionDecision processDecision = new RuntimeEndTurnTransitionDecision(
+                endingPlayerId,
+                runtimeBoard.CurrentPlayerId,
+                runtimeBoard.CurrentState?.DiagnosticStateLabel ?? "<null>");
+
+            Diagnostics.RuntimeParityDiagnostics.CompareRuntimeEndTurnRouting(
+                $"End turn from player {endingPlayerId}",
+                shadowDecision,
+                processDecision);
+
+            ApplyLegacyStateFromRuntime(() => CommitTurnTransition(plan));
+        }
+
+        private RuntimeEndTurnTransitionDecision EvaluateRuntimeEndTurnTransition(bool kickTurnPlayerPlay)
+        {
+            int endingPlayerId = runtimeBoard.CurrentPlayerId;
+            BattleBoard.EndTurnShadowSnapshot shadowSnapshot =
+                runtimeBoard.ShadowEvaluateEndCurrentTurn(kickTurnPlayerPlay);
+            return new RuntimeEndTurnTransitionDecision(
+                endingPlayerId,
+                shadowSnapshot.NextPlayerId,
+                shadowSnapshot.PostTurnStateLabel);
+        }
+
+        internal void ShadowCompareEndTurn()
+        {
+            if (!Diagnostics.RuntimeParityDiagnostics.LogTurnLoopParity)
+            {
+                return;
+            }
+
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return;
+            }
+
+            int currentPlayerId = CurrentCustomPlayerNumber;
+            BattleOutcome frameworkOutcome = RoundRobinBattleFlow.EvaluateLastSideStanding(this);
+            RoundRobinTurnPlan frameworkPlan = RoundRobinBattleFlow.ResolveTurn(this);
+
+            SyncRuntimeMirrorNow();
+
+            BattleOutcome runtimeOutcome = RoundRobinBattleFlow.EvaluateLastSideStanding(runtimeBoard);
+            RoundRobinTurnPlan runtimePlan = RoundRobinBattleFlow.ResolveTurn(runtimeBoard);
+
+            Diagnostics.RuntimeParityDiagnostics.CompareTurnTransition(
+                currentPlayerId,
+                frameworkPlan,
+                runtimePlan,
+                frameworkOutcome,
+                runtimeOutcome);
+        }
+
+        internal void ShadowCompareCurrentPlayerSync()
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return;
+            }
+
+            SyncRuntimeMirrorNow();
+            Diagnostics.RuntimeParityDiagnostics.CompareCurrentPlayerSync(
+                CurrentCustomPlayerNumber,
+                runtimeBoard.CurrentPlayerId);
+        }
+
+        internal void ShadowCompareBattleOutcome(string eventLabel)
+        {
+            if (!Diagnostics.RuntimeParityDiagnostics.LogBattleOutcomeParity)
+            {
+                return;
+            }
+
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return;
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleOutcome frameworkOutcome = RoundRobinBattleFlow.EvaluateLastSideStanding(this);
+            BattleOutcome runtimeOutcome = runtimeBoard.EvaluateBattleOutcome();
+
+            Diagnostics.RuntimeParityDiagnostics.CompareBattleOutcome(
+                eventLabel,
+                frameworkOutcome,
+                runtimeOutcome);
+        }
+
+        internal Cell ResolveRuntimeActingCell(CustomUnit unit)
+        {
+            BattleUnit runtimeUnit = GetRuntimeUnit(unit);
+            if (runtimeUnit == null)
+            {
+                return unit?.Cell;
+            }
+
+            BoardCell runtimeActingCell = runtimeUnit.PreviewCell;
+            if (runtimeActingCell != null)
+            {
+                return GetLegacyCell(runtimeActingCell) ?? unit?.PreviewCell ?? unit?.Cell;
+            }
+
+            return unit?.Cell;
+        }
+
+        internal List<CustomUnit> GetAttackableEnemiesFromActingCell(CustomUnit actor, Cell actingCell)
+        {
+            if (actor == null || actingCell == null)
+            {
+                return new List<CustomUnit>();
+            }
+
+            return GetEnemyUnits(CurrentCustomPlayer)
+                .Where(enemy => enemy != null && actor.CanAttackTargetWithAnyWeapon(enemy, actingCell))
+                .ToList();
         }
 
         private void MarkRuntimeBoardDirty()

@@ -35,7 +35,7 @@ namespace Windy.Srpg.Runtime.Players
                 this,
                 orderedUnits.Cast<IBattleUnit>(),
                 board,
-                board.EndCurrentTurn);
+                () => board.EndCurrentTurn());
         }
 
         private IReadOnlyList<BattleUnit> SelectUnits(BattleBoard board)

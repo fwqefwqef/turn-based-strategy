@@ -105,9 +105,7 @@ namespace Windy.Srpg.Game.Units
         {
             cellGrid = FindSceneCellGrid();
             runtimeUnit = ResolveRuntimeUnit();
-            return Application.isPlaying
-                && cellGrid != null
-                && runtimeUnit != null;
+            return TryUseRuntimeMovementAuthority(out cellGrid, out runtimeUnit);
         }
 
         private static void RefreshLegacyCellOccupancy(Cell cell)

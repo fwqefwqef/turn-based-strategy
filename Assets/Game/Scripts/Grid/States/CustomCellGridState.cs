@@ -85,10 +85,7 @@ namespace Windy.Srpg.Game.Grid.States
                 return;
             }
 
-            foreach (Cell cell in _cellGrid.GetAllCells())
-            {
-                cell?.UnMark();
-            }
+            _cellGrid.ClearAllCellHighlights();
         }
 
         public virtual void OnStateExit()

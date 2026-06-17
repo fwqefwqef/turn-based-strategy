@@ -100,16 +100,18 @@ namespace Windy.Srpg.Game.AI.Actions
         public override IEnumerator Execute(CustomPlayer player, CustomUnit unit, CustomCellGrid cellGrid)
         {
             var attackAbility = unit.GetComponent<CustomAttackAbility>();
-            if (attackAbility == null || target == null)
+            if (attackAbility == null || target == null || unit == null)
             {
                 yield break;
             }
 
             attackAbility.UnitToAttack = target;
             attackAbility.UnitToAttackID = target.UnitID;
-            yield return attackAbility.AIExecute(cellGrid);
 
-            if (unit == null || attackAbility == null)
+            unit.AttackHandler(target);
+            yield return CustomUnit.WaitForAttackSequenceCompletion(unit);
+
+            if (unit == null)
             {
                 yield break;
             }

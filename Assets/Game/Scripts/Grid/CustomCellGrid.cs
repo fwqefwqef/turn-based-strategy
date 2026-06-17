@@ -41,7 +41,7 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private bool overwriteOwnedUnitSaveOnGameStarted;
         [SerializeField] private bool enablePreBattleUi = true;
         [SerializeField] private bool startBattleImmediatelyWithCurrentRoster;
-        [Tooltip("Migration toggle: when enabled, human unit movement is animated by the runtime BattleUnit instead of the framework. End-state bookkeeping still runs on the framework, so this only changes the path-walk. Default off.")]
+        [Tooltip("Migration toggle: when enabled on a human turn, selection/move routing, pending-move commit, end-turn routing, and movement animation use the runtime BattleUnit/BattleBoard instead of the framework. Default off.")]
         [SerializeField] private bool useRuntimeMovementExecution;
         [SerializeField] private List<UnitPreset> starterOwnedUnitPresets = new List<UnitPreset>();
         private bool battleStarted;
@@ -70,6 +70,8 @@ namespace Windy.Srpg.Game.Grid
         public bool IsHumanTurn => CurrentCustomPlayer is CustomHumanPlayer;
         public bool CanRequestEndTurn => CurrentCustomState?.BlocksEndTurn != true;
         public bool UseRuntimeMovementExecution => useRuntimeMovementExecution;
+        public bool ShouldRouteHumanMovementThroughRuntime => useRuntimeMovementExecution && IsHumanTurn;
+        public bool ShouldRouteBattleOutcomeThroughRuntime => useRuntimeMovementExecution;
 
         public List<CustomPlayer> GetOrderedCustomPlayers()
         {
@@ -257,17 +259,67 @@ namespace Windy.Srpg.Game.Grid
 
         public void RequestEndTurn()
         {
+            if (GameFinished)
+            {
+                SyncCustomStateToGameOver();
+                return;
+            }
+
             if (!CanRequestEndTurn)
             {
                 return;
             }
 
+            if (ShouldRouteHumanMovementThroughRuntime)
+            {
+                ProcessRuntimeRoutedEndTurn();
+                return;
+            }
+
+            ShadowCompareEndTurn();
             EndTurn();
         }
 
         public bool RequestBattleOutcomeEvaluation()
         {
-            return CheckGameFinished();
+            if (ShouldRouteBattleOutcomeThroughRuntime)
+            {
+                return ProcessRuntimeRoutedBattleOutcomeEvaluation();
+            }
+
+            bool finished = CheckGameFinished();
+            ShadowCompareBattleOutcome(finished ? "Battle ended" : "Battle outcome");
+            if (finished)
+            {
+                SyncCustomStateToGameOver();
+            }
+
+            return finished;
+        }
+
+        /// <summary>
+        /// Restores human input after a pending-move combat coroutine. Leaves the framework
+        /// game-over state untouched when the battle has already ended.
+        /// </summary>
+        public void EnterPostCombatGridState()
+        {
+            if (GameFinished)
+            {
+                SyncCustomStateToGameOver();
+                return;
+            }
+
+            EnterWaitingState();
+        }
+
+        internal void SyncCustomStateToGameOver()
+        {
+            if (!GameFinished)
+            {
+                return;
+            }
+
+            currentCustomState = new CustomCellGridStateGameOver(this);
         }
 
         internal void ApplyLegacyStateFromRuntime(Action applyState)

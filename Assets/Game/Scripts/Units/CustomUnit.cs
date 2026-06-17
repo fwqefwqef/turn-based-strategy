@@ -162,6 +162,21 @@ namespace Windy.Srpg.Game.Units
         private float attackHitPauseSeconds = 0.25f;
         private float combatSequenceStartDelaySeconds = 0.25f;
         public bool IsAttackSequenceRunning { get; private set; } = false;
+
+        public static IEnumerator WaitForAttackSequenceCompletion(CustomUnit unit, float timeoutSeconds = 30f)
+        {
+            float elapsed = 0f;
+            while (unit != null && unit.IsAttackSequenceRunning)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                if (elapsed >= timeoutSeconds)
+                {
+                    yield break;
+                }
+
+                yield return null;
+            }
+        }
         [SerializeField]
         private int baseLuck;
         [SerializeField] private int growthStrength = 17;
@@ -2025,11 +2040,17 @@ namespace Windy.Srpg.Game.Units
                 ReleaseCombatCameraFocus();
 
                 var cellGrid = FindSceneCellGrid();
-                if (cellGrid != null
-                    && cellGrid.IsHumanTurn
-                    && cellGrid.CurrentCustomState is Windy.Srpg.Game.Grid.States.CustomCellGridStateBlockInput)
+                if (cellGrid != null)
                 {
-                    cellGrid.SetState(new Windy.Srpg.Game.Grid.States.CustomCellGridStateWaitingForInput(cellGrid));
+                    if (cellGrid.GameFinished)
+                    {
+                        cellGrid.SyncCustomStateToGameOver();
+                    }
+                    else if (cellGrid.IsHumanTurn
+                        && cellGrid.CurrentCustomState is Windy.Srpg.Game.Grid.States.CustomCellGridStateBlockInput)
+                    {
+                        cellGrid.EnterPostCombatGridState();
+                    }
                 }
             }
 
@@ -3361,6 +3382,8 @@ namespace Windy.Srpg.Game.Units
         }
 
         public bool HasPendingMove => _pendingMove.HasValue;
+        internal float GetPendingMovementPointsBefore() =>
+            _pendingMove.HasValue ? _pendingMove.Value.MovementPointsBefore : MovementPoints;
         public Cell PreviewCell
         {
             get
@@ -3521,6 +3544,8 @@ namespace Windy.Srpg.Game.Units
             if (!_pendingMove.HasValue)
                 return false;
 
+            ResolveRuntimeUnit()?.CancelPendingMove();
+
             var p = _pendingMove.Value;
             _previewMoveVersion++;
 
@@ -3553,6 +3578,11 @@ namespace Windy.Srpg.Game.Units
                 MovementCost = 0f,
                 FromLocalPos = transform.localPosition
             };
+
+            if (TryUseRuntimeMovementAuthority(out _, out BattleUnit runtimeUnit))
+            {
+                runtimeUnit.BeginPendingMoveInPlace();
+            }
 
             return true;
         }

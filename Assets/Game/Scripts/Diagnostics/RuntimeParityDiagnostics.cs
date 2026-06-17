@@ -3,9 +3,11 @@ using System.Linq;
 using System.Text;
 using TbsFramework.Cells;
 using UnityEngine;
+using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Board;
 using Windy.Srpg.Runtime.Board.States;
+using Windy.Srpg.Runtime.Players;
 using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Diagnostics
@@ -24,6 +26,323 @@ namespace Windy.Srpg.Game.Diagnostics
         public static bool LogRightClickParity = true;
         public static bool LogSelectedMoveParity = true;
         public static bool LogPendingMoveParity = true;
+        public static bool LogPendingAttackParity = true;
+        public static bool LogRuntimeRoutingParity = true;
+        public static bool LogTurnLoopParity = true;
+        public static bool LogBattleOutcomeParity = true;
+
+        public static void CompareBattleOutcome(
+            string eventLabel,
+            BattleOutcome frameworkOutcome,
+            BattleOutcome runtimeOutcome)
+        {
+            if (!LogBattleOutcomeParity)
+            {
+                return;
+            }
+
+            bool match = frameworkOutcome.IsFinished == runtimeOutcome.IsFinished
+                && SequenceEqual(frameworkOutcome.WinningPlayerIds, runtimeOutcome.WinningPlayerIds)
+                && SequenceEqual(frameworkOutcome.DefeatedPlayerIds, runtimeOutcome.DefeatedPlayerIds);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[RuntimeShadow] {eventLabel}");
+            sb.AppendLine($"  finished: framework={frameworkOutcome.IsFinished} runtime={runtimeOutcome.IsFinished}");
+            if (frameworkOutcome.IsFinished || runtimeOutcome.IsFinished)
+            {
+                sb.AppendLine($"  winners: framework={FormatPlayerIds(frameworkOutcome.WinningPlayerIds)} runtime={FormatPlayerIds(runtimeOutcome.WinningPlayerIds)}");
+                sb.AppendLine($"  defeated: framework={FormatPlayerIds(frameworkOutcome.DefeatedPlayerIds)} runtime={FormatPlayerIds(runtimeOutcome.DefeatedPlayerIds)}");
+            }
+
+            sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
+
+            if (match)
+            {
+                Debug.Log(sb.ToString());
+            }
+            else
+            {
+                Debug.LogWarning(sb.ToString());
+            }
+        }
+
+        public static void CompareTurnTransition(
+            int currentPlayerId,
+            RoundRobinTurnPlan frameworkPlan,
+            RoundRobinTurnPlan runtimePlan,
+            BattleOutcome frameworkOutcome,
+            BattleOutcome runtimeOutcome)
+        {
+            if (!LogTurnLoopParity)
+            {
+                return;
+            }
+
+            bool outcomeMatch = frameworkOutcome.IsFinished == runtimeOutcome.IsFinished
+                && SequenceEqual(frameworkOutcome.WinningPlayerIds, runtimeOutcome.WinningPlayerIds)
+                && SequenceEqual(frameworkOutcome.DefeatedPlayerIds, runtimeOutcome.DefeatedPlayerIds);
+
+            int frameworkNextPlayerId = frameworkPlan.NextPlayer?.PlayerId ?? -1;
+            int runtimeNextPlayerId = runtimePlan.NextPlayer?.PlayerId ?? -1;
+            bool nextPlayerMatch = frameworkNextPlayerId == runtimeNextPlayerId;
+
+            var frameworkUnits = new HashSet<string>(FormatBattleUnitNames(frameworkPlan.PlayableUnits));
+            var runtimeUnits = new HashSet<string>(FormatBattleUnitNames(runtimePlan.PlayableUnits));
+            List<string> onlyFrameworkUnits = frameworkUnits.Except(runtimeUnits).ToList();
+            List<string> onlyRuntimeUnits = runtimeUnits.Except(frameworkUnits).ToList();
+            bool playableUnitsMatch = onlyFrameworkUnits.Count == 0 && onlyRuntimeUnits.Count == 0;
+
+            string frameworkStateLabel = DescribeExpectedPostTurnState(frameworkPlan.NextPlayer);
+            string runtimeStateLabel = DescribeExpectedPostTurnState(runtimePlan.NextPlayer);
+            bool stateLabelMatch = frameworkStateLabel == runtimeStateLabel;
+
+            bool match = outcomeMatch && nextPlayerMatch && playableUnitsMatch && stateLabelMatch;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[RuntimeShadow] End turn from player {currentPlayerId}");
+            sb.AppendLine($"  outcome: framework finished={frameworkOutcome.IsFinished} runtime finished={runtimeOutcome.IsFinished}");
+            if (frameworkOutcome.IsFinished || runtimeOutcome.IsFinished)
+            {
+                sb.AppendLine($"  winners: framework={FormatPlayerIds(frameworkOutcome.WinningPlayerIds)} runtime={FormatPlayerIds(runtimeOutcome.WinningPlayerIds)}");
+                sb.AppendLine($"  defeated: framework={FormatPlayerIds(frameworkOutcome.DefeatedPlayerIds)} runtime={FormatPlayerIds(runtimeOutcome.DefeatedPlayerIds)}");
+            }
+
+            sb.AppendLine($"  nextPlayer: framework={frameworkNextPlayerId} runtime={runtimeNextPlayerId}");
+            sb.AppendLine($"  postTurnState: framework={frameworkStateLabel} runtime={runtimeStateLabel}");
+            sb.AppendLine($"  playableUnits: framework={frameworkUnits.Count} runtime={runtimeUnits.Count}");
+
+            if (onlyFrameworkUnits.Count > 0)
+            {
+                sb.AppendLine($"  only-framework units ({onlyFrameworkUnits.Count}): {string.Join(", ", onlyFrameworkUnits)}");
+            }
+
+            if (onlyRuntimeUnits.Count > 0)
+            {
+                sb.AppendLine($"  only-runtime units ({onlyRuntimeUnits.Count}): {string.Join(", ", onlyRuntimeUnits)}");
+            }
+
+            sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
+
+            if (match)
+            {
+                Debug.Log(sb.ToString());
+            }
+            else
+            {
+                Debug.LogWarning(sb.ToString());
+            }
+        }
+
+        public static void CompareCurrentPlayerSync(int frameworkPlayerId, int runtimePlayerId)
+        {
+            if (!LogTurnLoopParity)
+            {
+                return;
+            }
+
+            bool match = frameworkPlayerId == runtimePlayerId;
+            string message = match
+                ? $"[RuntimeShadow] Current player sync framework={frameworkPlayerId} runtime={runtimePlayerId} RESULT: MATCH"
+                : $"[RuntimeShadow] Current player sync framework={frameworkPlayerId} runtime={runtimePlayerId} RESULT: MISMATCH";
+
+            if (match)
+            {
+                Debug.Log(message);
+            }
+            else
+            {
+                Debug.LogWarning(message);
+            }
+        }
+
+        private static bool SequenceEqual(IReadOnlyList<int> left, IReadOnlyList<int> right)
+        {
+            left ??= System.Array.Empty<int>();
+            right ??= System.Array.Empty<int>();
+            return left.SequenceEqual(right);
+        }
+
+        private static string FormatPlayerIds(IReadOnlyList<int> playerIds)
+        {
+            return playerIds == null || playerIds.Count == 0
+                ? "<none>"
+                : string.Join(", ", playerIds);
+        }
+
+        private static IEnumerable<string> FormatBattleUnitNames(IEnumerable<IBattleUnit> units)
+        {
+            return units?
+                .Where(unit => unit != null)
+                .Select(DescribeBattleUnit)
+                ?? Enumerable.Empty<string>();
+        }
+
+        private static string DescribeBattleUnit(IBattleUnit unit)
+        {
+            if (unit is CustomUnit customUnit)
+            {
+                return customUnit.name;
+            }
+
+            if (unit is BattleUnit battleUnit)
+            {
+                return battleUnit.name;
+            }
+
+            return unit?.ToString() ?? "<none>";
+        }
+
+        private static string DescribeExpectedPostTurnState(Windy.Srpg.Runtime.Players.IBattlePlayer player)
+        {
+            if (player == null)
+            {
+                return "<none>";
+            }
+
+            return player.IsHumanControlled ? "Waiting" : "AiTurn";
+        }
+
+        public static void ComparePendingAttackables(
+            CustomUnit actor,
+            Cell frameworkActingCell,
+            Cell runtimeActingCell,
+            IEnumerable<CustomUnit> frameworkAttackables,
+            IEnumerable<CustomUnit> runtimeAttackables)
+        {
+            if (!LogPendingAttackParity || actor == null)
+            {
+                return;
+            }
+
+            var frameworkSet = new HashSet<CustomUnit>(frameworkAttackables?.Where(unit => unit != null) ?? Enumerable.Empty<CustomUnit>());
+            var runtimeSet = new HashSet<CustomUnit>(runtimeAttackables?.Where(unit => unit != null) ?? Enumerable.Empty<CustomUnit>());
+            List<CustomUnit> onlyFramework = frameworkSet.Except(runtimeSet).ToList();
+            List<CustomUnit> onlyRuntime = runtimeSet.Except(frameworkSet).ToList();
+
+            bool match = onlyFramework.Count == 0 && onlyRuntime.Count == 0;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[RuntimeShadow] Pending attackables for {Describe(actor)}");
+            sb.AppendLine($"  actingCell: framework={Describe(frameworkActingCell)} runtime={Describe(runtimeActingCell)}");
+            sb.AppendLine($"  attackables: framework={frameworkSet.Count} runtime={runtimeSet.Count}");
+
+            if (onlyFramework.Count > 0)
+            {
+                sb.AppendLine($"  only-framework ({onlyFramework.Count}): {FormatUnits(onlyFramework)}");
+            }
+
+            if (onlyRuntime.Count > 0)
+            {
+                sb.AppendLine($"  only-runtime ({onlyRuntime.Count}): {FormatUnits(onlyRuntime)}");
+            }
+
+            sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
+
+            if (match)
+            {
+                Debug.Log(sb.ToString());
+            }
+            else
+            {
+                Debug.LogWarning(sb.ToString());
+            }
+        }
+
+        public static void CompareRuntimeBattleOutcomeRouting(
+            string eventLabel,
+            CustomCellGrid.RuntimeBattleOutcomeDecision shadowDecision,
+            CustomCellGrid.RuntimeBattleOutcomeDecision processDecision)
+        {
+            if (!LogRuntimeRoutingParity)
+            {
+                return;
+            }
+
+            bool match =
+                shadowDecision.IsFinished == processDecision.IsFinished
+                && SequenceEqual(shadowDecision.WinningPlayerIds, processDecision.WinningPlayerIds)
+                && SequenceEqual(shadowDecision.DefeatedPlayerIds, processDecision.DefeatedPlayerIds);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[RuntimeShadow] {eventLabel}");
+            sb.AppendLine($"  shadow:  finished={shadowDecision.IsFinished}, winners={FormatPlayerIds(shadowDecision.WinningPlayerIds)}, defeated={FormatPlayerIds(shadowDecision.DefeatedPlayerIds)}");
+            sb.AppendLine($"  process: finished={processDecision.IsFinished}, winners={FormatPlayerIds(processDecision.WinningPlayerIds)}, defeated={FormatPlayerIds(processDecision.DefeatedPlayerIds)}");
+            sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
+
+            if (match)
+            {
+                Debug.Log(sb.ToString());
+            }
+            else
+            {
+                Debug.LogWarning(sb.ToString());
+            }
+        }
+
+        public static void CompareRuntimeEndTurnRouting(
+            string eventLabel,
+            CustomCellGrid.RuntimeEndTurnTransitionDecision shadowDecision,
+            CustomCellGrid.RuntimeEndTurnTransitionDecision processDecision)
+        {
+            if (!LogRuntimeRoutingParity)
+            {
+                return;
+            }
+
+            bool match =
+                shadowDecision.EndingPlayerId == processDecision.EndingPlayerId
+                && shadowDecision.NextPlayerId == processDecision.NextPlayerId
+                && string.Equals(
+                    shadowDecision.PostTurnStateLabel,
+                    processDecision.PostTurnStateLabel,
+                    System.StringComparison.Ordinal);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[RuntimeShadow] {eventLabel}");
+            sb.AppendLine($"  shadow:  ending={shadowDecision.EndingPlayerId}, next={shadowDecision.NextPlayerId}, state={shadowDecision.PostTurnStateLabel}");
+            sb.AppendLine($"  process: ending={processDecision.EndingPlayerId}, next={processDecision.NextPlayerId}, state={processDecision.PostTurnStateLabel}");
+            sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
+
+            if (match)
+            {
+                Debug.Log(sb.ToString());
+            }
+            else
+            {
+                Debug.LogWarning(sb.ToString());
+            }
+        }
+
+        public static void CompareRuntimeStateDecision(
+            string eventLabel,
+            CustomCellGrid.RuntimeStateTransitionDecision shadowDecision,
+            CustomCellGrid.RuntimeStateTransitionDecision processDecision)
+        {
+            if (!LogRuntimeRoutingParity)
+            {
+                return;
+            }
+
+            bool match =
+                string.Equals(shadowDecision.StateLabel, processDecision.StateLabel, System.StringComparison.Ordinal)
+                && shadowDecision.SelectedUnit == processDecision.SelectedUnit
+                && shadowDecision.PendingDestination == processDecision.PendingDestination;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[RuntimeShadow] {eventLabel}");
+            sb.AppendLine($"  shadow:  state={shadowDecision.StateLabel}, selected={(shadowDecision.SelectedUnit != null ? shadowDecision.SelectedUnit.name : "<none>")}, pending={Describe(shadowDecision.PendingDestination)}");
+            sb.AppendLine($"  process: state={processDecision.StateLabel}, selected={(processDecision.SelectedUnit != null ? processDecision.SelectedUnit.name : "<none>")}, pending={Describe(processDecision.PendingDestination)}");
+            sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
+
+            if (match)
+            {
+                Debug.Log(sb.ToString());
+            }
+            else
+            {
+                Debug.LogWarning(sb.ToString());
+            }
+        }
 
         /// <summary>
         /// Shadow-harness check: did the runtime's waiting-for-input state decide to select the
@@ -258,6 +577,11 @@ namespace Windy.Srpg.Game.Diagnostics
         private static string FormatCoords(IEnumerable<BoardCell> cells)
         {
             return string.Join(", ", cells.Where(cell => cell != null).Select(cell => cell.Coordinates.ToString()));
+        }
+
+        private static string FormatUnits(IEnumerable<CustomUnit> units)
+        {
+            return string.Join(", ", units.Where(unit => unit != null).Select(unit => unit.name));
         }
 
         private static string Describe(CustomUnit unit)

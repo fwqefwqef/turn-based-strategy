@@ -157,6 +157,10 @@ namespace Windy.Srpg.Game.Players
         private void OnGameEnded(object sender, System.EventArgs e)
         {
             StopAllCoroutines();
+            if (sender is CustomCellGrid cellGrid)
+            {
+                cellGrid.SyncCustomStateToGameOver();
+            }
         }
 
         private void Reset()
