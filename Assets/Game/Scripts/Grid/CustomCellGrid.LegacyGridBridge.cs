@@ -90,6 +90,11 @@ namespace Windy.Srpg.Game.Grid
             cachedLegacyGridAnchor.UnitAdded -= OnUnitAdded;
         }
 
+        internal void PrepareLegacyGridBeforeInitialize()
+        {
+            EnsureSceneCellAnchors();
+        }
+
         public void InitializeBattleScene()
         {
             EnsureLegacyGridHost();

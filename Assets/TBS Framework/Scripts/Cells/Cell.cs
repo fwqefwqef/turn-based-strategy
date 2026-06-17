@@ -67,8 +67,25 @@ namespace TbsFramework.Cells
         }
         public virtual void OnMouseDown()
         {
+            RaiseCellClicked();
+        }
+
+        protected void RaiseCellClicked()
+        {
             if (CellClicked != null)
                 CellClicked.Invoke(this, EventArgs.Empty);
+        }
+
+        protected void RaiseCellHighlighted()
+        {
+            if (CellHighlighted != null)
+                CellHighlighted.Invoke(this, EventArgs.Empty);
+        }
+
+        protected void RaiseCellDehighlighted()
+        {
+            if (CellDehighlighted != null)
+                CellDehighlighted.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>

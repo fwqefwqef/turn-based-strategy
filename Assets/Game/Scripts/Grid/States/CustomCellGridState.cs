@@ -97,7 +97,7 @@ namespace Windy.Srpg.Game.Grid.States
 
         protected static Cell ResolveLegacyCell(IBattleCell cell)
         {
-            return cell as Cell;
+            return CustomCellGrid.ResolveRegistryCellFromBattleCell(cell);
         }
     }
 

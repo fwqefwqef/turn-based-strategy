@@ -25,6 +25,7 @@ namespace Windy.Srpg.Game.Grid
         private void Awake()
         {
             EnsureLegacyGridHost();
+            EnsureSceneCellAnchors();
             PrepareFriendlyDeploymentFromSave();
             ResolveRuntimeBoard();
             WireLegacyGridEvents();
@@ -189,6 +190,7 @@ namespace Windy.Srpg.Game.Grid
 
         private void OnLevelLoadingDoneInternal(object sender, EventArgs e)
         {
+            EnsureSceneCellAnchors();
             SubscribeToExistingCells();
             LevelInitialized?.Invoke(this, EventArgs.Empty);
         }

@@ -33,6 +33,16 @@ namespace Windy.Srpg.Game.Grid
         {
         }
 
+        public override void Initialize()
+        {
+            Owner?.PrepareLegacyGridBeforeInitialize();
+            base.Initialize();
+        }
+
+        public new void InitializeAndStart()
+        {
+        }
+
         public override void AddUnit(Transform unitTransform, Cell targetCell = null, Player ownerPlayer = null)
         {
             Owner?.RegisterSceneUnitTransform(unitTransform, targetCell, ownerPlayer);

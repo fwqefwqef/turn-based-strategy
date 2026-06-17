@@ -22,13 +22,69 @@ namespace Windy.Srpg.Game.Grid
         public int SlotIndex => slotIndex;
         public Cell Cell => cell;
 
+        public void EnsureRegistryCellBinding(CustomSquare[] candidateSquares = null)
+        {
+            if (cell != null)
+            {
+                CustomSquare host = cell.GetComponent<CustomSquare>();
+                if (host != null && cell is not FrameworkSquareAnchor)
+                {
+                    cell = host.LegacyCell;
+                }
+
+                return;
+            }
+
+            CustomSquare closestSquare = FindClosestSquare(candidateSquares);
+            if (closestSquare == null)
+            {
+                return;
+            }
+
+            cell = closestSquare.LegacyCell;
+        }
+
+        private CustomSquare FindClosestSquare(CustomSquare[] candidateSquares)
+        {
+            if (candidateSquares == null || candidateSquares.Length == 0)
+            {
+                candidateSquares = FindObjectsByType<CustomSquare>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            }
+
+            CustomSquare closestSquare = null;
+            float closestDistance = float.MaxValue;
+            const float maxBindingDistance = 1f;
+            float maxBindingDistanceSqr = maxBindingDistance * maxBindingDistance;
+            Vector3 slotPosition = transform.position;
+            foreach (CustomSquare square in candidateSquares)
+            {
+                if (square == null)
+                {
+                    continue;
+                }
+
+                float distance = (square.transform.position - slotPosition).sqrMagnitude;
+                if (distance > maxBindingDistanceSqr || distance >= closestDistance)
+                {
+                    continue;
+                }
+
+                closestDistance = distance;
+                closestSquare = square;
+            }
+
+            return closestSquare;
+        }
+
         private void Awake()
         {
+            EnsureRegistryCellBinding();
             SyncToCell();
         }
 
         private void OnEnable()
         {
+            EnsureRegistryCellBinding();
             SyncToCell();
         }
 

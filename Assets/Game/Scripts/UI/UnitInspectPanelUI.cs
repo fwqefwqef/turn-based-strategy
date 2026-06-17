@@ -1102,12 +1102,14 @@ namespace Windy.Srpg.Game.UI
                 }
 
                 CustomSquare hitCell = hit.collider.GetComponentInParent<CustomSquare>();
-                if (hitCell?.CurrentUnits == null)
+                if (hitCell?.LegacyCell?.CurrentUnits == null)
                 {
                     continue;
                 }
 
-                unit = hitCell.CurrentUnits.OfType<CustomUnit>().FirstOrDefault(candidate => candidate != null);
+                unit = hitCell.LegacyCell.CurrentUnits
+                    .Select(CustomCellGrid.ResolveCustomUnitFromRegistryUnit)
+                    .FirstOrDefault(candidate => candidate != null);
                 if (unit != null)
                 {
                     return true;

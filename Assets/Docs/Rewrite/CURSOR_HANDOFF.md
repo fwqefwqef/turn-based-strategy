@@ -1,6 +1,6 @@
 # Cursor Handoff — Framework Rewrite Work Log
 
-Last updated: 2026-06-17 (CustomCellGrid `: CellGrid` drop — compile green)  
+Last updated: 2026-06-17 (cells `: Square` drop smoke-tested; lifecycle bootstrap partial)  
 Workspace: `C:\Users\sjkim\Turn Based Strategy`  
 Prior chat transcript: `C:\Users\sjkim\.cursor\projects\c-Users-sjkim-Turn-Based-Strategy\agent-transcripts\235f9eff-6e30-49c4-8ef9-729c8c24e36a\235f9eff-6e30-49c4-8ef9-729c8c24e36a.jsonl`
 
@@ -507,7 +507,7 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | Units `: Unit` drop | **Smoke-tested OK** |
 | Abilities on `BattleAction` | **Done** — `CustomAbility : BattleAction` (never inherited framework `Ability`); turn/destroy hooks route via `CustomUnit.GetBattleActions()` |
 
-**Next action:** Smoke-test grid host slice (battle init, deploy, turns, win/lose). Cells prefab collapse remains deferred.
+**Next action:** Phase 10 prep — prefab/scene rewire (optional: bake `FrameworkSquareAnchor` into `Square.prefab`). Full prefab collapse (`BoardCell`-only tiles) remains gated behind smoke test.
 
 ---
 
@@ -528,6 +528,8 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | **Turn-state mirror fix** | Inactive-side units no longer pull `Finished` grey from runtime mirror; only current player syncs acting-state visuals | `CustomUnit.RuntimeMirror.cs` |
 | **Action notification routing** | `CustomCellGrid` overrides `NotifyTurnStarted/Ended/OwnerDestroyed` to call `CustomUnit.GetBattleActions()`; fixed `PrepareRuntimeTurnStartForPlan` to resolve `BattleUnit` → `CustomUnit` | `CustomCellGrid.ActionSync.cs`, `CustomCellGrid.UnitSync.cs`, `CellGrid.cs` |
 | **Grid `: CellGrid` drop** | `CustomCellGrid : MonoBehaviour, IBattleBoard`; `FrameworkCellGridAnchor : CellGrid` on same GO for registries, initialize, turn transitions; game-owned `InitializeBattleScene()` | `CustomCellGrid.LegacyGridBridge.cs`, `FrameworkCellGridAnchor.cs`, `CellGrid.cs` |
+| **Cells `: Square` drop** | `CustomSquare : MonoBehaviour, IBattleCell`; `FrameworkSquareAnchor : Square` on same GO for registries/pathfinding; deployment slot binding recovery; `IBattleCell` resolution via `GetComponent<CustomSquare>()` | `CustomSquare.LegacyCellBridge.cs`, `FrameworkSquareAnchor.cs`, `DeploymentSlot.cs`, `Cell.cs` |
+| **Lifecycle bootstrap (partial)** | `CellGrid.Initialize` virtual; anchor override prepares cell anchors; resolver/outcome/unit-source resolve host via `GetComponent` on same GO; block anchor `InitializeAndStart` | `FrameworkCellGridAnchor.cs`, `CellGrid.cs`, `CustomCellGrid.BattleLifecycle.cs` |
 
 ### Smoke test required (CustomUnit `: Unit` drop)
 
@@ -564,12 +566,12 @@ Goal: remove `Assets/TBS Framework` from the publishable project. The private wo
 | Anchor | Game type | Runtime replacement | Status |
 |--------|-----------|---------------------|--------|
 | Turn loop / end turn | `CellGrid.EndTurn`, `CommitTurnTransition` | `BattleBoard.EndCurrentTurn` | **Done** — runtime kicks; legacy sync skips duplicate kick |
-| Grid board | `CustomCellGrid : MonoBehaviour` + `FrameworkCellGridAnchor : CellGrid` | `BattleBoard` + thin scene host | **Partial** — `: CellGrid` inheritance dropped (compile green); anchor keeps registries + turn transitions |
+| Grid board | `CustomCellGrid : MonoBehaviour` + `FrameworkCellGridAnchor : CellGrid` | `BattleBoard` + thin scene host | **Done (smoke-tested)** — host owns init/start; anchor is registry/turn token |
 | Units | `FrameworkUnitAnchor : Unit` (registry token) + `CustomUnit : MonoBehaviour` | `BattleUnit` mirror on same GO | **Done (smoke-tested)** — `: Unit` inheritance dropped; runtime owns turn hooks + cell/MP pull |
-| Cells | `CustomSquare : Square` | `RuntimeSampleSquareCell : BoardCell` | Dual prefab mirror |
+| Cells | `CustomSquare : MonoBehaviour` + `FrameworkSquareAnchor : Square` | `RuntimeSampleSquareCell : BoardCell` | **Done (smoke-tested)** — `: Square` drop; anchor keeps registries + pathfinding |
 | Abilities | `CustomAbility : BattleAction` | `BattleAction` / `IBattleAction` | **Done** — no framework `Ability` inheritance; grid notifies via `GetBattleActions()` |
 | Grid states | `LegacyCustomCellGridStateAdapter : CellGridState` | `BoardState*` + direct `CustomCellGridState` dispatch | **Done** — adapter removed; end-turn router only |
-| Lifecycle | `Initialize`, `StartGame` | Game-owned bootstrap | **Partial** — battle start runtime-led; `Initialize()` still framework |
+| Lifecycle | `Initialize`, `StartGame` | Game-owned bootstrap | **Partial** — host orchestrates init; anchor resolves `IBattleBoard`/agents from sibling components; `StartLegacyBattle` fallback fixed |
 
 ### Recommended slice order
 
@@ -578,8 +580,8 @@ Goal: remove `Assets/TBS Framework` from the publishable project. The private wo
 3. ~~**Grid states**~~ — **Done** — adapter removed; smoke-test before unit slice.
 4. ~~**Units**~~ — **Done (smoke-tested)** — `: Unit` drop; `FrameworkUnitAnchor` keeps registries; turn-state mirror fix.
 5. ~~**Abilities**~~ — **Done** — already `BattleAction`-only; action notification routing via `CustomCellGrid.ActionSync`.
-7. ~~**Delete `CustomCellGrid : CellGrid`**~~ — **`: CellGrid` drop done (compile green; smoke test pending)** — `FrameworkCellGridAnchor` keeps framework registries.
-8. **Cells** — drop `SampleSquare`/`CustomSquare` from prefabs; use `BoardCell` only (Phase 10 scene rewire). **Deferred until cells slice.**
+7. ~~**Delete `CustomCellGrid : CellGrid`**~~ — **Done (smoke-tested)**.
+8. ~~**Cells `: Square` drop**~~ — **Done (smoke-tested)**. Prefab collapse to `BoardCell`-only remains Phase 10.
 9. **Phase 10–13** — scene/prefab rewire, namespace cleanup, publication audit.
 
 ### Do not do yet

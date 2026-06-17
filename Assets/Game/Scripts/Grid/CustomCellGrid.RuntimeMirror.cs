@@ -145,7 +145,8 @@ namespace Windy.Srpg.Game.Grid
             }
 
             Cell legacyCell = GetLegacyCell(cell);
-            if (legacyCell is CustomSquare customSquare)
+            CustomSquare customSquare = ResolveCustomSquareFromRegistryCell(legacyCell);
+            if (customSquare != null)
             {
                 customSquare.RaiseSceneHighlightEvent();
                 return;
@@ -165,7 +166,8 @@ namespace Windy.Srpg.Game.Grid
             }
 
             Cell legacyCell = GetLegacyCell(cell);
-            if (legacyCell is CustomSquare customSquare)
+            CustomSquare customSquare = ResolveCustomSquareFromRegistryCell(legacyCell);
+            if (customSquare != null)
             {
                 customSquare.RaiseSceneDehighlightEvent();
                 return;
@@ -289,7 +291,8 @@ namespace Windy.Srpg.Game.Grid
 
             if (clickedCell == null || !ShouldRouteHumanMovementThroughRuntime)
             {
-                if (legacyCell is IBattleCell battleCell && CurrentCustomState != null)
+                IBattleCell battleCell = ResolveBattleCellFromRegistryCell(legacyCell);
+                if (battleCell != null && CurrentCustomState != null)
                 {
                     CurrentCustomState.OnCellClicked(battleCell);
                 }
@@ -434,14 +437,20 @@ namespace Windy.Srpg.Game.Grid
                 && runtimeDecision.SelectedUnit == previouslySelectedUnit
                 && legacyCell != null)
             {
+                IBattleCell battleCell = ResolveBattleCellFromRegistryCell(legacyCell);
+                if (battleCell == null)
+                {
+                    return;
+                }
+
                 CustomMoveAbility moveAbility = previouslySelectedUnit.GetComponent<CustomMoveAbility>();
                 if (moveAbility != null)
                 {
-                    moveAbility.OnCellClicked((IBattleCell)legacyCell, this);
+                    moveAbility.OnCellClicked(battleCell, this);
                 }
                 else
                 {
-                    ForwardCellClickToAbilities(previouslySelectedUnit, (IBattleCell)legacyCell);
+                    ForwardCellClickToAbilities(previouslySelectedUnit, battleCell);
                 }
             }
         }

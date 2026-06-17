@@ -186,17 +186,27 @@ namespace Windy.Srpg.Game.Abilities
 
         public override void OnCellClicked(IBattleCell cell, IBattleBoard board)
         {
-            OnCellClicked(cell as Cell, ResolveCustomCellGrid(board));
+            OnCellClicked(ResolveRegistryCellFromBattleCell(cell), ResolveCustomCellGrid(board));
         }
 
         public override void OnCellHighlighted(IBattleCell cell, IBattleBoard board)
         {
-            OnCellSelected(cell as Cell, ResolveCustomCellGrid(board));
+            OnCellSelected(ResolveRegistryCellFromBattleCell(cell), ResolveCustomCellGrid(board));
         }
 
         public override void OnCellDehighlighted(IBattleCell cell, IBattleBoard board)
         {
-            OnCellDeselected(cell as Cell, ResolveCustomCellGrid(board));
+            OnCellDeselected(ResolveRegistryCellFromBattleCell(cell), ResolveCustomCellGrid(board));
+        }
+
+        private static Cell ResolveRegistryCellFromBattleCell(IBattleCell cell)
+        {
+            if (cell is CustomSquare square)
+            {
+                return square.LegacyCell;
+            }
+
+            return cell as Cell;
         }
 
         public override void OnUnitClicked(IBattleUnit unit, IBattleBoard board)

@@ -31,8 +31,9 @@ public class SampleSquare : CustomSquare
     private SpriteRenderer _baseSpriteRenderer;
     private SpriteRenderer _highlightOverlaySpriteRenderer;
 
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake();
         if (baseRenderer == null)
         {
             baseRenderer = GetComponent<Renderer>();

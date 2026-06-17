@@ -30,7 +30,8 @@ namespace Windy.Srpg.Game.Grid
 
         internal bool TryDispatchCellDeselected(Cell cell)
         {
-            if (cell is IBattleCell battleCell
+            IBattleCell battleCell = ResolveBattleCellFromRegistryCell(cell);
+            if (battleCell != null
                 && TryDispatchToCustomState(state => state.OnCellDeselected(battleCell)))
             {
                 return true;
@@ -41,7 +42,8 @@ namespace Windy.Srpg.Game.Grid
 
         internal bool TryDispatchCellSelected(Cell cell)
         {
-            if (cell is IBattleCell battleCell
+            IBattleCell battleCell = ResolveBattleCellFromRegistryCell(cell);
+            if (battleCell != null
                 && TryDispatchToCustomState(state => state.OnCellSelected(battleCell)))
             {
                 return true;
@@ -52,7 +54,8 @@ namespace Windy.Srpg.Game.Grid
 
         internal bool TryDispatchCellClicked(Cell cell)
         {
-            if (cell is IBattleCell battleCell
+            IBattleCell battleCell = ResolveBattleCellFromRegistryCell(cell);
+            if (battleCell != null
                 && TryDispatchToCustomState(state => state.OnCellClicked(battleCell)))
             {
                 return true;

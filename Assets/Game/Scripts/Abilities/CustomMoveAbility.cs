@@ -1413,7 +1413,7 @@ namespace Windy.Srpg.Game.Abilities
             {
                 GetRuntimeBoardCell(cell)?.ApplyHighlight(CellHighlightKind.Attack);
             }
-            else if (cell is CustomSquare customSquare)
+            else if (CustomCellGrid.ResolveCustomSquareFromRegistryCell(cell) is { } customSquare)
             {
                 customSquare.MarkAsAttackPreview();
             }
@@ -1625,7 +1625,7 @@ namespace Windy.Srpg.Game.Abilities
         {
             foreach (var cell in pendingAreaSkillCenterCells)
             {
-                if (cell is CustomSquare customSquare)
+                if (CustomCellGrid.ResolveCustomSquareFromRegistryCell(cell) is { } customSquare)
                 {
                     customSquare.ClearPreviewBorder();
                 }
@@ -2241,7 +2241,7 @@ namespace Windy.Srpg.Game.Abilities
             {
                 GetRuntimeBoardCell(cell)?.ApplyHighlight(CellHighlightKind.Deployment);
             }
-            else if (cell is CustomSquare customSquare)
+            else if (CustomCellGrid.ResolveCustomSquareFromRegistryCell(cell) is { } customSquare)
             {
                 customSquare.MarkAsTradePreview();
             }
@@ -3449,7 +3449,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private static void ApplySkillPreviewHighlight(Cell cell, SkillHighlightMode highlightMode, bool faint = false)
         {
-            if (!(cell is CustomSquare customSquare))
+            CustomSquare customSquare = CustomCellGrid.ResolveCustomSquareFromRegistryCell(cell);
+            if (customSquare == null)
             {
                 return;
             }
@@ -3491,7 +3492,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private static void ApplyAreaCenterBorderPreview(AreaBorderOutline outline, SkillHighlightMode highlightMode)
         {
-            if (outline.Cell is not CustomSquare customSquare)
+            CustomSquare customSquare = CustomCellGrid.ResolveCustomSquareFromRegistryCell(outline.Cell);
+            if (customSquare == null)
             {
                 return;
             }

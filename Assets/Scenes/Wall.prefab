@@ -110,10 +110,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _offsetCoord: {x: 0, y: 0}
-  MarkAsReachableFn: []
-  MarkAsPathFn: []
-  MarkAsHighlightedFn: []
-  UnMarkFn: []
   IsTaken: 1
   MovementCost: 1
   MarkAsAttackPreviewFn: []

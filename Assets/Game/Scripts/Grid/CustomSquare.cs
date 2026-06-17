@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using TbsFramework.Cells;
 using TbsFramework.Cells.Highlighters;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -7,13 +6,43 @@ using Windy.Srpg.Runtime.Board;
 
 namespace Windy.Srpg.Game.Grid
 {
-    public abstract class CustomSquare : Square, IBattleCell
+    public abstract partial class CustomSquare : MonoBehaviour, IBattleCell
     {
+        [SerializeField] private Vector2 _offsetCoord;
+
+        public Vector2 OffsetCoord
+        {
+            get => _offsetCoord;
+            set
+            {
+                _offsetCoord = value;
+                SyncRegistryAnchorFromCustomSquare();
+            }
+        }
+
+        public bool IsTaken;
+        public float MovementCost = 1f;
+
         public List<CellHighlighter> MarkAsAttackPreviewFn;
         public List<CellHighlighter> MarkAsTradePreviewFn;
         public List<CellHighlighter> MarkAsAnyPreviewFn;
 
-        public override void OnMouseDown()
+        protected virtual void Awake()
+        {
+            EnsureFrameworkSquareAnchor();
+        }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            EnsureFrameworkSquareAnchor();
+            SyncRegistryAnchorFromCustomSquare();
+        }
+#endif
+
+        public abstract Vector3 GetCellDimensions();
+
+        public virtual void OnMouseDown()
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
@@ -26,10 +55,10 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            base.OnMouseDown();
+            EnsureFrameworkSquareAnchor().RaiseCellClicked();
         }
 
-        public override void OnMouseEnter()
+        public virtual void OnMouseEnter()
         {
             CustomCellGrid grid = FindAnyObjectByType<CustomCellGrid>();
             if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
@@ -37,10 +66,10 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            base.OnMouseEnter();
+            EnsureFrameworkSquareAnchor().RaiseCellHighlighted();
         }
 
-        public override void OnMouseExit()
+        public virtual void OnMouseExit()
         {
             CustomCellGrid grid = FindAnyObjectByType<CustomCellGrid>();
             if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
@@ -48,32 +77,48 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            base.OnMouseExit();
+            EnsureFrameworkSquareAnchor().RaiseCellDehighlighted();
         }
 
         internal void RaiseSceneHighlightEvent()
         {
-            base.OnMouseEnter();
+            EnsureFrameworkSquareAnchor().RaiseCellHighlighted();
         }
 
         internal void RaiseSceneDehighlightEvent()
         {
-            base.OnMouseExit();
+            EnsureFrameworkSquareAnchor().RaiseCellDehighlighted();
+        }
+
+        public virtual void MarkAsHighlighted()
+        {
+        }
+
+        public virtual void MarkAsPath()
+        {
+        }
+
+        public virtual void MarkAsReachable()
+        {
+        }
+
+        public virtual void UnMark()
+        {
         }
 
         public virtual void MarkAsAttackPreview()
         {
-            MarkAsAttackPreviewFn?.ForEach(o => o.Apply(this));
+            MarkAsAttackPreviewFn?.ForEach(o => o.Apply(LegacyCell));
         }
 
         public virtual void MarkAsTradePreview()
         {
-            MarkAsTradePreviewFn?.ForEach(o => o.Apply(this));
+            MarkAsTradePreviewFn?.ForEach(o => o.Apply(LegacyCell));
         }
 
         public virtual void MarkAsAnyPreview()
         {
-            MarkAsAnyPreviewFn?.ForEach(o => o.Apply(this));
+            MarkAsAnyPreviewFn?.ForEach(o => o.Apply(LegacyCell));
         }
 
         public virtual void MarkAsAttackPreviewFaint()
@@ -91,7 +136,7 @@ namespace Windy.Srpg.Game.Grid
             MarkAsAnyPreview();
         }
 
-        public virtual void ShowPreviewBorder(bool top, bool right, bool bottom, bool left, UnityEngine.Color color)
+        public virtual void ShowPreviewBorder(bool top, bool right, bool bottom, bool left, Color color)
         {
         }
 
@@ -100,5 +145,3 @@ namespace Windy.Srpg.Game.Grid
         }
     }
 }
-
-

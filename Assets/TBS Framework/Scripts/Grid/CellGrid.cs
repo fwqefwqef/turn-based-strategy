@@ -116,7 +116,7 @@ namespace TbsFramework.Grid
             StartGame();
         }
 
-        public void Initialize()
+        public virtual void Initialize()
         {
             if (LevelLoading != null)
                 LevelLoading.Invoke(this, EventArgs.Empty);
@@ -181,7 +181,7 @@ namespace TbsFramework.Grid
             }
 
             Units = new List<Unit>();
-            var runtimeUnitSource = GetComponent<IBattleSceneUnitSource>();
+            IBattleSceneUnitSource runtimeUnitSource = ResolveBattleSceneUnitSource();
             if (runtimeUnitSource != null && battleBoard != null)
             {
                 var unitTransforms = runtimeUnitSource.GetInitialUnitTransforms(battleBoard) ?? Array.Empty<Transform>();
@@ -205,6 +205,50 @@ namespace TbsFramework.Grid
         private IBattleBoard ResolveBattleBoard()
         {
             return this as IBattleBoard ?? GetComponent<IBattleBoard>();
+        }
+
+        private IBattleSceneUnitSource ResolveBattleSceneUnitSource()
+        {
+            return this as IBattleSceneUnitSource ?? GetComponent<IBattleSceneUnitSource>();
+        }
+
+        private RoundRobinTurnPlan ResolveStartPlan()
+        {
+            IBattleTurnResolver runtimeTurnResolver = GetComponent<IBattleTurnResolver>();
+            IBattleBoard battleBoard = ResolveBattleBoard();
+            if (runtimeTurnResolver != null && battleBoard != null)
+            {
+                return runtimeTurnResolver.ResolveStart(battleBoard);
+            }
+
+            Debug.LogError("CellGrid: No battle turn resolver script attached to cell grid.");
+            return new RoundRobinTurnPlan(null, Array.Empty<IBattleUnit>());
+        }
+
+        private RoundRobinTurnPlan ResolveNextTurnPlan()
+        {
+            IBattleTurnResolver runtimeTurnResolver = GetComponent<IBattleTurnResolver>();
+            IBattleBoard battleBoard = ResolveBattleBoard();
+            if (runtimeTurnResolver != null && battleBoard != null)
+            {
+                return runtimeTurnResolver.ResolveTurn(battleBoard);
+            }
+
+            Debug.LogError("CellGrid: No battle turn resolver script attached to cell grid.");
+            return new RoundRobinTurnPlan(null, Array.Empty<IBattleUnit>());
+        }
+
+        private BattleOutcome ResolveBattleOutcome()
+        {
+            IBattleEndCondition runtimeEndCondition = GetComponent<IBattleEndCondition>();
+            IBattleBoard battleBoard = ResolveBattleBoard();
+            if (runtimeEndCondition != null && battleBoard != null)
+            {
+                return runtimeEndCondition.Evaluate(battleBoard);
+            }
+
+            Debug.LogError("CellGrid: No battle end condition script attached to cell grid.");
+            return new BattleOutcome(false, null, null);
         }
 
         private void OnCellDehighlighted(object sender, EventArgs e)
@@ -570,42 +614,6 @@ namespace TbsFramework.Grid
             }
 
             return true;
-        }
-
-        private RoundRobinTurnPlan ResolveStartPlan()
-        {
-            var runtimeTurnResolver = GetComponent<IBattleTurnResolver>();
-            if (runtimeTurnResolver != null && this is IBattleBoard battleBoard)
-            {
-                return runtimeTurnResolver.ResolveStart(battleBoard);
-            }
-
-            Debug.LogError("CellGrid: No battle turn resolver script attached to cell grid.");
-            return new RoundRobinTurnPlan(null, Array.Empty<IBattleUnit>());
-        }
-
-        private RoundRobinTurnPlan ResolveNextTurnPlan()
-        {
-            var runtimeTurnResolver = GetComponent<IBattleTurnResolver>();
-            if (runtimeTurnResolver != null && this is IBattleBoard battleBoard)
-            {
-                return runtimeTurnResolver.ResolveTurn(battleBoard);
-            }
-
-            Debug.LogError("CellGrid: No battle turn resolver script attached to cell grid.");
-            return new RoundRobinTurnPlan(null, Array.Empty<IBattleUnit>());
-        }
-
-        private BattleOutcome ResolveBattleOutcome()
-        {
-            var runtimeEndCondition = GetComponent<IBattleEndCondition>();
-            if (runtimeEndCondition != null && this is IBattleBoard battleBoard)
-            {
-                return runtimeEndCondition.Evaluate(battleBoard);
-            }
-
-            Debug.LogError("CellGrid: No battle end condition script attached to cell grid.");
-            return new BattleOutcome(false, null, null);
         }
 
         private static Func<List<Unit>> CreatePlayableUnitsAccessor(RoundRobinTurnPlan plan)
