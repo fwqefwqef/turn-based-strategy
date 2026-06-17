@@ -19,8 +19,6 @@ Unity SRPG project.
 2. Load `Assets/Scenes/test.unity`.
 3. Press Play to run the current test battle scene.
 
-This project is intended to run without `Assets/TBS Framework` or any separately requested vendor package.
-
 ## Build / Verification
 
 Quick compile check:
@@ -28,12 +26,6 @@ Quick compile check:
 ```powershell
 dotnet build com.windy.srpg.game.csproj
 ```
-
-## Publication Notes
-
-- The active codebase builds without `Assets/TBS Framework`
-- Publication audit report: `Assets/Docs/Publication/PHASE12_AUDIT_REPORT.md`
-- Phase 13 packaging checklist: `Assets/Docs/Publication/PHASE13_PACKAGING_CHECKLIST.md`
 
 ## License
 
