@@ -163,10 +163,14 @@ namespace Windy.Srpg.Game.Units
         private float combatSequenceStartDelaySeconds = 0.25f;
         public bool IsAttackSequenceRunning { get; private set; } = false;
 
+        private static int activeCombatPresentationDepth;
+
+        public static bool IsAnyCombatPresentationActive => activeCombatPresentationDepth > 0;
+
         public static IEnumerator WaitForAttackSequenceCompletion(CustomUnit unit, float timeoutSeconds = 30f)
         {
             float elapsed = 0f;
-            while (unit != null && unit.IsAttackSequenceRunning)
+            while (ShouldKeepWaitingForCombatCompletion(unit))
             {
                 elapsed += Time.unscaledDeltaTime;
                 if (elapsed >= timeoutSeconds)
@@ -176,6 +180,16 @@ namespace Windy.Srpg.Game.Units
 
                 yield return null;
             }
+        }
+
+        private static bool ShouldKeepWaitingForCombatCompletion(CustomUnit unit)
+        {
+            if (unit != null && unit.IsAttackSequenceRunning)
+            {
+                return true;
+            }
+
+            return IsAnyCombatPresentationActive;
         }
         [SerializeField]
         private int baseLuck;
@@ -518,6 +532,12 @@ namespace Windy.Srpg.Game.Units
         public override void OnMouseDown()
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
+            CustomCellGrid grid = FindSceneCellGrid();
+            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
             {
                 return;
             }
@@ -2026,13 +2046,13 @@ namespace Windy.Srpg.Game.Units
         protected override void OnDestroyed()
         {
             bool wasRunningAttackSequence = IsAttackSequenceRunning;
-            IsAttackSequenceRunning = false;
 
             Cell currentCell = Cell;
             currentCell?.CurrentUnits.Remove(this);
             RefreshLegacyCellOccupancy(currentCell);
             ClearMirroredRuntimeCell();
             MarkAsDestroyed();
+            SuppressDefeatedInteraction();
 
             if (wasRunningAttackSequence)
             {
@@ -2054,7 +2074,52 @@ namespace Windy.Srpg.Game.Units
                 }
             }
 
+            RequestDeferredDestroy();
+        }
+
+        private bool pendingDeferredDestroy;
+
+        private void RequestDeferredDestroy()
+        {
+            if (pendingDeferredDestroy)
+            {
+                return;
+            }
+
+            pendingDeferredDestroy = true;
+            CustomCellGrid cellGrid = FindSceneCellGrid();
+            cellGrid?.EnqueueDeferredDestroy(this);
+            cellGrid?.TryFlushDeferredDestroyQueue();
+        }
+
+        internal void CompleteDeferredDestroy()
+        {
+            if (!pendingDeferredDestroy)
+            {
+                return;
+            }
+
+            pendingDeferredDestroy = false;
             Destroy(gameObject);
+        }
+
+        private void SuppressDefeatedInteraction()
+        {
+            foreach (var collider in GetComponentsInChildren<Collider>(true))
+            {
+                collider.enabled = false;
+            }
+        }
+
+        private static void BeginCombatPresentation()
+        {
+            activeCombatPresentationDepth++;
+        }
+
+        private static void EndCombatPresentation()
+        {
+            activeCombatPresentationDepth = Mathf.Max(0, activeCombatPresentationDepth - 1);
+            FindAnyObjectByType<CustomCellGrid>()?.TryFlushDeferredDestroyQueue();
         }
 
         /// <summary>
@@ -2202,6 +2267,7 @@ namespace Windy.Srpg.Game.Units
         private IEnumerator AttackSequenceRoutine(CustomUnit unitToAttack, ResolvedAttackProfile attackProfile)
         {
             IsAttackSequenceRunning = true;
+            BeginCombatPresentation();
             bool sequenceStarted = false;
             CustomUnit experienceTarget = unitToAttack;
             int experienceTargetLevel = experienceTarget != null ? experienceTarget.Level : 0;
@@ -2331,7 +2397,7 @@ namespace Windy.Srpg.Game.Units
                 if (experienceAward != null)
                 {
                     yield return StartCoroutine(WaitForCombatHudToClose());
-                    yield return StartCoroutine(PlayExperienceAwardSequence(experienceAward));
+                    yield return StartCoroutine(PlayExperienceAwardSequence(this, experienceAward));
                 }
 
                 Debug.Log($"[Combat] {name}'s attack sequence is complete. (attackerId={UnitID}, finishedAfter={IsFinishedForTurn})");
@@ -2353,6 +2419,7 @@ namespace Windy.Srpg.Game.Units
 
                 ReleaseCombatCameraFocus();
                 IsAttackSequenceRunning = false;
+                EndCombatPresentation();
             }
         }
 
@@ -2650,9 +2717,33 @@ namespace Windy.Srpg.Game.Units
 
         private IEnumerator CounterAttack(CustomUnit aggressor, bool counterPrevented = false)
         {
-            if (ShouldTriggerCounterAttack(aggressor, counterPrevented))
+            if (!ShouldTriggerCounterAttack(aggressor, counterPrevented))
             {
-                Debug.Log($"[Combat] {name} counterattacks {aggressor.name} after attack resolution. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
+                Debug.Log($"[Combat] {name} does not counterattack after attack resolution. (defenderId={UnitID}, canCounter={CanCounterAttack}, defenderDead={HitPoints <= 0}, aggressorDead={(aggressor == null || aggressor.HitPoints <= 0)}, aggressorInRange={IsAggressorInCounterRange(aggressor)}, counterPrevented={counterPrevented})");
+                yield break;
+            }
+
+            Debug.Log($"[Combat] {name} counterattacks {aggressor.name} after attack resolution. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
+
+            CustomUnit experienceTarget = aggressor;
+            int experienceTargetLevel = experienceTarget != null ? experienceTarget.Level : 0;
+            bool targetWasDefeated = false;
+            EventHandler<AttackEventArgs> destroyedHandler = null;
+
+            try
+            {
+                if (experienceTarget != null)
+                {
+                    destroyedHandler = (_, args) =>
+                    {
+                        if (args?.Attacker == this && args.Defender == experienceTarget)
+                        {
+                            targetWasDefeated = true;
+                        }
+                    };
+                    experienceTarget.CombatDestroyed += destroyedHandler;
+                }
+
                 MarkAsAttacking(aggressor);
                 yield return StartCoroutine(PlayAttackLungeAnimation(aggressor));
                 var counterDamage = Attack;
@@ -2669,12 +2760,28 @@ namespace Windy.Srpg.Game.Units
                 {
                     yield return new WaitForSeconds(attackHitPauseSeconds);
                 }
+
+                if (!targetWasDefeated && experienceTarget != null)
+                {
+                    targetWasDefeated = experienceTarget.HitPoints <= 0;
+                }
+
+                ExperienceAwardResult experienceAward = BuildCombatExperienceAward(
+                    experienceTarget,
+                    experienceTargetLevel,
+                    targetWasDefeated);
+                if (experienceAward != null)
+                {
+                    yield return StartCoroutine(PlayDeferredExperienceAward(experienceAward));
+                }
             }
-            else
+            finally
             {
-                Debug.Log($"[Combat] {name} does not counterattack after attack resolution. (defenderId={UnitID}, canCounter={CanCounterAttack}, defenderDead={HitPoints <= 0}, aggressorDead={(aggressor == null || aggressor.HitPoints <= 0)}, aggressorInRange={IsAggressorInCounterRange(aggressor)}, counterPrevented={counterPrevented})");
+                if (experienceTarget != null && destroyedHandler != null)
+                {
+                    experienceTarget.CombatDestroyed -= destroyedHandler;
+                }
             }
-            yield break;
         }
 
         private bool ShouldTriggerCounterAttack(CustomUnit aggressor, bool counterPrevented = false)
@@ -2946,6 +3053,7 @@ namespace Windy.Srpg.Game.Units
         private IEnumerator SupportSkillRoutine(CustomUnit primaryTarget, bool endsTurn, Action resolveEffect, SkillData skill, Windy.Srpg.Game.Grid.CustomCellGrid cellGrid)
         {
             IsAttackSequenceRunning = true;
+            BeginCombatPresentation();
             bool sequenceStarted = false;
             try
             {
@@ -2985,7 +3093,7 @@ namespace Windy.Srpg.Game.Units
                 if (experienceAward != null)
                 {
                     yield return StartCoroutine(WaitForCombatHudToClose());
-                    yield return StartCoroutine(PlayExperienceAwardSequence(experienceAward));
+                    yield return StartCoroutine(PlayExperienceAwardSequence(this, experienceAward));
                 }
             }
             finally
@@ -2997,12 +3105,14 @@ namespace Windy.Srpg.Game.Units
 
                 ReleaseCombatCameraFocus();
                 IsAttackSequenceRunning = false;
+                EndCombatPresentation();
             }
         }
 
         private IEnumerator AreaSkillRoutine(IReadOnlyList<CustomUnit> targets, bool endsTurn, Action<CustomUnit> resolvePerTarget, SkillData skill, Windy.Srpg.Game.Grid.CustomCellGrid cellGrid)
         {
             IsAttackSequenceRunning = true;
+            BeginCombatPresentation();
 
             const float groupedStartDelaySeconds = 0.12f;
             const float groupedStepDelaySeconds = 0.18f;
@@ -3066,7 +3176,7 @@ namespace Windy.Srpg.Game.Units
                 if (experienceAward != null)
                 {
                     yield return StartCoroutine(WaitForCombatHudToClose());
-                    yield return StartCoroutine(PlayExperienceAwardSequence(experienceAward));
+                    yield return StartCoroutine(PlayExperienceAwardSequence(this, experienceAward));
                 }
 
                 if (endsTurn)
@@ -3078,6 +3188,7 @@ namespace Windy.Srpg.Game.Units
             {
                 ReleaseCombatCameraFocus();
                 IsAttackSequenceRunning = false;
+                EndCombatPresentation();
             }
         }
 

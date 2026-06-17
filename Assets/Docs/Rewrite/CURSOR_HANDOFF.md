@@ -336,9 +336,10 @@ These were already present and are relied on by the work above:
 6. **Combat post-game / AI counterattack recovery** — **implemented** (`EnterPostCombatGridState`, AI attack wait on player host, game-over during AI turn).
 7. **Battle outcome shadow parity** — **done** (user smoke-tested MATCH incl. `Battle ended`).
 8. **Win/lose runtime routing (toggle ON)** — **done** (user smoke-tested: shadow + routing MATCH, `TryApplyBattleOutcome` on win).
-9. **Input/turn-loop authority flip** — enable `BattleBoard.sceneInputEnabled`. Blocked until parity proven.
-10. **Cell identity collapse** — explicitly deferred.
-11. **Phases 10–13** of `CLEAN_RUNTIME_REWRITE_PLAN.md` — not started.
+9. **Framework scene input suppression (toggle ON)** — **implemented** (runtime `sceneInputEnabled` + framework mouse suppress + click bridge to existing state handlers).
+10. **Input/turn-loop authority flip** — enable `BattleBoard.sceneInputEnabled` without bridge. Blocked until parity proven.
+11. **Cell identity collapse** — explicitly deferred.
+12. **Phases 10–13** of `CLEAN_RUNTIME_REWRITE_PLAN.md` — not started.
 
 ---
 
@@ -380,7 +381,7 @@ With `useRuntimeMovementExecution` **ON**:
 
 ### Medium term
 
-1. Framework input suppression when toggle ON (prep for `sceneInputEnabled` flip)
+1. ~~Framework input suppression when toggle ON~~ **done** (runtime scene input + framework mouse suppress + bridge)
 2. Full input/turn-loop flip after click-for-click parity
 3. AI runtime turn authority beyond shadow
 4. Publication phases per `CLEAN_RUNTIME_REWRITE_PLAN.md`
@@ -483,8 +484,9 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | End-turn runtime routing | **Implemented** (user smoke-tested OK) |
 | Combat recovery (game over / AI counter) | **Implemented** |
 | Battle outcome shadow | **Done** (user smoke-tested MATCH) |
-| Win/lose runtime routing | **Implemented + smoke-tested OK** (shadow + routing MATCH; `TryApplyBattleOutcome` on win) |
+| Win/lose runtime routing | **Implemented + smoke-tested OK** |
+| Framework scene input suppression | **Implemented** (toggle ON: runtime clicks, framework mouse blocked) |
 | Input/turn-loop flip | **Not started** |
 | Cell collapse | **Explicitly deferred** |
 
-**Next action:** Framework input suppression when toggle ON (prep for `sceneInputEnabled` flip without double-click handling).
+**Next action:** Smoke test framework input suppression (toggle ON → select/move/attack/cancel still work; no double-click). Then runtime hover bridge if needed.

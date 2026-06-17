@@ -72,6 +72,14 @@ namespace Windy.Srpg.Game.Grid
         public bool UseRuntimeMovementExecution => useRuntimeMovementExecution;
         public bool ShouldRouteHumanMovementThroughRuntime => useRuntimeMovementExecution && IsHumanTurn;
         public bool ShouldRouteBattleOutcomeThroughRuntime => useRuntimeMovementExecution;
+        public bool ShouldSuppressFrameworkSceneInput => CanBridgeHumanRuntimeSceneInput;
+        public bool CanBridgeHumanRuntimeSceneInput =>
+            ShouldRouteHumanMovementThroughRuntime
+            && !GameFinished
+            && !IsPreBattlePhase
+            && (CurrentCustomState is CustomCellGridStateWaitingForInput
+                or CustomUnitSelectedState
+                or CustomCellGridStateMovePendingConfirm);
 
         public List<CustomPlayer> GetOrderedCustomPlayers()
         {

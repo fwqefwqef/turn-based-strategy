@@ -18,6 +18,8 @@ namespace Windy.Srpg.Game.Grid
         {
             NormalizeHumanInputState();
             ApplyRuntimeBoardMirror();
+            SyncRuntimeSceneInputGate();
+            ProcessDeferredDestroyQueue();
         }
 
         private void Awake()
@@ -82,6 +84,7 @@ namespace Windy.Srpg.Game.Grid
             }
 
             subscribedCells.Clear();
+            ClearRuntimeSceneInputBridge();
         }
 
         private void OnApplicationPause(bool pauseStatus)

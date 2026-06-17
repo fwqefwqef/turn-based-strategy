@@ -31,6 +31,74 @@ namespace Windy.Srpg.Game.Grid
         private BattleBoard runtimeBoard;
         private bool runtimeBoardCollectionsDirty = true;
 
+        private void SyncRuntimeSceneInputGate()
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return;
+            }
+
+            bool bridgeActive = CanBridgeHumanRuntimeSceneInput;
+            runtimeBoard.SetSceneInputEnabled(bridgeActive);
+
+            if (bridgeActive)
+            {
+                runtimeBoard.UnitClickBridge = TryBridgeRuntimeSceneUnitClick;
+                runtimeBoard.CellClickBridge = TryBridgeRuntimeSceneCellClick;
+                return;
+            }
+
+            ClearRuntimeSceneInputBridge();
+        }
+
+        private void ClearRuntimeSceneInputBridge()
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return;
+            }
+
+            runtimeBoard.UnitClickBridge = null;
+            runtimeBoard.CellClickBridge = null;
+            runtimeBoard.SetSceneInputEnabled(false);
+        }
+
+        private bool TryBridgeRuntimeSceneUnitClick(BattleUnit unit)
+        {
+            if (!CanBridgeHumanRuntimeSceneInput || unit == null || CurrentCustomState == null)
+            {
+                return false;
+            }
+
+            CustomUnit customUnit = GetLegacyUnit(unit);
+            if (customUnit == null)
+            {
+                return false;
+            }
+
+            CurrentCustomState.OnCustomUnitClicked(customUnit);
+            return true;
+        }
+
+        private bool TryBridgeRuntimeSceneCellClick(BoardCell cell)
+        {
+            if (!CanBridgeHumanRuntimeSceneInput || cell == null || CurrentCustomState == null)
+            {
+                return false;
+            }
+
+            Cell legacyCell = GetLegacyCell(cell);
+            if (legacyCell is not IBattleCell battleCell)
+            {
+                return false;
+            }
+
+            CurrentCustomState.OnCellClicked(battleCell);
+            return true;
+        }
+
         private void NormalizeHumanInputState()
         {
             if (!IsHumanTurn)

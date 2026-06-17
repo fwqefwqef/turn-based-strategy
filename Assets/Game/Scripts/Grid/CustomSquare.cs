@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TbsFramework.Cells;
 using TbsFramework.Cells.Highlighters;
+using UnityEngine;
 using UnityEngine.EventSystems;
 using Windy.Srpg.Runtime.Board;
 
@@ -15,6 +16,12 @@ namespace Windy.Srpg.Game.Grid
         public override void OnMouseDown()
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
+            CustomCellGrid grid = FindAnyObjectByType<CustomCellGrid>();
+            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
             {
                 return;
             }

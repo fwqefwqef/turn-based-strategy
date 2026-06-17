@@ -175,9 +175,28 @@ namespace Windy.Srpg.Game.Units
                 levelUpSteps);
         }
 
-        private IEnumerator PlayExperienceAwardSequence(ExperienceAwardResult award)
+        private IEnumerator PlayDeferredExperienceAward(ExperienceAwardResult award)
         {
             if (award == null)
+            {
+                yield break;
+            }
+
+            BeginCombatPresentation();
+            try
+            {
+                yield return WaitForCombatHudToClose();
+                yield return PlayExperienceAwardSequence(this, award);
+            }
+            finally
+            {
+                EndCombatPresentation();
+            }
+        }
+
+        private IEnumerator PlayExperienceAwardSequence(CustomUnit recipient, ExperienceAwardResult award)
+        {
+            if (recipient == null || award == null)
             {
                 yield break;
             }
@@ -185,7 +204,7 @@ namespace Windy.Srpg.Game.Units
             ExperienceGainHUD experienceHud = FindSceneExperienceGainHud();
             if (experienceHud != null)
             {
-                yield return experienceHud.ShowAndWait(this, award);
+                yield return experienceHud.ShowAndWait(recipient, award);
             }
 
             if (award.LevelUps.Count > 0)
@@ -199,11 +218,11 @@ namespace Windy.Srpg.Game.Units
                 LevelUpUI levelUpUi = FindSceneLevelUpUi();
                 foreach (LevelUpGainStep step in award.LevelUps)
                 {
-                    LevelableStatKind selectedStat = GetDefaultManualLevelUpStat();
+                    LevelableStatKind selectedStat = recipient.GetDefaultManualLevelUpStat();
                     if (levelUpUi != null)
                     {
                         bool resolved = false;
-                        yield return levelUpUi.ShowAndWait(this, BuildLevelUpPresentation(step), stat =>
+                        yield return levelUpUi.ShowAndWait(recipient, recipient.BuildLevelUpPresentation(step), stat =>
                         {
                             selectedStat = stat;
                             resolved = true;
@@ -211,15 +230,15 @@ namespace Windy.Srpg.Game.Units
 
                         if (!resolved)
                         {
-                            selectedStat = GetDefaultManualLevelUpStat();
+                            selectedStat = recipient.GetDefaultManualLevelUpStat();
                         }
                     }
 
-                    ApplyLevelUpStep(step, selectedStat);
+                    recipient.ApplyLevelUpStep(step, selectedStat);
                 }
             }
 
-            ApplyProgressionState(award.FinalLevel, award.FinalExperience);
+            recipient.ApplyProgressionState(award.FinalLevel, award.FinalExperience);
         }
 
         private LevelUpPresentation BuildLevelUpPresentation(LevelUpGainStep step)

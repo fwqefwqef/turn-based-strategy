@@ -79,6 +79,14 @@ namespace Windy.Srpg.Runtime.Board
         public bool SceneInputEnabled => sceneInputEnabled;
 
         /// <summary>
+        /// When set, scene clicks are delegated to the bridge first. Used by the framework
+        /// migration harness to route human input through runtime cells/units without also
+        /// firing legacy framework mouse handlers.
+        /// </summary>
+        public Func<BattleUnit, bool> UnitClickBridge { get; set; }
+        public Func<BoardCell, bool> CellClickBridge { get; set; }
+
+        /// <summary>
         /// When true the board is being driven by the non-authoritative shadow harness:
         /// state transitions still run (so decisions can be read), but visible side effects
         /// (unit Select/Deselect visuals + events, StateChanged subscribers) are suppressed.
@@ -106,6 +114,11 @@ namespace Windy.Srpg.Runtime.Board
             {
                 RefreshSceneCollections();
             }
+        }
+
+        public virtual void SetSceneInputEnabled(bool enabled)
+        {
+            sceneInputEnabled = enabled;
         }
 
         public virtual void StartBattle()
@@ -618,6 +631,11 @@ namespace Windy.Srpg.Runtime.Board
                 return;
             }
 
+            if (CellClickBridge != null && CellClickBridge.Invoke(cell))
+            {
+                return;
+            }
+
             currentState?.OnCellClicked(cell);
         }
 
@@ -644,6 +662,11 @@ namespace Windy.Srpg.Runtime.Board
         private void HandleUnitClicked(BattleUnit unit)
         {
             if (!sceneInputEnabled)
+            {
+                return;
+            }
+
+            if (UnitClickBridge != null && UnitClickBridge.Invoke(unit))
             {
                 return;
             }
