@@ -2,9 +2,7 @@
     "name": "com.windy.srpg.game.scenes",
     "rootNamespace": "Windy.Srpg.Game.Scenes",
     "references": [
-        "com.crookedhead.tbsf",
-        "com.windy.srpg.game",
-        "com.windy.srpg.runtime"
+        "com.windy.srpg.game"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
   m_Name: pip
-  m_EditorClassIdentifier: com.crookedhead.tbsf.game::Windy.Srpg.Game.Units.UnitPreset
+  m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
   PresetId: pip
   UnitName: Pip
-  UnitSprite: {fileID: 21300000, guid: 5d84f5772940d6846aeb5ea4876ca4b5, type: 3}
+  UnitSprite: {fileID: 21300000, guid: e7a1b2c3d4e5f6789012345678a1b001, type: 3}
   SpriteLayout:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
-    OffsetY: 0.2
+    OffsetY: 0
     LegacySizeReference: 0
     LegacyScaleMode: 0
     LegacyFallbackWorldSize: {x: 0, y: 0}

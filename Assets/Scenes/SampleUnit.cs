@@ -1,7 +1,7 @@
 using Windy.Srpg.Game.Units;
 using UnityEngine;
 
-public class SampleUnit : CustomUnit
+public class SampleUnit : Unit
 {
     private static readonly Color SelectedTint = new Color(0.7f, 1f, 0.7f, 1f);
     private static readonly Color ReachableEnemyTint = new Color(1f, 0.65f, 0.65f, 1f);

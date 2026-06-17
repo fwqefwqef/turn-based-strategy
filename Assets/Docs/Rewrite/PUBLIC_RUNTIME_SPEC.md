@@ -20,9 +20,9 @@ The replacement runtime only needs to support the behavior that this scene and t
 
 The runtime must support the needs of these game-owned scripts:
 
-- `Assets/Game/Scripts/Grid/CustomCellGrid.cs`
-- `Assets/Game/Scripts/Units/CustomUnit.cs`
-- `Assets/Game/Scripts/Abilities/CustomAbility.cs`
+- `Assets/Game/Scripts/Grid/CellGrid.cs`
+- `Assets/Game/Scripts/Units/Unit.cs`
+- `Assets/Game/Scripts/Abilities/Ability.cs`
 - `Assets/Game/Scripts/Grid/States/*.cs`
 - `Assets/Game/Scripts/AI/*.cs`
 - `Assets/Game/Scripts/UI/*.cs`

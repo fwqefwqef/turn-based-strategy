@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
   m_Name: default_unit
-  m_EditorClassIdentifier: com.crookedhead.tbsf.game::Windy.Srpg.Game.Units.UnitPreset
+  m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
   PresetId: default_unit
   UnitName: Deployment Slot
   UnitSprite: {fileID: 0}
@@ -19,6 +19,14 @@ MonoBehaviour:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
     OffsetY: 0
+    LegacySizeReference: 0
+    LegacyScaleMode: 0
+    LegacyFallbackWorldSize: {x: 0, y: 0}
+    LegacyScaleMultiplier: 0
+    LegacyMinScaleFactor: 0
+    LegacyMaxScaleFactor: 0
+    LegacyVerticalAnchor: 0
+    LegacyLocalOffset: {x: 0, y: 0}
   BaseLevel: 1
   WeaponProficiencies: 0
   BaseStats:

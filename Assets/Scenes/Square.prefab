@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 7388213023806528636}
   - component: {fileID: 3319860567808475632}
   - component: {fileID: 9001000000000000003}
-  - component: {fileID: 9001000000000000004}
   - component: {fileID: 9001000000000000002}
   m_Layer: 0
   m_Name: Square
@@ -136,25 +135,6 @@ MonoBehaviour:
   explicitNeighbours: []
   highlighters:
   - {fileID: 9001000000000000002}
---- !u!114 &9001000000000000004
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 730186706383236561}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9f81fab9f299a19418ca8a4e1cd4bdb4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _offsetCoord: {x: 0, y: 0}
-  MarkAsReachableFn: []
-  MarkAsPathFn: []
-  MarkAsHighlightedFn: []
-  UnMarkFn: []
-  IsTaken: 0
-  MovementCost: 1
 --- !u!114 &9001000000000000002
 MonoBehaviour:
   m_ObjectHideFlags: 0

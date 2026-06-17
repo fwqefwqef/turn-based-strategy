@@ -12,9 +12,9 @@ Last reviewed: 2026-06-08
   - battle with movement preview, action menus, attacks, skills, items, trade, EXP, and inspect UI
 - Main decoupling note:
   - the deepest framework coupling is still at:
-    - `Assets/Game/Scripts/Grid/CustomCellGrid.cs`
-    - `Assets/Game/Scripts/Units/CustomUnit.cs`
-    - `Assets/Game/Scripts/Abilities/CustomAbility.cs`
+    - `Assets/Game/Scripts/Grid/CellGrid.cs`
+    - `Assets/Game/Scripts/Units/Unit.cs`
+    - `Assets/Game/Scripts/Abilities/Ability.cs`
     - `Assets/Game/Scripts/Grid/States/`
     - `Assets/Game/Scripts/AI/`
 
@@ -34,12 +34,12 @@ Last reviewed: 2026-06-08
 ## Main Runtime Entry Points
 
 1. Battle/grid flow:
-   - `Assets/Game/Scripts/Grid/CustomCellGrid.cs`
+   - `Assets/Game/Scripts/Grid/CellGrid.cs`
 2. Unit runtime:
-   - `Assets/Game/Scripts/Units/CustomUnit.cs`
+   - `Assets/Game/Scripts/Units/Unit.cs`
 3. Ability base + move/action flow:
-   - `Assets/Game/Scripts/Abilities/CustomAbility.cs`
-   - `Assets/Game/Scripts/Abilities/CustomMoveAbility.cs`
+   - `Assets/Game/Scripts/Abilities/Ability.cs`
+   - `Assets/Game/Scripts/Abilities/MoveAbility.cs`
 4. Pre-battle UI flow:
    - `Assets/Game/Scripts/UI/PreBattleUIController.cs`
 5. Save/load:
@@ -126,7 +126,7 @@ Last reviewed: 2026-06-08
 
 ### 6. Pre-battle deployment flow
 
-- There is now a pre-battle phase driven by `CustomCellGrid` + `PreBattleUIController`.
+- There is now a pre-battle phase driven by `CellGrid` + `PreBattleUIController`.
 - Root pre-battle actions:
   - `Battle Start`
   - `Select Units`
@@ -145,7 +145,7 @@ Last reviewed: 2026-06-08
   - select a second deployed unit
   - swap their roster positions
 - Roster order is the deployment order and persists back to the save.
-- `CustomCellGrid.startBattleImmediatelyWithCurrentRoster` can bypass the menu and start immediately.
+- `CellGrid.startBattleImmediatelyWithCurrentRoster` can bypass the menu and start immediately.
 
 ### 7. Scene deployment slots
 
@@ -160,7 +160,7 @@ Last reviewed: 2026-06-08
 - Friendly units in the scene are treated as deployment placeholders during pre-battle.
 - On scene start, save data is loaded into those placeholder units in deployment-slot order.
 - Units not currently in the deployment roster are excluded from battle.
-- `starterOwnedUnitPresets` in `CustomCellGrid` still matter today for:
+- `starterOwnedUnitPresets` in `CellGrid` still matter today for:
   - first-run save seeding
   - resolving a saved unit's `VisualId` back to a visual preset
 
@@ -201,21 +201,21 @@ Last reviewed: 2026-06-08
 
 - The game is not using `TBS Framework` only as a loose helper library.
 - Core runtime types still inherit from framework classes:
-  - `CustomCellGrid : CellGrid`
-  - `CustomUnit : Unit`
-  - `CustomAbility : Ability`
+  - `CellGrid : CellGrid`
+  - `Unit : Unit`
+  - `Ability : Ability`
   - custom grid states derive from framework grid-state types
   - AI actions derive from framework AI types
 - Because of that, a full decoupling should be treated as a staged migration, not a one-shot rewrite.
 
 ## Good Starting Files For The Next Phase
 
-- `Assets/Game/Scripts/Grid/CustomCellGrid.cs`
-- `Assets/Game/Scripts/Units/CustomUnit.cs`
-- `Assets/Game/Scripts/Abilities/CustomAbility.cs`
-- `Assets/Game/Scripts/Grid/States/CustomCellGridState.cs`
-- `Assets/Game/Scripts/AI/CustomAttackAIAction.cs`
-- `Assets/Game/Scripts/AI/CustomMoveToPositionAIAction.cs`
+- `Assets/Game/Scripts/Grid/CellGrid.cs`
+- `Assets/Game/Scripts/Units/Unit.cs`
+- `Assets/Game/Scripts/Abilities/Ability.cs`
+- `Assets/Game/Scripts/Grid/States/CellGridState.cs`
+- `Assets/Game/Scripts/AI/AttackAIAction.cs`
+- `Assets/Game/Scripts/AI/MoveToPositionAIAction.cs`
 - `Assets/TBS Framework/Scripts/`
 
 ## Major Things Still Not Finished

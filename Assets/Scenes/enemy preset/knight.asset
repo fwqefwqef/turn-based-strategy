@@ -11,10 +11,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
   m_Name: knight
-  m_EditorClassIdentifier: com.crookedhead.tbsf.game::Windy.Srpg.Game.Units.UnitPreset
+  m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
   PresetId: knight
   UnitName: Knight
-  UnitSprite: {fileID: 21300000, guid: b03e16ece5ed12f49b4b30c6a0c2839f, type: 3}
+  UnitSprite: {fileID: 21300000, guid: e7a1b2c3d4e5f6789012345678a1b013, type: 3}
   SpriteLayout:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
