@@ -5,5 +5,7 @@ namespace Windy.Srpg.Runtime.Board.States
         public BoardStateAiTurn(BattleBoard board) : base(board)
         {
         }
+
+        public override string DiagnosticStateLabel => "AiTurn";
     }
 }

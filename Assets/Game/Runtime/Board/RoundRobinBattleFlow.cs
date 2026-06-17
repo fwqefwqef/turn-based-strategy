@@ -96,7 +96,7 @@ namespace Windy.Srpg.Runtime.Board
                 .ToList()
                 ?? new List<IBattleUnit>();
 
-            List<IBattlePlayer> orderedPlayers = OrderPlayers(players);
+            List<IBattlePlayer> orderedPlayers = BattleBoardQueries.OrderPlayers(players);
             if (survivingUnits.Count == 0 || orderedPlayers.Count == 0)
             {
                 return new BattleOutcome(false, null, null);
@@ -125,11 +125,7 @@ namespace Windy.Srpg.Runtime.Board
 
         private static List<IBattlePlayer> OrderPlayers(IEnumerable<IBattlePlayer> players)
         {
-            return players?
-                .Where(player => player != null)
-                .OrderBy(player => player.PlayerId)
-                .ToList()
-                ?? new List<IBattlePlayer>();
+            return BattleBoardQueries.OrderPlayers(players);
         }
 
         private static int FindNextPlayerStartIndex(IReadOnlyList<IBattlePlayer> orderedPlayers, int currentPlayerId)
@@ -147,10 +143,51 @@ namespace Windy.Srpg.Runtime.Board
 
         private static List<IBattleUnit> GetUnitsForPlayer(IEnumerable<IBattleUnit> units, int playerId)
         {
+            return BattleBoardQueries.GetUnitsForPlayer(units, playerId);
+        }
+    }
+
+    public static class BattleBoardQueries
+    {
+        public static List<TPlayer> OrderPlayers<TPlayer>(IEnumerable<TPlayer> players)
+            where TPlayer : class, IBattlePlayer
+        {
+            return players?
+                .Where(player => player != null)
+                .OrderBy(player => player.PlayerId)
+                .ToList()
+                ?? new List<TPlayer>();
+        }
+
+        public static TPlayer GetPlayerById<TPlayer>(IEnumerable<TPlayer> players, int playerId)
+            where TPlayer : class, IBattlePlayer
+        {
+            return OrderPlayers(players)
+                .FirstOrDefault(player => player.PlayerId == playerId);
+        }
+
+        public static List<TUnit> GetUnitsForPlayer<TUnit>(IEnumerable<TUnit> units, int playerId)
+            where TUnit : class, IBattleUnit
+        {
             return units?
                 .Where(unit => unit != null && unit.PlayerId == playerId)
                 .ToList()
-                ?? new List<IBattleUnit>();
+                ?? new List<TUnit>();
+        }
+
+        public static List<TUnit> GetEnemyUnits<TUnit>(IEnumerable<TUnit> units, int playerId)
+            where TUnit : class, IBattleUnit
+        {
+            return units?
+                .Where(unit => unit != null && unit.PlayerId != playerId)
+                .ToList()
+                ?? new List<TUnit>();
+        }
+
+        public static List<TUnit> GetCurrentPlayerUnits<TUnit>(IEnumerable<TUnit> units, int currentPlayerId)
+            where TUnit : class, IBattleUnit
+        {
+            return GetUnitsForPlayer(units, currentPlayerId);
         }
     }
 }

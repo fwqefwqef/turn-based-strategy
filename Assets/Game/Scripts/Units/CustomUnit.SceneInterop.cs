@@ -66,6 +66,50 @@ namespace Windy.Srpg.Game.Units
             return true;
         }
 
+        private static bool TryBuildLegacyMovementPath(IList<BoardCell> runtimePath, out List<Cell> orderedLegacyPath)
+        {
+            orderedLegacyPath = null;
+            if (runtimePath == null || runtimePath.Count == 0)
+            {
+                return false;
+            }
+
+            var path = new List<Cell>(runtimePath.Count);
+            for (int i = runtimePath.Count - 1; i >= 0; i--)
+            {
+                Cell legacyCell = ResolveLinkedLegacyCell(runtimePath[i]);
+                if (legacyCell == null)
+                {
+                    return false;
+                }
+
+                path.Add(legacyCell);
+            }
+
+            orderedLegacyPath = path;
+            return true;
+        }
+
+        private bool TryUseRuntimeMovementAuthority(out CustomCellGrid cellGrid, out BattleUnit runtimeUnit)
+        {
+            cellGrid = FindSceneCellGrid();
+            runtimeUnit = ResolveRuntimeUnit();
+            return Application.isPlaying
+                && cellGrid != null
+                && cellGrid.UseRuntimeMovementExecution
+                && cellGrid.IsHumanTurn
+                && runtimeUnit != null;
+        }
+
+        private bool TryUseRuntimePathAuthority(out CustomCellGrid cellGrid, out BattleUnit runtimeUnit)
+        {
+            cellGrid = FindSceneCellGrid();
+            runtimeUnit = ResolveRuntimeUnit();
+            return Application.isPlaying
+                && cellGrid != null
+                && runtimeUnit != null;
+        }
+
         private static void RefreshLegacyCellOccupancy(Cell cell)
         {
             if (cell == null)

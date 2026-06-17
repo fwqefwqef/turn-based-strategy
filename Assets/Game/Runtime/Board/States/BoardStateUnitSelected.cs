@@ -88,6 +88,29 @@ namespace Windy.Srpg.Runtime.Board.States
         public override void OnStateEnter()
         {
             selectedUnit?.Select();
+
+            if (selectedUnit == null)
+            {
+                return;
+            }
+
+            if (pendingDestination == null)
+            {
+                selectedUnit.BeginPendingMoveInPlace();
+                return;
+            }
+
+            if (pendingDestination == selectedUnit.CurrentCell)
+            {
+                selectedUnit.BeginPendingMoveInPlace();
+                return;
+            }
+
+            var path = selectedUnit.FindPath(Board.Cells, pendingDestination);
+            if (path != null && path.Count > 0)
+            {
+                selectedUnit.BeginPendingMove(pendingDestination, path);
+            }
         }
 
         public override void OnStateExit()
@@ -103,7 +126,25 @@ namespace Windy.Srpg.Runtime.Board.States
                 return;
             }
 
+            selectedUnit.CancelPendingMove();
             Board.SetState(new BoardStateUnitSelected(Board, selectedUnit));
+        }
+
+        public void ConfirmWait()
+        {
+            if (selectedUnit == null)
+            {
+                Board.SetState(new BoardStateWaitingForInput(Board));
+                return;
+            }
+
+            if (selectedUnit.HasPendingMove)
+            {
+                selectedUnit.ConfirmPendingMove();
+            }
+
+            selectedUnit.EndTurn();
+            Board.SetState(new BoardStateWaitingForInput(Board));
         }
     }
 }

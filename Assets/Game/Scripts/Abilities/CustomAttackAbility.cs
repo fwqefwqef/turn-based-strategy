@@ -51,13 +51,13 @@ namespace Windy.Srpg.Game.Abilities
                 && cellGrid.GetCurrentPlayerCustomUnits().Contains(unit)
                 && !unit.IsFinishedForTurn)
             {
-                cellGrid.SetState(new CustomUnitSelectedState(cellGrid, unit, unit.GetBattleActions()));
+                cellGrid.EnterSelectedState(unit);
             }
         }
 
         protected override void OnCellClicked(Cell cell, CustomCellGrid cellGrid)
         {
-            cellGrid?.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+            cellGrid?.EnterWaitingState();
         }
 
         protected override void CleanUp(CustomCellGrid cellGrid)

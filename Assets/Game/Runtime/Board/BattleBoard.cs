@@ -29,6 +29,32 @@ namespace Windy.Srpg.Runtime.Board
         public event Action<BattleUnit> UnitRegistered;
         public event Action<BattleUnit> UnitUnregistered;
 
+        public readonly struct ShadowTransitionSnapshot
+        {
+            public ShadowTransitionSnapshot(
+                string stateLabel,
+                BattleUnit selectedUnit,
+                BoardCell pendingDestination,
+                BoardCell observedUnitCell,
+                float observedUnitMovementPoints,
+                bool observedUnitFinished)
+            {
+                StateLabel = stateLabel;
+                SelectedUnit = selectedUnit;
+                PendingDestination = pendingDestination;
+                ObservedUnitCell = observedUnitCell;
+                ObservedUnitMovementPoints = observedUnitMovementPoints;
+                ObservedUnitFinished = observedUnitFinished;
+            }
+
+            public string StateLabel { get; }
+            public BattleUnit SelectedUnit { get; }
+            public BoardCell PendingDestination { get; }
+            public BoardCell ObservedUnitCell { get; }
+            public float ObservedUnitMovementPoints { get; }
+            public bool ObservedUnitFinished { get; }
+        }
+
         public IReadOnlyList<BoardCell> Cells => cells;
         public IReadOnlyList<BattleUnit> Units => units;
         public IReadOnlyList<IBattlePlayer> Players => players;
@@ -189,15 +215,71 @@ namespace Windy.Srpg.Runtime.Board
             }
         }
 
+        public ShadowTransitionSnapshot ShadowEvaluatePendingMoveRightClick(BattleUnit selectedUnit, BoardCell pendingDestination)
+        {
+            BoardState savedState = currentState;
+            bool savedShadow = ShadowMode;
+            BattleUnit.RuntimeSnapshot savedUnitSnapshot = selectedUnit != null
+                ? selectedUnit.CaptureRuntimeSnapshot()
+                : default;
+            ShadowMode = true;
+            try
+            {
+                currentState = new BoardStateUnitMovePendingConfirm(this, selectedUnit, pendingDestination);
+                currentState.OnStateEnter();
+                currentState.OnRightClick();
+                return CaptureShadowSnapshot(currentState, selectedUnit);
+            }
+            finally
+            {
+                if (selectedUnit != null)
+                {
+                    selectedUnit.RestoreRuntimeSnapshot(savedUnitSnapshot);
+                }
+
+                currentState = savedState;
+                ShadowMode = savedShadow;
+            }
+        }
+
+        public ShadowTransitionSnapshot ShadowEvaluatePendingMoveWait(BattleUnit selectedUnit, BoardCell pendingDestination)
+        {
+            BoardState savedState = currentState;
+            bool savedShadow = ShadowMode;
+            BattleUnit.RuntimeSnapshot savedUnitSnapshot = selectedUnit != null
+                ? selectedUnit.CaptureRuntimeSnapshot()
+                : default;
+            ShadowMode = true;
+            try
+            {
+                var pendingState = new BoardStateUnitMovePendingConfirm(this, selectedUnit, pendingDestination);
+                currentState = pendingState;
+                currentState.OnStateEnter();
+                pendingState.ConfirmWait();
+                return CaptureShadowSnapshot(currentState, selectedUnit);
+            }
+            finally
+            {
+                if (selectedUnit != null)
+                {
+                    selectedUnit.RestoreRuntimeSnapshot(savedUnitSnapshot);
+                }
+
+                currentState = savedState;
+                ShadowMode = savedShadow;
+            }
+        }
+
         public virtual IEnumerable<BattleUnit> GetUnitsOwnedBy(int playerId)
         {
-            return units.Where(unit => unit != null && unit.PlayerId == playerId);
+            return BattleBoardQueries.GetUnitsForPlayer(units, playerId);
         }
 
         public virtual IEnumerable<BattleUnit> GetCurrentPlayerUnits()
         {
-            var player = CurrentPlayer;
-            return player == null ? Array.Empty<BattleUnit>() : GetUnitsOwnedBy(player.PlayerId);
+            return CurrentPlayer == null
+                ? Array.Empty<BattleUnit>()
+                : BattleBoardQueries.GetCurrentPlayerUnits(units, CurrentPlayer.PlayerId);
         }
 
         public virtual IEnumerable<BattleUnit> GetEnemyUnits(IBattlePlayer player)
@@ -207,17 +289,17 @@ namespace Windy.Srpg.Runtime.Board
                 return Array.Empty<BattleUnit>();
             }
 
-            return units.Where(unit => unit != null && unit.PlayerId != player.PlayerId);
+            return BattleBoardQueries.GetEnemyUnits(units, player.PlayerId);
         }
 
         public virtual IEnumerable<BattleUnit> GetEnemyUnits(int playerId)
         {
-            return units.Where(unit => unit != null && unit.PlayerId != playerId);
+            return BattleBoardQueries.GetEnemyUnits(units, playerId);
         }
 
         public virtual IBattlePlayer GetPlayerById(int playerId)
         {
-            return players.FirstOrDefault(player => player != null && player.PlayerId == playerId);
+            return BattleBoardQueries.GetPlayerById(players, playerId);
         }
 
         public virtual void SetCurrentPlayerById(int playerId)
@@ -260,6 +342,29 @@ namespace Windy.Srpg.Runtime.Board
         public virtual void RequestAiTurn()
         {
             AiTurnRequested?.Invoke();
+        }
+
+        public virtual void ProcessUnitClick(BattleUnit unit)
+        {
+            currentState?.OnUnitClicked(unit);
+        }
+
+        public virtual void ProcessCellClick(BoardCell cell)
+        {
+            currentState?.OnCellClicked(cell);
+        }
+
+        public virtual void ProcessRightClick()
+        {
+            currentState?.OnRightClick();
+        }
+
+        public virtual void ConfirmPendingMoveWait()
+        {
+            if (currentState is BoardStateUnitMovePendingConfirm pendingState)
+            {
+                pendingState.ConfirmWait();
+            }
         }
 
         public virtual void RefreshSceneCollections()
@@ -508,6 +613,17 @@ namespace Windy.Srpg.Runtime.Board
             }
 
             currentState?.OnUnitUnhovered(unit);
+        }
+
+        private static ShadowTransitionSnapshot CaptureShadowSnapshot(BoardState state, BattleUnit observedUnit)
+        {
+            return new ShadowTransitionSnapshot(
+                state?.DiagnosticStateLabel ?? "<null>",
+                state?.SelectedUnit,
+                state?.PendingDestination,
+                observedUnit?.CurrentCell,
+                observedUnit?.MovementPointsRemaining ?? 0f,
+                observedUnit?.IsFinishedForTurn ?? false);
         }
     }
 }

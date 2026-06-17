@@ -56,13 +56,15 @@ namespace Windy.Srpg.Game.Grid
         private Coroutine pendingCampaignSaveFlushCoroutine;
         private string[] stagedDeploymentRosterUnitIds = Array.Empty<string>();
         private bool hasUnsavedDeploymentRosterChanges;
+        private int occupancyRevision;
+        private bool suppressLegacyToRuntimeStateMirror;
         public bool IsPreBattleDeploymentSwapModeActive => IsPreBattlePhase && isPreBattleDeploymentSwapMode;
         public bool HasUnsavedDeploymentRosterChanges => hasUnsavedDeploymentRosterChanges;
+        public int OccupancyRevision => occupancyRevision;
 
         public int SelectedPreBattleDeploymentSlotIndex => selectedPreBattleDeploymentSlotIndex;
         public CustomCellGridState CurrentCustomState => currentCustomState;
-        public CustomPlayer CurrentCustomPlayer => GetOrderedCustomPlayers()
-            .FirstOrDefault(player => player != null && player.PlayerId == CurrentPlayerNumber);
+        public CustomPlayer CurrentCustomPlayer => BattleBoardQueries.GetPlayerById(GetOrderedCustomPlayers(), CurrentPlayerNumber);
         public int CurrentPlayerId => CurrentCustomPlayerNumber;
         public int CurrentCustomPlayerNumber => CurrentCustomPlayer?.PlayerNumber ?? -1;
         public bool IsHumanTurn => CurrentCustomPlayer is CustomHumanPlayer;
@@ -77,17 +79,13 @@ namespace Windy.Srpg.Game.Grid
 
             if (runtimePlayers != null && runtimePlayers.Any())
             {
-                return runtimePlayers
-                    .OrderBy(player => player.PlayerNumber)
-                    .ToList();
+                return BattleBoardQueries.OrderPlayers(runtimePlayers);
             }
 
-            return Players?
-                .OfType<CustomPlayer>()
-                .Where(player => player != null)
-                .OrderBy(player => player.PlayerNumber)
-                .ToList()
-                ?? new List<CustomPlayer>();
+            return BattleBoardQueries.OrderPlayers(
+                Players?
+                    .OfType<CustomPlayer>()
+                    .Where(player => player != null));
         }
 
         public List<Cell> GetAllCells()
@@ -146,9 +144,7 @@ namespace Windy.Srpg.Game.Grid
 
         public List<CustomUnit> GetUnitsForPlayer(int playerNumber)
         {
-            return GetAllCustomUnits()
-                .Where(unit => unit.PlayerNumber == playerNumber)
-                .ToList();
+            return BattleBoardQueries.GetUnitsForPlayer(GetAllCustomUnits(), playerNumber);
         }
 
         public List<CustomUnit> GetUnitsForPlayer(CustomPlayer player)
@@ -160,9 +156,9 @@ namespace Windy.Srpg.Game.Grid
 
         public List<CustomUnit> GetCurrentPlayerCustomUnits()
         {
-            return CurrentCustomPlayer != null
-                ? GetUnitsForPlayer(CurrentCustomPlayer)
-                : new List<CustomUnit>();
+            return CurrentCustomPlayer == null
+                ? new List<CustomUnit>()
+                : BattleBoardQueries.GetCurrentPlayerUnits(GetAllCustomUnits(), CurrentCustomPlayer.PlayerNumber);
         }
 
         public List<CustomUnit> GetEnemyUnits(CustomPlayer player)
@@ -172,15 +168,91 @@ namespace Windy.Srpg.Game.Grid
                 return new List<CustomUnit>();
             }
 
-            return GetAllCustomUnits()
-                .Where(unit => unit.PlayerNumber != player.PlayerNumber)
-                .ToList();
+            return BattleBoardQueries.GetEnemyUnits(GetAllCustomUnits(), player.PlayerNumber);
         }
 
         public void SetState(CustomCellGridState state)
         {
             currentCustomState = state;
             cellGridState = new LegacyCustomCellGridStateAdapter(this, state);
+            if (!suppressLegacyToRuntimeStateMirror)
+            {
+                MirrorLegacyStateToRuntimeBoard(state);
+            }
+        }
+
+        public void EnterWaitingState()
+        {
+            if (suppressLegacyToRuntimeStateMirror)
+            {
+                SetState(new CustomCellGridStateWaitingForInput(this));
+                return;
+            }
+
+            ApplyRuntimeDrivenState(
+                new BoardStateWaitingForInput(runtimeBoard),
+                () => SetState(new CustomCellGridStateWaitingForInput(this)));
+        }
+
+        public void EnterBlockedInputState()
+        {
+            if (suppressLegacyToRuntimeStateMirror)
+            {
+                SetState(new CustomCellGridStateBlockInput(this));
+                return;
+            }
+
+            ApplyRuntimeDrivenState(
+                new BoardStateBlockedInput(runtimeBoard),
+                () => SetState(new CustomCellGridStateBlockInput(this)));
+        }
+
+        public void EnterRemotePlayerTurnState()
+        {
+            if (suppressLegacyToRuntimeStateMirror)
+            {
+                SetState(new CustomCellGridStateRemotePlayerTurn(this));
+                return;
+            }
+
+            ApplyRuntimeDrivenState(
+                new BoardStateBlockedInput(runtimeBoard),
+                () => SetState(new CustomCellGridStateRemotePlayerTurn(this)));
+        }
+
+        public void EnterAiTurnState(CustomAiPlayer aiPlayer)
+        {
+            if (suppressLegacyToRuntimeStateMirror)
+            {
+                SetState(new CustomCellGridStateAiTurn(this, aiPlayer));
+                return;
+            }
+
+            ApplyRuntimeDrivenState(
+                new BoardStateAiTurn(runtimeBoard),
+                () => SetState(new CustomCellGridStateAiTurn(this, aiPlayer)));
+        }
+
+        public void EnterSelectedState(CustomUnit unit)
+        {
+            if (unit == null)
+            {
+                EnterWaitingState();
+                return;
+            }
+
+            SetState(new CustomUnitSelectedState(this, unit, unit.GetBattleActions()));
+        }
+
+        public void EnterPendingMoveConfirmState(CustomMoveAbility moveAbility)
+        {
+            if (moveAbility == null)
+            {
+                EnterWaitingState();
+                return;
+            }
+
+            SetState(new CustomCellGridStateMovePendingConfirm(this, moveAbility));
         }
 
         public void RequestEndTurn()
@@ -196,6 +268,19 @@ namespace Windy.Srpg.Game.Grid
         public bool RequestBattleOutcomeEvaluation()
         {
             return CheckGameFinished();
+        }
+
+        internal void ApplyLegacyStateFromRuntime(Action applyState)
+        {
+            suppressLegacyToRuntimeStateMirror = true;
+            try
+            {
+                applyState?.Invoke();
+            }
+            finally
+            {
+                suppressLegacyToRuntimeStateMirror = false;
+            }
         }
 
         private SceneUnitGenerator GetSceneUnitGenerator()

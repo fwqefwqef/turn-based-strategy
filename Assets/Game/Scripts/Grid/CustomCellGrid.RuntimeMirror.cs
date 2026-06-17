@@ -1,6 +1,7 @@
 using System.Linq;
 using TbsFramework.Cells;
 using UnityEngine;
+using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
@@ -12,6 +13,20 @@ namespace Windy.Srpg.Game.Grid
 {
     public partial class CustomCellGrid
     {
+        internal readonly struct RuntimeStateTransitionDecision
+        {
+            public RuntimeStateTransitionDecision(string stateLabel, CustomUnit selectedUnit, Cell pendingDestination)
+            {
+                StateLabel = stateLabel;
+                SelectedUnit = selectedUnit;
+                PendingDestination = pendingDestination;
+            }
+
+            public string StateLabel { get; }
+            public CustomUnit SelectedUnit { get; }
+            public Cell PendingDestination { get; }
+        }
+
         private BattleBoard runtimeBoard;
         private bool runtimeBoardCollectionsDirty = true;
 
@@ -24,7 +39,7 @@ namespace Windy.Srpg.Game.Grid
 
             if (IsLegacyWaitingForInputState(cellGridState))
             {
-                SetState(new CustomCellGridStateWaitingForInput(this));
+                EnterWaitingState();
             }
         }
 
@@ -53,6 +68,88 @@ namespace Windy.Srpg.Game.Grid
 
             RefreshRuntimeBoardCollectionsIfNeeded();
             UpdateRuntimeBoardMetadata();
+        }
+
+        private void ApplyRuntimeDrivenState(BoardState runtimeState, System.Action applyLegacyState)
+        {
+            if (runtimeState == null)
+            {
+                applyLegacyState?.Invoke();
+                return;
+            }
+
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                applyLegacyState?.Invoke();
+                return;
+            }
+
+            RefreshRuntimeBoardCollectionsIfNeeded();
+            UpdateRuntimeBoardMetadata();
+            runtimeBoard.SetState(runtimeState);
+            ApplyLegacyStateFromRuntime(applyLegacyState);
+        }
+
+        private void MirrorLegacyStateToRuntimeBoard(CustomCellGridState legacyState)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null || legacyState == null)
+            {
+                return;
+            }
+
+            RefreshRuntimeBoardCollectionsIfNeeded();
+            UpdateRuntimeBoardMetadata();
+
+            BoardState runtimeState = BuildRuntimeStateFromLegacyState(legacyState);
+            if (runtimeState != null)
+            {
+                runtimeBoard.SetState(runtimeState);
+            }
+        }
+
+        private BoardState BuildRuntimeStateFromLegacyState(CustomCellGridState legacyState)
+        {
+            return legacyState switch
+            {
+                CustomCellGridStateWaitingForInput => new BoardStateWaitingForInput(runtimeBoard),
+                CustomCellGridStateBlockInput => new BoardStateBlockedInput(runtimeBoard),
+                CustomCellGridStateRemotePlayerTurn => new BoardStateBlockedInput(runtimeBoard),
+                PreBattleDeploymentSwapState => new BoardStateBlockedInput(runtimeBoard),
+                CustomCellGridStateAiTurn => new BoardStateAiTurn(runtimeBoard),
+                CustomUnitSelectedState selectedState => BuildRuntimeSelectedState(selectedState),
+                CustomCellGridStateMovePendingConfirm pendingState => BuildRuntimePendingMoveState(pendingState),
+                _ => new BoardStateBlockedInput(runtimeBoard)
+            };
+        }
+
+        private BoardState BuildRuntimeSelectedState(CustomUnitSelectedState selectedState)
+        {
+            BattleUnit runtimeSelected = GetRuntimeUnit(selectedState?.SelectedUnit);
+            return runtimeSelected != null
+                ? new BoardStateUnitSelected(runtimeBoard, runtimeSelected)
+                : new BoardStateWaitingForInput(runtimeBoard);
+        }
+
+        private BoardState BuildRuntimePendingMoveState(CustomCellGridStateMovePendingConfirm pendingState)
+        {
+            CustomMoveAbility moveAbility = pendingState?.MoveAbility;
+            CustomUnit legacyUnit = moveAbility != null ? moveAbility.GetComponent<CustomUnit>() : null;
+            BattleUnit runtimeUnit = GetRuntimeUnit(legacyUnit);
+            BoardCell runtimeDestination = GetRuntimeCell(legacyUnit?.PreviewCell);
+
+            return runtimeUnit != null
+                ? new BoardStateUnitMovePendingConfirm(runtimeBoard, runtimeUnit, runtimeDestination)
+                : new BoardStateWaitingForInput(runtimeBoard);
+        }
+
+        private RuntimeStateTransitionDecision CaptureRuntimeDecision()
+        {
+            return new RuntimeStateTransitionDecision(
+                runtimeBoard?.CurrentState?.DiagnosticStateLabel ?? "Waiting",
+                GetLegacyUnit(runtimeBoard?.CurrentState?.SelectedUnit),
+                GetLegacyCell(runtimeBoard?.CurrentState?.PendingDestination));
         }
 
         private void RefreshRuntimeBoardCollectionsIfNeeded()
@@ -126,6 +223,33 @@ namespace Windy.Srpg.Game.Grid
                 clickedUnit, frameworkSelectedUnit, runtimeDecided, expectedRuntime);
         }
 
+        internal RuntimeStateTransitionDecision ProcessRuntimeWaitingStateUnitClick(CustomUnit clickedUnit)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+            runtimeBoard.ProcessUnitClick(GetRuntimeUnit(clickedUnit));
+            return CaptureRuntimeDecision();
+        }
+
+        internal CustomUnit EvaluateRuntimeSelectionFromWaiting(CustomUnit clickedUnit)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return null;
+            }
+
+            SyncRuntimeMirrorNow();
+            BattleUnit runtimeClicked = GetRuntimeUnit(clickedUnit);
+            BattleUnit runtimeDecided = runtimeBoard.ShadowEvaluateUnitClickFromWaiting(runtimeClicked);
+            return GetLegacyUnit(runtimeDecided);
+        }
+
         internal void ShadowCompareRightClick(CustomUnit previouslySelectedUnit, CustomUnit frameworkSelectedUnitAfterRightClick)
         {
             if (!Diagnostics.RuntimeParityDiagnostics.LogRightClickParity)
@@ -150,6 +274,164 @@ namespace Windy.Srpg.Game.Grid
                 frameworkSelectedUnitAfterRightClick,
                 runtimeSelectedAfterRightClick,
                 expectedRuntimeAfterRightClick);
+        }
+
+        internal RuntimeStateTransitionDecision ProcessRuntimeRightClick()
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+            runtimeBoard.ProcessRightClick();
+            return CaptureRuntimeDecision();
+        }
+
+        internal RuntimeStateTransitionDecision EvaluateRuntimeSelectedStateRightClick(CustomUnit previouslySelectedUnit)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleUnit runtimePreviouslySelected = GetRuntimeUnit(previouslySelectedUnit);
+            BattleUnit runtimeSelectedAfterRightClick = runtimeBoard.ShadowEvaluateRightClickFromSelected(runtimePreviouslySelected);
+
+            return new RuntimeStateTransitionDecision(
+                runtimeSelectedAfterRightClick != null ? "Selected" : "Waiting",
+                GetLegacyUnit(runtimeSelectedAfterRightClick),
+                null);
+        }
+
+        internal RuntimeStateTransitionDecision EvaluateRuntimeSelectedStateUnitClick(CustomUnit previouslySelectedUnit, CustomUnit clickedUnit)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleUnit runtimePreviouslySelected = GetRuntimeUnit(previouslySelectedUnit);
+            BattleUnit runtimeClicked = GetRuntimeUnit(clickedUnit);
+            BoardState runtimeState = runtimeBoard.ShadowEvaluateUnitClickFromSelected(runtimePreviouslySelected, runtimeClicked);
+
+            return new RuntimeStateTransitionDecision(
+                runtimeState?.DiagnosticStateLabel ?? "Waiting",
+                GetLegacyUnit(runtimeState?.SelectedUnit),
+                GetLegacyCell(runtimeState?.PendingDestination));
+        }
+
+        internal RuntimeStateTransitionDecision ProcessRuntimeSelectedStateUnitClick(CustomUnit clickedUnit)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+            runtimeBoard.ProcessUnitClick(GetRuntimeUnit(clickedUnit));
+            return CaptureRuntimeDecision();
+        }
+
+        internal RuntimeStateTransitionDecision EvaluateRuntimeSelectedStateCellClick(CustomUnit previouslySelectedUnit, Cell clickedCell)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleUnit runtimePreviouslySelected = GetRuntimeUnit(previouslySelectedUnit);
+            BoardCell runtimeClicked = GetRuntimeCell(clickedCell);
+            BoardState runtimeState = runtimeBoard.ShadowEvaluateCellClickFromSelected(runtimePreviouslySelected, runtimeClicked);
+
+            return new RuntimeStateTransitionDecision(
+                runtimeState?.DiagnosticStateLabel ?? "Waiting",
+                GetLegacyUnit(runtimeState?.SelectedUnit),
+                GetLegacyCell(runtimeState?.PendingDestination));
+        }
+
+        internal RuntimeStateTransitionDecision ProcessRuntimeSelectedStateCellClick(Cell clickedCell)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+            runtimeBoard.ProcessCellClick(GetRuntimeCell(clickedCell));
+            return CaptureRuntimeDecision();
+        }
+
+        internal RuntimeStateTransitionDecision EvaluateRuntimePendingMoveRightClick(CustomUnit frameworkUnit, Cell simulatedFrameworkPendingDestination)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Selected", frameworkUnit, null);
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleUnit runtimeUnit = GetRuntimeUnit(frameworkUnit);
+            BoardCell runtimePendingDestination = GetRuntimeCell(simulatedFrameworkPendingDestination);
+            BattleBoard.ShadowTransitionSnapshot runtimeSnapshot =
+                runtimeBoard.ShadowEvaluatePendingMoveRightClick(runtimeUnit, runtimePendingDestination);
+
+            return new RuntimeStateTransitionDecision(
+                runtimeSnapshot.StateLabel,
+                GetLegacyUnit(runtimeSnapshot.SelectedUnit),
+                GetLegacyCell(runtimeSnapshot.PendingDestination));
+        }
+
+        internal RuntimeStateTransitionDecision EvaluateRuntimePendingMoveWait(CustomUnit frameworkUnit, Cell simulatedFrameworkPendingDestination)
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleUnit runtimeUnit = GetRuntimeUnit(frameworkUnit);
+            BoardCell runtimePendingDestination = GetRuntimeCell(simulatedFrameworkPendingDestination);
+            BattleBoard.ShadowTransitionSnapshot runtimeSnapshot =
+                runtimeBoard.ShadowEvaluatePendingMoveWait(runtimeUnit, runtimePendingDestination);
+
+            return new RuntimeStateTransitionDecision(
+                runtimeSnapshot.StateLabel,
+                GetLegacyUnit(runtimeSnapshot.SelectedUnit),
+                GetLegacyCell(runtimeSnapshot.PendingDestination));
+        }
+
+        internal RuntimeStateTransitionDecision ProcessRuntimePendingMoveRightClick()
+        {
+            return ProcessRuntimeRightClick();
+        }
+
+        internal RuntimeStateTransitionDecision ProcessRuntimePendingMoveWait()
+        {
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return new RuntimeStateTransitionDecision("Waiting", null, null);
+            }
+
+            SyncRuntimeMirrorNow();
+            runtimeBoard.ConfirmPendingMoveWait();
+            return CaptureRuntimeDecision();
         }
 
         internal void ShadowCompareSelectedStateUnitClick(
@@ -226,6 +508,86 @@ namespace Windy.Srpg.Game.Grid
                 expectedRuntimePendingDestination);
         }
 
+        internal void ShadowComparePendingMoveRightClick(
+            CustomUnit frameworkUnit,
+            Cell simulatedFrameworkPendingDestination,
+            Cell frameworkPendingDestinationAfterTransition,
+            string frameworkStateLabel,
+            CustomUnit frameworkSelectedUnitAfterTransition,
+            Cell frameworkUnitCellAfterTransition,
+            float frameworkMovementPointsAfterTransition,
+            bool frameworkFinishedAfterTransition)
+        {
+            if (!Diagnostics.RuntimeParityDiagnostics.LogPendingMoveParity)
+            {
+                return;
+            }
+
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return;
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleUnit runtimeUnit = GetRuntimeUnit(frameworkUnit);
+            BoardCell runtimePendingDestination = GetRuntimeCell(simulatedFrameworkPendingDestination);
+            BattleBoard.ShadowTransitionSnapshot runtimeSnapshot =
+                runtimeBoard.ShadowEvaluatePendingMoveRightClick(runtimeUnit, runtimePendingDestination);
+
+            Diagnostics.RuntimeParityDiagnostics.ComparePendingMoveTransition(
+                "Pending move right-click",
+                frameworkUnit,
+                frameworkStateLabel,
+                frameworkSelectedUnitAfterTransition,
+                frameworkPendingDestinationAfterTransition,
+                frameworkUnitCellAfterTransition,
+                frameworkMovementPointsAfterTransition,
+                frameworkFinishedAfterTransition,
+                runtimeSnapshot);
+        }
+
+        internal void ShadowComparePendingMoveWait(
+            CustomUnit frameworkUnit,
+            Cell simulatedFrameworkPendingDestination,
+            Cell frameworkPendingDestinationAfterTransition,
+            string frameworkStateLabel,
+            CustomUnit frameworkSelectedUnitAfterTransition,
+            Cell frameworkUnitCellAfterTransition,
+            float frameworkMovementPointsAfterTransition,
+            bool frameworkFinishedAfterTransition)
+        {
+            if (!Diagnostics.RuntimeParityDiagnostics.LogPendingMoveParity)
+            {
+                return;
+            }
+
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return;
+            }
+
+            SyncRuntimeMirrorNow();
+
+            BattleUnit runtimeUnit = GetRuntimeUnit(frameworkUnit);
+            BoardCell runtimePendingDestination = GetRuntimeCell(simulatedFrameworkPendingDestination);
+            BattleBoard.ShadowTransitionSnapshot runtimeSnapshot =
+                runtimeBoard.ShadowEvaluatePendingMoveWait(runtimeUnit, runtimePendingDestination);
+
+            Diagnostics.RuntimeParityDiagnostics.ComparePendingMoveTransition(
+                "Pending move wait",
+                frameworkUnit,
+                frameworkStateLabel,
+                frameworkSelectedUnitAfterTransition,
+                frameworkPendingDestinationAfterTransition,
+                frameworkUnitCellAfterTransition,
+                frameworkMovementPointsAfterTransition,
+                frameworkFinishedAfterTransition,
+                runtimeSnapshot);
+        }
+
         private static BattleUnit GetRuntimeUnit(CustomUnit unit)
         {
             return unit != null ? unit.GetComponent<BattleUnit>() : null;
@@ -234,6 +596,16 @@ namespace Windy.Srpg.Game.Grid
         private static BoardCell GetRuntimeCell(Cell cell)
         {
             return cell != null ? cell.GetComponent<BoardCell>() : null;
+        }
+
+        private static CustomUnit GetLegacyUnit(BattleUnit unit)
+        {
+            return unit != null ? unit.GetComponent<CustomUnit>() : null;
+        }
+
+        private static Cell GetLegacyCell(BoardCell cell)
+        {
+            return cell != null ? cell.GetComponent<Cell>() : null;
         }
 
         private static string Describe(CustomUnit unit)

@@ -88,4 +88,30 @@ namespace Windy.Srpg.Runtime.Actions
         {
         }
     }
+
+    public enum BattleActionExecutionMode
+    {
+        HumanLocal,
+        RemoteInvocation,
+        AiLocal
+    }
+
+    public static class BattleActionExecutionFlow
+    {
+        public static IEnumerator ExecuteInline(
+            MonoBehaviour host,
+            System.Action beforeAction,
+            System.Func<IEnumerator> executeAction,
+            System.Action afterAction)
+        {
+            if (host == null || executeAction == null)
+            {
+                yield break;
+            }
+
+            beforeAction?.Invoke();
+            yield return host.StartCoroutine(executeAction());
+            afterAction?.Invoke();
+        }
+    }
 }

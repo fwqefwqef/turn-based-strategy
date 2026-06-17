@@ -56,7 +56,7 @@ namespace Windy.Srpg.Game.Grid
 
             if (IsPreBattlePhase)
             {
-                SetState(new CustomCellGridStateBlockInput(this));
+                EnterBlockedInputState();
             }
 
             if (hadSelection || wasActive)

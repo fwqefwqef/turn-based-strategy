@@ -23,6 +23,7 @@ namespace Windy.Srpg.Game.Diagnostics
         public static bool LogSelectionParity = true;
         public static bool LogRightClickParity = true;
         public static bool LogSelectedMoveParity = true;
+        public static bool LogPendingMoveParity = true;
 
         /// <summary>
         /// Shadow-harness check: did the runtime's waiting-for-input state decide to select the
@@ -122,6 +123,50 @@ namespace Windy.Srpg.Game.Diagnostics
             sb.AppendLine($"[RuntimeShadow] {eventLabel} from selected {Describe(frameworkPreviouslySelected)}");
             sb.AppendLine($"  framework: state={frameworkStateLabel}, selected={(frameworkSelectedAfterTransition != null ? frameworkSelectedAfterTransition.name : "<none>")}, pending={Describe(frameworkPendingDestination)}");
             sb.AppendLine($"  runtime:   state={runtimeStateLabel}, selected={(runtimeSelected != null ? runtimeSelected.name : "<none>")}, pending={Describe(runtimePendingDestination)}");
+            sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
+
+            if (match)
+            {
+                Debug.Log(sb.ToString());
+            }
+            else
+            {
+                Debug.LogWarning(sb.ToString());
+            }
+        }
+
+        public static void ComparePendingMoveTransition(
+            string eventLabel,
+            CustomUnit frameworkUnit,
+            string frameworkStateLabel,
+            CustomUnit frameworkSelectedAfterTransition,
+            Cell frameworkPendingDestination,
+            Cell frameworkUnitCellAfterTransition,
+            float frameworkMovementPointsAfterTransition,
+            bool frameworkFinishedAfterTransition,
+            BattleBoard.ShadowTransitionSnapshot runtimeSnapshot)
+        {
+            if (!LogPendingMoveParity)
+            {
+                return;
+            }
+
+            BoardCell expectedRuntimePendingDestination = frameworkPendingDestination?.GetComponent<BoardCell>();
+            BoardCell expectedRuntimeUnitCell = frameworkUnitCellAfterTransition?.GetComponent<BoardCell>();
+            BattleUnit expectedRuntimeSelected = frameworkSelectedAfterTransition?.GetComponent<BattleUnit>();
+
+            bool match =
+                string.Equals(runtimeSnapshot.StateLabel, frameworkStateLabel, System.StringComparison.Ordinal)
+                && runtimeSnapshot.SelectedUnit == expectedRuntimeSelected
+                && runtimeSnapshot.PendingDestination == expectedRuntimePendingDestination
+                && runtimeSnapshot.ObservedUnitCell == expectedRuntimeUnitCell
+                && Mathf.Approximately(runtimeSnapshot.ObservedUnitMovementPoints, frameworkMovementPointsAfterTransition)
+                && runtimeSnapshot.ObservedUnitFinished == frameworkFinishedAfterTransition;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[RuntimeShadow] {eventLabel} for {Describe(frameworkUnit)}");
+            sb.AppendLine($"  framework: state={frameworkStateLabel}, selected={(frameworkSelectedAfterTransition != null ? frameworkSelectedAfterTransition.name : "<none>")}, pending={Describe(frameworkPendingDestination)}, cell={Describe(frameworkUnitCellAfterTransition)}, mp={frameworkMovementPointsAfterTransition}, finished={frameworkFinishedAfterTransition}");
+            sb.AppendLine($"  runtime:   state={runtimeSnapshot.StateLabel}, selected={(runtimeSnapshot.SelectedUnit != null ? runtimeSnapshot.SelectedUnit.name : "<none>")}, pending={Describe(runtimeSnapshot.PendingDestination)}, cell={Describe(runtimeSnapshot.ObservedUnitCell)}, mp={runtimeSnapshot.ObservedUnitMovementPoints}, finished={runtimeSnapshot.ObservedUnitFinished}");
             sb.Append(match ? "  RESULT: MATCH" : "  RESULT: MISMATCH");
 
             if (match)

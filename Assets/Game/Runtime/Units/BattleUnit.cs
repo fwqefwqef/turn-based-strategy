@@ -22,6 +22,7 @@ namespace Windy.Srpg.Runtime.Units
         private readonly IPathfinder pathfinder = new DijkstraPathfinder();
         private UnitTurnState turnState;
         private Dictionary<BoardCell, IList<BoardCell>> cachedPaths;
+        private PendingMove? pendingMove;
 
         public event Action<BattleUnit> UnitSelected;
         public event Action<BattleUnit> UnitDeselected;
@@ -36,11 +37,42 @@ namespace Windy.Srpg.Runtime.Units
         public float MovementPointsRemaining { get; private set; }
         public IReadOnlyList<BattleAction> Actions => actions;
         public BoardCell CurrentCell { get; private set; }
+        public BoardCell PreviewCell => pendingMove?.ToCell ?? CurrentCell;
+        public bool HasPendingMove => pendingMove.HasValue;
         public bool IsFinishedForTurn => turnState is { CountsAsFinished: true };
         public UnitTurnStateKind CurrentTurnStateKind => turnState?.Kind ?? UnitTurnStateKind.Normal;
         public UnitTurnState TurnState => turnState;
         public BattleBoard Board { get; private set; }
         public bool BlocksOtherUnits => blocksOtherUnits;
+
+        internal readonly struct RuntimeSnapshot
+        {
+            public RuntimeSnapshot(
+                BoardCell currentCell,
+                float movementPointsRemaining,
+                UnitTurnStateKind turnStateKind,
+                PendingMove? pendingMove)
+            {
+                CurrentCell = currentCell;
+                MovementPointsRemaining = movementPointsRemaining;
+                TurnStateKind = turnStateKind;
+                PendingMove = pendingMove;
+            }
+
+            public BoardCell CurrentCell { get; }
+            public float MovementPointsRemaining { get; }
+            public UnitTurnStateKind TurnStateKind { get; }
+            public PendingMove? PendingMove { get; }
+        }
+
+        internal struct PendingMove
+        {
+            public BoardCell FromCell;
+            public BoardCell ToCell;
+            public IList<BoardCell> Path;
+            public float MovementPointsBefore;
+            public float MovementCost;
+        }
 
         protected virtual void Awake()
         {
@@ -282,6 +314,118 @@ namespace Windy.Srpg.Runtime.Units
             CurrentCell = null;
         }
 
+        internal virtual RuntimeSnapshot CaptureRuntimeSnapshot()
+        {
+            return new RuntimeSnapshot(CurrentCell, MovementPointsRemaining, CurrentTurnStateKind, pendingMove);
+        }
+
+        internal virtual void RestoreRuntimeSnapshot(RuntimeSnapshot snapshot)
+        {
+            pendingMove = null;
+            SetMovementPointsRemaining(snapshot.MovementPointsRemaining);
+            RestoreTurnState(snapshot.TurnStateKind);
+
+            if (snapshot.CurrentCell == null)
+            {
+                ClearCurrentCell();
+            }
+            else
+            {
+                AssignCellImmediate(snapshot.CurrentCell, syncTransform: false);
+            }
+
+            pendingMove = snapshot.PendingMove;
+            cachedPaths = null;
+        }
+
+        public virtual bool BeginPendingMove(BoardCell destinationCell, IList<BoardCell> path)
+        {
+            CancelPendingMove();
+
+            if (destinationCell == null || path == null || path.Count == 0)
+            {
+                return false;
+            }
+
+            pendingMove = new PendingMove
+            {
+                FromCell = CurrentCell,
+                ToCell = destinationCell,
+                Path = path,
+                MovementPointsBefore = MovementPointsRemaining,
+                MovementCost = GetPathCost(path)
+            };
+
+            return true;
+        }
+
+        public virtual bool BeginPendingMoveInPlace()
+        {
+            CancelPendingMove();
+
+            if (CurrentCell == null)
+            {
+                return false;
+            }
+
+            pendingMove = new PendingMove
+            {
+                FromCell = CurrentCell,
+                ToCell = CurrentCell,
+                Path = new List<BoardCell> { CurrentCell },
+                MovementPointsBefore = MovementPointsRemaining,
+                MovementCost = 0f
+            };
+
+            return true;
+        }
+
+        public virtual bool ConfirmPendingMove(bool consumeAllRemainingMovement = true, bool syncTransform = false)
+        {
+            if (!pendingMove.HasValue)
+            {
+                return false;
+            }
+
+            PendingMove move = pendingMove.Value;
+            bool isStayingInPlace = move.ToCell == move.FromCell;
+
+            if (!isStayingInPlace && !CanStopOn(move.ToCell))
+            {
+                CancelPendingMove();
+                return false;
+            }
+
+            if (move.ToCell != null)
+            {
+                if (!AssignCellImmediate(move.ToCell, syncTransform))
+                {
+                    CancelPendingMove();
+                    return false;
+                }
+            }
+
+            SetMovementPointsRemaining(
+                consumeAllRemainingMovement
+                    ? 0f
+                    : Mathf.Max(0f, move.MovementPointsBefore - move.MovementCost));
+
+            pendingMove = null;
+            cachedPaths = null;
+            return true;
+        }
+
+        public virtual bool CancelPendingMove()
+        {
+            if (!pendingMove.HasValue)
+            {
+                return false;
+            }
+
+            pendingMove = null;
+            return true;
+        }
+
         public virtual bool IsCellTraversable(BoardCell cell)
         {
             return CanTraverse(cell);
@@ -429,6 +573,20 @@ namespace Windy.Srpg.Runtime.Units
             }
 
             return total;
+        }
+
+        private void RestoreTurnState(UnitTurnStateKind turnStateKind)
+        {
+            UnitTurnState restoredState = turnStateKind switch
+            {
+                UnitTurnStateKind.Selected => new UnitTurnStateSelected(this),
+                UnitTurnStateKind.ReachableEnemy => new UnitTurnStateReachableEnemy(this),
+                UnitTurnStateKind.Friendly => new UnitTurnStateFriendly(this),
+                UnitTurnStateKind.Finished => new UnitTurnStateFinished(this),
+                _ => new UnitTurnStateNormal(this)
+            };
+
+            SetState(restoredState);
         }
 
         private void TryResolveCurrentCellFromBoard()

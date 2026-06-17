@@ -3262,25 +3262,65 @@ namespace Windy.Srpg.Game.Units
                 }
             }
 
-            var totalMovementCost = path.Sum(h => h.MovementCost);
-            MovementPoints -= totalMovementCost;
-
             if (fromCell != null)
             {
                 SnapToCellLocalPosition(fromCell);
             }
 
-            BattleUnit runtimeMovementUnit = (cellGrid != null && cellGrid.UseRuntimeMovementExecution && cellGrid.IsHumanTurn)
-                ? GetComponent<BattleUnit>()
+            BattleUnit runtimeMovementUnit = TryUseRuntimePathAuthority(out _, out BattleUnit runtimePathUnit)
+                ? runtimePathUnit
                 : null;
 
-            if (runtimeMovementUnit != null && MovementAnimationSpeed > 0
+            if (runtimeMovementUnit != null
                 && TryBuildRuntimeMovementPath(path, out var runtimeOrderedPath))
             {
-                yield return StartCoroutine(
-                    runtimeMovementUnit.AnimateAlongPathVisual(runtimeOrderedPath, MovementAnimationSpeed, IsSceneGrid2D()));
+                SyncMirroredRuntimeNow();
+
+                BoardCell runtimeDestination = ResolveLinkedRuntimeCell(destinationCell);
+                bool startedPendingMove = runtimeDestination != null
+                    && runtimeMovementUnit.BeginPendingMove(runtimeDestination, runtimeOrderedPath);
+
+                if (startedPendingMove)
+                {
+                    if (MovementAnimationSpeed > 0)
+                    {
+                        yield return StartCoroutine(
+                            runtimeMovementUnit.AnimateAlongPathVisual(runtimeOrderedPath, MovementAnimationSpeed, IsSceneGrid2D()));
+                    }
+                    else
+                    {
+                        SnapToCellLocalPosition(destinationCell);
+                    }
+
+                    if (runtimeMovementUnit.ConfirmPendingMove(consumeAllRemainingMovement: false, syncTransform: false))
+                    {
+                        fromCell?.CurrentUnits.Remove(this);
+                        RefreshLegacyCellOccupancy(fromCell);
+
+                        Cell resolvedDestinationCell = ResolveLinkedLegacyCell(runtimeMovementUnit.CurrentCell) ?? destinationCell;
+                        Cell = resolvedDestinationCell;
+                        if (resolvedDestinationCell != null && !resolvedDestinationCell.CurrentUnits.Contains(this))
+                        {
+                            resolvedDestinationCell.CurrentUnits.Add(this);
+                        }
+
+                        MovementPoints = runtimeMovementUnit.MovementPointsRemaining;
+                        cachedPaths = null;
+                        RefreshLegacyCellOccupancy(resolvedDestinationCell);
+                        SyncMirroredRuntimeCell(resolvedDestinationCell);
+                        RefreshSceneOccupancyFromLiveUnits();
+                        cellGrid?.RequestBattleOutcomeEvaluation();
+                        yield break;
+                    }
+
+                    runtimeMovementUnit.CancelPendingMove();
+                }
             }
-            else if (MovementAnimationSpeed > 0)
+
+            var totalMovementCost = path.Sum(h => h.MovementCost);
+            MovementPoints -= totalMovementCost;
+
+            if (MovementAnimationSpeed > 0)
             {
                 yield return StartCoroutine(AnimateMovementPath(path));
             }
@@ -3372,6 +3412,13 @@ namespace Windy.Srpg.Game.Units
                 return false;
 
             var p = _pendingMove.Value;
+            if (TryUseRuntimeMovementAuthority(out CustomCellGrid cellGrid, out BattleUnit runtimeUnit)
+                && TryCommitPendingMoveViaRuntime(p, runtimeUnit, cellGrid, consumeAllRemainingMovement))
+            {
+                _pendingMove = null;
+                return true;
+            }
+
             bool isStayingInPlace = p.ToCell == p.FromCell;
             if (!isStayingInPlace && !CanOccupyLegacyCell(p.ToCell))
             {
@@ -3401,6 +3448,71 @@ namespace Windy.Srpg.Game.Units
             FindSceneCellGrid()?.RequestBattleOutcomeEvaluation();
 
             _pendingMove = null;
+            return true;
+        }
+
+        private bool TryCommitPendingMoveViaRuntime(
+            PendingMove pendingMove,
+            BattleUnit runtimeUnit,
+            CustomCellGrid cellGrid,
+            bool consumeAllRemainingMovement)
+        {
+            if (runtimeUnit == null)
+            {
+                return false;
+            }
+
+            BoardCell runtimeDestination = ResolveLinkedRuntimeCell(pendingMove.ToCell);
+            if (runtimeDestination == null)
+            {
+                return false;
+            }
+
+            if (pendingMove.FromCell != null)
+            {
+                SyncMirroredRuntimeCell(pendingMove.FromCell);
+            }
+            else
+            {
+                ClearMirroredRuntimeCell();
+            }
+
+            bool startedPendingMove;
+            if (pendingMove.ToCell == pendingMove.FromCell)
+            {
+                startedPendingMove = runtimeUnit.BeginPendingMoveInPlace();
+            }
+            else if (TryBuildRuntimeMovementPath(pendingMove.Path, out var runtimePath))
+            {
+                startedPendingMove = runtimeUnit.BeginPendingMove(runtimeDestination, runtimePath);
+            }
+            else
+            {
+                return false;
+            }
+
+            if (!startedPendingMove || !runtimeUnit.ConfirmPendingMove(consumeAllRemainingMovement, syncTransform: false))
+            {
+                return false;
+            }
+
+            Cell fromCell = pendingMove.FromCell;
+            fromCell?.CurrentUnits.Remove(this);
+            RefreshLegacyCellOccupancy(fromCell);
+
+            Cell resolvedDestinationCell = ResolveLinkedLegacyCell(runtimeUnit.CurrentCell) ?? pendingMove.ToCell;
+            Cell = resolvedDestinationCell;
+            if (resolvedDestinationCell != null && !resolvedDestinationCell.CurrentUnits.Contains(this))
+            {
+                resolvedDestinationCell.CurrentUnits.Add(this);
+            }
+
+            MovementPoints = runtimeUnit.MovementPointsRemaining;
+            cachedPaths = null;
+            RefreshLegacyCellOccupancy(resolvedDestinationCell);
+            RefreshSceneOccupancyFromLiveUnits();
+            OnMoveFinished();
+            cellGrid?.RequestBattleOutcomeEvaluation();
             return true;
         }
 
@@ -3589,6 +3701,27 @@ namespace Windy.Srpg.Game.Units
         /// </summary>
         public new HashSet<Cell> GetAvailableDestinations(List<Cell> cells)
         {
+            if (TryUseRuntimePathAuthority(out _, out BattleUnit runtimeUnit))
+            {
+                SyncMirroredRuntimeNow();
+                List<BoardCell> runtimeCells = cells?
+                    .Select(ResolveLinkedRuntimeCell)
+                    .Where(cell => cell != null)
+                    .ToList() ?? new List<BoardCell>();
+                HashSet<BoardCell> runtimeReachable = runtimeUnit.GetAvailableDestinations(runtimeCells);
+                var runtimeDestinations = new HashSet<Cell>();
+                foreach (BoardCell runtimeCell in runtimeReachable)
+                {
+                    Cell legacyCell = ResolveLinkedLegacyCell(runtimeCell);
+                    if (legacyCell != null)
+                    {
+                        runtimeDestinations.Add(legacyCell);
+                    }
+                }
+
+                return runtimeDestinations;
+            }
+
             CachePaths(cells);
 
             var availableDestinations = new HashSet<Cell>();
@@ -3609,11 +3742,40 @@ namespace Windy.Srpg.Game.Units
 
         public new void CachePaths(List<Cell> cells)
         {
+            if (TryUseRuntimePathAuthority(out _, out BattleUnit runtimeUnit))
+            {
+                SyncMirroredRuntimeNow();
+                List<BoardCell> runtimeCells = cells?
+                    .Select(ResolveLinkedRuntimeCell)
+                    .Where(cell => cell != null)
+                    .ToList() ?? new List<BoardCell>();
+                runtimeUnit.CachePaths(runtimeCells);
+                cachedPaths = null;
+                return;
+            }
+
             cachedPaths = BuildCurrentPaths(cells);
         }
 
         public new IList<Cell> FindPath(List<Cell> cells, Cell destination)
         {
+            if (TryUseRuntimePathAuthority(out _, out BattleUnit runtimeUnit))
+            {
+                SyncMirroredRuntimeNow();
+                List<BoardCell> runtimeCells = cells?
+                    .Select(ResolveLinkedRuntimeCell)
+                    .Where(cell => cell != null)
+                    .ToList() ?? new List<BoardCell>();
+                BoardCell runtimeDestination = ResolveLinkedRuntimeCell(destination);
+                if (runtimeDestination != null
+                    && TryBuildLegacyMovementPath(runtimeUnit.FindPath(runtimeCells, runtimeDestination), out List<Cell> runtimePath))
+                {
+                    return runtimePath;
+                }
+
+                return new List<Cell>();
+            }
+
             if (cachedPaths == null)
             {
                 CachePaths(cells);

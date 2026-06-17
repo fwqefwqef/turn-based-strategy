@@ -7,6 +7,7 @@ using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players.AI;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.AI;
+using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Players
 {
@@ -29,13 +30,23 @@ namespace Windy.Srpg.Game.Players
 
         public override void Play(CustomCellGrid cellGrid)
         {
-            cellGrid.SetState(new CustomCellGridStateAiTurn(cellGrid, this));
+            cellGrid.EnterAiTurnState(this);
             StartCoroutine(ExecuteTurn(cellGrid));
         }
 
         private IEnumerator ExecuteTurn(CustomCellGrid cellGrid)
         {
             IReadOnlyList<CustomUnit> orderedUnits = SelectUnits(cellGrid);
+
+            if (!DebugMode)
+            {
+                yield return AiTurnRunner.ExecuteTurn(
+                    this,
+                    orderedUnits.Cast<Windy.Srpg.Runtime.Units.IBattleUnit>(),
+                    cellGrid,
+                    () => cellGrid.RequestEndTurn());
+                yield break;
+            }
 
             foreach (CustomUnit unit in orderedUnits)
             {
@@ -108,6 +119,22 @@ namespace Windy.Srpg.Game.Players
             var selector = GetComponent<CustomUnitSelection>();
             if (selector == null)
             {
+                List<BattleUnit> runtimeUnits = cellGrid.GetCurrentPlayerCustomUnits()
+                    .Where(unit => unit != null)
+                    .Select(unit => unit.GetComponent<BattleUnit>())
+                    .Where(unit => unit != null)
+                    .ToList();
+
+                IReadOnlyList<CustomUnit> orderedUnits = AiTurnOrdering.OrderByMovementFreedom(runtimeUnits)
+                    .Select(unit => unit != null ? unit.GetComponent<CustomUnit>() : null)
+                    .Where(unit => unit != null)
+                    .ToList();
+
+                if (orderedUnits.Count > 0)
+                {
+                    return orderedUnits;
+                }
+
                 return cellGrid.GetCurrentPlayerCustomUnits().Where(unit => unit != null).ToList();
             }
 

@@ -11,9 +11,37 @@ namespace Windy.Srpg.Game.AI.Actions
 {
     public abstract class AIAction : AiDecisionAction
     {
+        private static CustomPlayer ResolveCustomPlayer(IBattlePlayer player)
+        {
+            return player as CustomPlayer;
+        }
+
+        private static CustomUnit ResolveCustomUnit(IBattleUnit unit)
+        {
+            if (unit is CustomUnit customUnit)
+            {
+                return customUnit;
+            }
+
+            return (unit as BattleUnit)?.GetComponent<CustomUnit>();
+        }
+
+        private static CustomCellGrid ResolveCustomCellGrid(IBattleBoard board)
+        {
+            if (board is CustomCellGrid customCellGrid)
+            {
+                return customCellGrid;
+            }
+
+            return (board as BattleBoard)?.GetComponent<CustomCellGrid>();
+        }
+
         public sealed override void InitializeDecision(IBattlePlayer player, IBattleUnit unit, IBattleBoard board)
         {
-            if (player is CustomPlayer customPlayer && unit is CustomUnit customUnit && board is CustomCellGrid customCellGrid)
+            CustomPlayer customPlayer = ResolveCustomPlayer(player);
+            CustomUnit customUnit = ResolveCustomUnit(unit);
+            CustomCellGrid customCellGrid = ResolveCustomCellGrid(board);
+            if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 InitializeAction(customPlayer, customUnit, customCellGrid);
             }
@@ -21,15 +49,21 @@ namespace Windy.Srpg.Game.AI.Actions
 
         public sealed override bool ShouldExecute(IBattlePlayer player, IBattleUnit unit, IBattleBoard board)
         {
-            return player is CustomPlayer customPlayer
-                && unit is CustomUnit customUnit
-                && board is CustomCellGrid customCellGrid
+            CustomPlayer customPlayer = ResolveCustomPlayer(player);
+            CustomUnit customUnit = ResolveCustomUnit(unit);
+            CustomCellGrid customCellGrid = ResolveCustomCellGrid(board);
+            return customPlayer != null
+                && customUnit != null
+                && customCellGrid != null
                 && ShouldExecute(customPlayer, customUnit, customCellGrid);
         }
 
         public sealed override void Precalculate(IBattlePlayer player, IBattleUnit unit, IBattleBoard board)
         {
-            if (player is CustomPlayer customPlayer && unit is CustomUnit customUnit && board is CustomCellGrid customCellGrid)
+            CustomPlayer customPlayer = ResolveCustomPlayer(player);
+            CustomUnit customUnit = ResolveCustomUnit(unit);
+            CustomCellGrid customCellGrid = ResolveCustomCellGrid(board);
+            if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 Precalculate(customPlayer, customUnit, customCellGrid);
             }
@@ -37,7 +71,10 @@ namespace Windy.Srpg.Game.AI.Actions
 
         public sealed override IEnumerator ExecuteDecision(IBattlePlayer player, IBattleUnit unit, IBattleBoard board)
         {
-            if (player is CustomPlayer customPlayer && unit is CustomUnit customUnit && board is CustomCellGrid customCellGrid)
+            CustomPlayer customPlayer = ResolveCustomPlayer(player);
+            CustomUnit customUnit = ResolveCustomUnit(unit);
+            CustomCellGrid customCellGrid = ResolveCustomCellGrid(board);
+            if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 return Execute(customPlayer, customUnit, customCellGrid);
             }
@@ -47,7 +84,10 @@ namespace Windy.Srpg.Game.AI.Actions
 
         public sealed override void CleanUpDecision(IBattlePlayer player, IBattleUnit unit, IBattleBoard board)
         {
-            if (player is CustomPlayer customPlayer && unit is CustomUnit customUnit && board is CustomCellGrid customCellGrid)
+            CustomPlayer customPlayer = ResolveCustomPlayer(player);
+            CustomUnit customUnit = ResolveCustomUnit(unit);
+            CustomCellGrid customCellGrid = ResolveCustomCellGrid(board);
+            if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 CleanUp(customPlayer, customUnit, customCellGrid);
             }
@@ -55,7 +95,10 @@ namespace Windy.Srpg.Game.AI.Actions
 
         public sealed override void ShowDebugDecisionInfo(IBattlePlayer player, IBattleUnit unit, IBattleBoard board)
         {
-            if (player is CustomPlayer customPlayer && unit is CustomUnit customUnit && board is CustomCellGrid customCellGrid)
+            CustomPlayer customPlayer = ResolveCustomPlayer(player);
+            CustomUnit customUnit = ResolveCustomUnit(unit);
+            CustomCellGrid customCellGrid = ResolveCustomCellGrid(board);
+            if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 ShowDebugInfo(customPlayer, customUnit, customCellGrid);
             }

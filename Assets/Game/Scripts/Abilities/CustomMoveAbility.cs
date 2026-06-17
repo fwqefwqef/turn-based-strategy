@@ -90,6 +90,7 @@ namespace Windy.Srpg.Game.Abilities
         private int attackPreviewWeaponIndex = -1;
         private int skillPreviewIndex = -1;
         private bool resolvingPendingAttack;
+        private int cachedOccupancyRevision = -1;
 
         private readonly struct AreaLineProjection
         {
@@ -322,13 +323,13 @@ namespace Windy.Srpg.Game.Abilities
                 && unit != null
                 && !unit.IsFinishedForTurn)
             {
-                cellGrid.SetState(new CustomUnitSelectedState(cellGrid, unit, unit.GetBattleActions()));
+                cellGrid.EnterSelectedState(unit);
                 return;
             }
 
             if (unit != null && cellGrid != null && !cellGrid.GetCurrentPlayerCustomUnits().Contains(unit))
             {
-                cellGrid.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+                cellGrid.EnterWaitingState();
             }
         }
 
@@ -351,35 +352,22 @@ namespace Windy.Srpg.Game.Abilities
 
         protected override void OnCellClicked(Cell cell, CustomCellGrid cellGrid)
         {
-            if (availableDestinations.Contains(cell))
+            RefreshAvailableDestinationsIfNeeded(cellGrid);
+
+            if (!availableDestinations.Contains(cell))
             {
-                cellGrid?.ShadowCompareSelectedStateCellClick(
-                    UnitReference,
-                    cell,
-                    frameworkStateLabel: "PendingMoveConfirm",
-                    frameworkSelectedUnitAfterClick: UnitReference,
-                    frameworkPendingDestination: cell);
-
-                Destination = cell;
-                currentPath = null;
-
-                // Compute path
-                var path = UnitReference.FindPath(ResolveGridCells(cellGrid), cell);
-
-                EnterPendingMoveConfirmState(cellGrid);
-                GameplayCameraController.SetFocusedCell(cell);
-                StartCoroutine(BeginPendingMovePreview(cellGrid, cell, path));
+                return;
             }
-            else
-            {
-                cellGrid?.ShadowCompareSelectedStateCellClick(
-                    UnitReference,
-                    cell,
-                    frameworkStateLabel: "Waiting",
-                    frameworkSelectedUnitAfterClick: null,
-                    frameworkPendingDestination: null);
-                cellGrid?.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
-            }
+
+            Destination = cell;
+            currentPath = null;
+
+            // Compute path
+            var path = UnitReference.FindPath(ResolveGridCells(cellGrid), cell);
+
+            EnterPendingMoveConfirmState(cellGrid);
+            GameplayCameraController.SetFocusedCell(cell);
+            StartCoroutine(BeginPendingMovePreview(cellGrid, cell, path));
         }
 
         private void EnterPendingMoveConfirmState(CustomCellGrid cellGrid)
@@ -388,7 +376,7 @@ namespace Windy.Srpg.Game.Abilities
             CleanUp(cellGrid);
 
             // Enter pending state that still allows attacking enemies in range.
-            cellGrid?.SetState(new CustomCellGridStateMovePendingConfirm(cellGrid, this));
+            cellGrid?.EnterPendingMoveConfirmState(this);
 
             // Keep the unit selected while preview/pending confirm is active.
             UnitReference.OnUnitSelected();
@@ -665,7 +653,7 @@ namespace Windy.Srpg.Game.Abilities
             ClearAttackTargetingPreview();
             ClearSkillTargetingPreview();
             ClearTradeTargetingPreview();
-            cellGrid?.SetState(new CustomCellGridStateBlockInput(cellGrid));
+            cellGrid?.EnterBlockedInputState();
 
             UnitReference.AttackHandler(unitToAttack);
             UnitReference.OnUnitDeselected();
@@ -677,7 +665,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             resolvingPendingAttack = false;
-            cellGrid?.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+            cellGrid?.EnterWaitingState();
         }
 
         private void ShowActionMenu(CustomCellGrid cellGrid)
@@ -693,7 +681,7 @@ namespace Windy.Srpg.Game.Abilities
                 }
 
                 UnitReference.OnUnitDeselected();
-                cellGrid?.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+                cellGrid?.EnterWaitingState();
                 return;
             }
 
@@ -747,6 +735,10 @@ namespace Windy.Srpg.Game.Abilities
                 onTrade: () => BeginTradeTargeting(cellGrid),
                 onWait: () =>
                 {
+                    var runtimeDecision = cellGrid != null
+                        ? cellGrid.ProcessRuntimePendingMoveWait()
+                        : default;
+
                     if (UnitReference.HasPendingMove)
                     {
                         UnitReference.ConfirmPendingMove();
@@ -755,7 +747,10 @@ namespace Windy.Srpg.Game.Abilities
                     UnitReference.OnUnitDeselected();
                     UnitReference.EndTurnForUnit();
                     actionMenuUi.Hide();
-                    cellGrid?.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+                    if (runtimeDecision.StateLabel == "Waiting" || cellGrid == null)
+                    {
+                        cellGrid?.ApplyLegacyStateFromRuntime(cellGrid.EnterWaitingState);
+                    }
                 },
                 onCancel: () =>
                 {
@@ -811,7 +806,22 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            CancelPendingMoveAndRestoreSelection(cellGrid);
+            CustomCellGrid.RuntimeStateTransitionDecision runtimeDecision = cellGrid != null
+                ? cellGrid.ProcessRuntimePendingMoveRightClick()
+                : default;
+
+            if (runtimeDecision.StateLabel == "Selected" && runtimeDecision.SelectedUnit == UnitReference)
+            {
+                CancelPendingMoveAndRestoreSelection(cellGrid);
+                return;
+            }
+
+            if (runtimeDecision.StateLabel == "Waiting")
+            {
+                UnitReference.CancelPendingMove();
+                FindActionMenuUI()?.Hide();
+                cellGrid?.ApplyLegacyStateFromRuntime(cellGrid.EnterWaitingState);
+            }
         }
 
         private void BeginAttackTargeting(CustomCellGrid cellGrid)
@@ -1071,7 +1081,7 @@ namespace Windy.Srpg.Game.Abilities
 
                     UnitReference.OnUnitDeselected();
                     UnitReference.EndTurnForUnit();
-                    cellGrid?.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+                    cellGrid?.EnterWaitingState();
                 });
         }
 
@@ -1219,11 +1229,7 @@ namespace Windy.Srpg.Game.Abilities
             ClearSkillTargetingPreview();
             ClearTradeTargetingPreview();
 
-            cellGrid?.SetState(new CustomUnitSelectedState(
-                cellGrid,
-                UnitReference,
-                UnitReference.GetBattleActions()
-            ));
+            cellGrid?.EnterSelectedState(UnitReference);
 
             OnAbilitySelected(cellGrid);
             Display(cellGrid);
@@ -2068,7 +2074,7 @@ namespace Windy.Srpg.Game.Abilities
             FindAttackPreviewUI()?.Hide();
             FindInventoryMenuUI()?.Hide();
             FindTradeMenuUI()?.Hide();
-            cellGrid?.SetState(new CustomCellGridStateBlockInput(cellGrid));
+            cellGrid?.EnterBlockedInputState();
 
             tradeMenuUi.Show(
                 tradePartner.transform.position,
@@ -2078,14 +2084,11 @@ namespace Windy.Srpg.Game.Abilities
                 {
                     if (didTrade)
                     {
-                        cellGrid?.SetState(new CustomUnitSelectedState(
-                            cellGrid,
-                            UnitReference,
-                            UnitReference.GetBattleActions()));
+                        cellGrid?.EnterSelectedState(UnitReference);
                         return;
                     }
 
-                    cellGrid?.SetState(new CustomCellGridStateMovePendingConfirm(cellGrid, this));
+                    cellGrid?.EnterPendingMoveConfirmState(this);
                     ShowActionMenu(cellGrid);
                 },
                 () =>
@@ -2358,7 +2361,7 @@ namespace Windy.Srpg.Game.Abilities
             ClearAttackTargetingPreview();
             ClearSkillTargetingPreview();
             ClearTradeTargetingPreview();
-            cellGrid?.SetState(new CustomCellGridStateBlockInput(cellGrid));
+            cellGrid?.EnterBlockedInputState();
 
             Item backingWeaponEntry = GetPreferredWeaponForSkill(skill, target, UnitReference.PreviewCell, selectedSkillPreviewWeaponEntry);
             if (backingWeaponEntry != null)
@@ -2421,7 +2424,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             resolvingPendingAttack = false;
-            cellGrid?.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+            cellGrid?.EnterWaitingState();
         }
 
         private IEnumerator ExecuteAreaSkillThenConfirmPendingMove(Skill skill, Cell centerCell, IReadOnlyList<CustomUnit> affectedTargets, CustomCellGrid cellGrid)
@@ -2444,7 +2447,7 @@ namespace Windy.Srpg.Game.Abilities
             ClearAttackTargetingPreview();
             ClearSkillTargetingPreview();
             ClearTradeTargetingPreview();
-            cellGrid?.SetState(new CustomCellGridStateBlockInput(cellGrid));
+            cellGrid?.EnterBlockedInputState();
 
             bool executed = false;
             IReadOnlyList<CustomUnit> orderedTargets = affectedTargets
@@ -2526,11 +2529,11 @@ namespace Windy.Srpg.Game.Abilities
             resolvingPendingAttack = false;
             if (executed)
             {
-                cellGrid?.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+                cellGrid?.EnterWaitingState();
             }
             else
             {
-                cellGrid?.SetState(new CustomCellGridStateMovePendingConfirm(cellGrid, this));
+                cellGrid?.EnterPendingMoveConfirmState(this);
                 ShowActionMenu(cellGrid);
             }
         }
@@ -3674,6 +3677,8 @@ namespace Windy.Srpg.Game.Abilities
 
         protected override void OnCellSelected(Cell cell, CustomCellGrid cellGrid)
         {
+            RefreshAvailableDestinationsIfNeeded(cellGrid);
+
             if (UnitReference.CanStartActionThisTurn && availableDestinations.Contains(cell))
             {
                 RestoreReachableDisplay();
@@ -3686,6 +3691,8 @@ namespace Windy.Srpg.Game.Abilities
         }
         protected override void OnCellDeselected(Cell cell, CustomCellGrid cellGrid)
         {
+            RefreshAvailableDestinationsIfNeeded(cellGrid);
+
             if (UnitReference.CanStartActionThisTurn && availableDestinations.Contains(cell))
             {
                 RestoreReachableDisplay();
@@ -3695,14 +3702,16 @@ namespace Windy.Srpg.Game.Abilities
 
         protected override void OnAbilitySelected(CustomCellGrid cellGrid)
         {
-            List<Cell> allCells = ResolveGridCells(cellGrid);
-            UnitReference.CachePaths(allCells);
-            availableDestinations = UnitReference.GetAvailableDestinations(allCells);
-            Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.CompareReachable(UnitReference, allCells, availableDestinations);
+            RefreshAvailableDestinations(cellGrid, compareParity: true);
         }
 
         protected override void CleanUp(CustomCellGrid cellGrid)
         {
+            if (availableDestinations == null)
+            {
+                return;
+            }
+
             foreach (var cell in availableDestinations)
             {
                 cell.UnMark();
@@ -3724,7 +3733,34 @@ namespace Windy.Srpg.Game.Abilities
 
         protected override bool CanPerform(CustomCellGrid cellGrid)
         {
+            RefreshAvailableDestinationsIfNeeded(cellGrid);
             return UnitReference.CanStartActionThisTurn && UnitReference.GetAvailableDestinations(ResolveGridCells(cellGrid)).Count > 0;
+        }
+
+        private void RefreshAvailableDestinationsIfNeeded(CustomCellGrid cellGrid)
+        {
+            if (cellGrid == null)
+            {
+                return;
+            }
+
+            if (availableDestinations == null || cachedOccupancyRevision != cellGrid.OccupancyRevision)
+            {
+                RefreshAvailableDestinations(cellGrid, compareParity: false);
+            }
+        }
+
+        private void RefreshAvailableDestinations(CustomCellGrid cellGrid, bool compareParity)
+        {
+            List<Cell> allCells = ResolveGridCells(cellGrid);
+            UnitReference.CachePaths(allCells);
+            availableDestinations = UnitReference.GetAvailableDestinations(allCells);
+            cachedOccupancyRevision = cellGrid != null ? cellGrid.OccupancyRevision : cachedOccupancyRevision;
+
+            if (compareParity)
+            {
+                Windy.Srpg.Game.Diagnostics.RuntimeParityDiagnostics.CompareReachable(UnitReference, allCells, availableDestinations);
+            }
         }
 
         public override IDictionary<string, string> Encapsulate()

@@ -83,5 +83,10 @@ namespace Windy.Srpg.Game.Units
         {
             return cell != null ? cell.GetComponent<BoardCell>() : null;
         }
+
+        private static Cell ResolveLinkedLegacyCell(BoardCell cell)
+        {
+            return cell != null ? cell.GetComponent<Cell>() : null;
+        }
     }
 }

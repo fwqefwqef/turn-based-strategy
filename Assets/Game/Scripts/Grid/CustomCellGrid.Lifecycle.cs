@@ -38,7 +38,7 @@ namespace Windy.Srpg.Game.Grid
             {
                 RequestFrameworkInitialize();
                 SetDeploymentSlotVisibility(true);
-                SetState(new CustomCellGridStateBlockInput(this));
+                EnterBlockedInputState();
                 PreBattleStateChanged?.Invoke(this, EventArgs.Empty);
                 return;
             }

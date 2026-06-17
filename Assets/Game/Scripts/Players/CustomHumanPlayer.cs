@@ -9,7 +9,7 @@ namespace Windy.Srpg.Game.Players
 
         public override void Play(CustomCellGrid cellGrid)
         {
-            cellGrid.SetState(new CustomCellGridStateWaitingForInput(cellGrid));
+            cellGrid.EnterWaitingState();
         }
     }
 }

@@ -9,6 +9,16 @@ namespace Windy.Srpg.Game.Players
     {
         public abstract override bool IsHumanControlled { get; }
 
+        private static CustomCellGrid ResolveCustomCellGrid(IBattleBoard board)
+        {
+            if (board is CustomCellGrid customCellGrid)
+            {
+                return customCellGrid;
+            }
+
+            return (board as BattleBoard)?.GetComponent<CustomCellGrid>();
+        }
+
         public override bool Owns(IBattleUnit unit)
         {
             return unit != null && unit.PlayerId == PlayerId;
@@ -20,7 +30,8 @@ namespace Windy.Srpg.Game.Players
 
         public override void InitializeBoard(IBattleBoard board)
         {
-            if (board is CustomCellGrid customCellGrid)
+            CustomCellGrid customCellGrid = ResolveCustomCellGrid(board);
+            if (customCellGrid != null)
             {
                 OnInitialize(customCellGrid);
             }
@@ -28,7 +39,8 @@ namespace Windy.Srpg.Game.Players
 
         public override void PlayTurn(IBattleBoard board)
         {
-            if (board is CustomCellGrid customCellGrid)
+            CustomCellGrid customCellGrid = ResolveCustomCellGrid(board);
+            if (customCellGrid != null)
             {
                 Play(customCellGrid);
             }

@@ -15,12 +15,30 @@ namespace Windy.Srpg.Game.Abilities
 {
     public abstract class CustomAbility : BattleAction
     {
-        protected CustomUnit CustomUnitRef => GetUnit<CustomUnit>();
+        protected CustomUnit CustomUnitRef
+        {
+            get
+            {
+                CustomUnit customUnit = GetUnit<CustomUnit>();
+                if (customUnit != null)
+                {
+                    return customUnit;
+                }
+
+                return GetUnit<BattleUnit>()?.GetComponent<CustomUnit>();
+            }
+        }
+
         protected CustomUnit UnitReference => CustomUnitRef;
 
         protected static CustomCellGrid ResolveCustomCellGrid(IBattleBoard board)
         {
-            return board as CustomCellGrid;
+            if (board is CustomCellGrid customCellGrid)
+            {
+                return customCellGrid;
+            }
+
+            return (board as BattleBoard)?.GetComponent<CustomCellGrid>();
         }
 
         protected IEnumerator HumanExecute(CustomCellGrid cellGrid)
@@ -30,11 +48,7 @@ namespace Windy.Srpg.Game.Abilities
                 yield break;
             }
 
-            yield return ExecuteInline(
-                cellGrid,
-                _ => cellGrid.SetState(new CustomCellGridStateBlockInput(cellGrid)),
-                _ => cellGrid.SetState(new CustomUnitSelectedState(cellGrid, CustomUnitRef, CustomUnitRef.GetBattleActions())),
-                false);
+            yield return ExecuteInline(cellGrid, BattleActionExecutionMode.HumanLocal, false);
         }
 
         protected IEnumerator RemoteExecute(CustomCellGrid cellGrid)
@@ -44,20 +58,12 @@ namespace Windy.Srpg.Game.Abilities
                 yield break;
             }
 
-            yield return StartCoroutine(ExecuteInline(
-                cellGrid,
-                _ => cellGrid.SetState(new CustomCellGridStateRemotePlayerTurn(cellGrid)),
-                _ => { },
-                true));
+            yield return StartCoroutine(ExecuteInline(cellGrid, BattleActionExecutionMode.RemoteInvocation, true));
         }
 
         public IEnumerator AIExecute(CustomCellGrid cellGrid)
         {
-            yield return ExecuteInline(
-                cellGrid,
-                _ => { },
-                _ => OnAbilityDeselected(cellGrid),
-                false);
+            yield return ExecuteInline(cellGrid, BattleActionExecutionMode.AiLocal, false);
         }
 
         protected sealed override IEnumerator Act(IBattleBoard board, bool isRemoteInvocation = false)
@@ -203,16 +209,35 @@ namespace Windy.Srpg.Game.Abilities
             OnUnitDehighlighted(unit as CustomUnit, ResolveCustomCellGrid(board));
         }
 
-        private IEnumerator ExecuteInline(CustomCellGrid cellGrid, Action<CustomCellGrid> preAction, Action<CustomCellGrid> postAction, bool isNetworkInvoked)
+        private IEnumerator ExecuteInline(CustomCellGrid cellGrid, BattleActionExecutionMode executionMode, bool isNetworkInvoked)
         {
             if (cellGrid == null)
             {
                 yield break;
             }
 
-            preAction?.Invoke(cellGrid);
-            yield return StartCoroutine(Act(cellGrid, isNetworkInvoked));
-            postAction?.Invoke(cellGrid);
+            Action beforeAction = null;
+            Action afterAction = null;
+
+            switch (executionMode)
+            {
+                case BattleActionExecutionMode.HumanLocal:
+                    beforeAction = cellGrid.EnterBlockedInputState;
+                    afterAction = () => cellGrid.EnterSelectedState(CustomUnitRef);
+                    break;
+                case BattleActionExecutionMode.RemoteInvocation:
+                    beforeAction = cellGrid.EnterRemotePlayerTurnState;
+                    break;
+                case BattleActionExecutionMode.AiLocal:
+                    afterAction = () => OnAbilityDeselected(cellGrid);
+                    break;
+            }
+
+            yield return BattleActionExecutionFlow.ExecuteInline(
+                this,
+                beforeAction,
+                () => Act(cellGrid, isNetworkInvoked),
+                afterAction);
         }
     }
 }

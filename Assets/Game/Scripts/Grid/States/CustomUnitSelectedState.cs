@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using TbsFramework.Cells;
 using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.Units;
 using UnityEngine;
@@ -35,6 +36,8 @@ namespace Windy.Srpg.Game.Grid.States
         {
         }
 
+        public CustomUnit SelectedUnit => selectedUnit;
+
         public override void OnStateEnter()
         {
             base.OnStateEnter();
@@ -51,33 +54,36 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnCustomUnitClicked(CustomUnit unit)
         {
-            if (unit == selectedUnit)
+            bool isFriendlyCurrentPlayerUnit =
+                unit != null
+                && _cellGrid.GetCurrentPlayerCustomUnits().Contains(unit);
+
+            if (isFriendlyCurrentPlayerUnit)
             {
-                var customMoveAbility = abilities.OfType<CustomMoveAbility>().FirstOrDefault();
-                if (customMoveAbility != null)
+                var runtimeDecision = _cellGrid.ProcessRuntimeSelectedStateUnitClick(unit);
+
+                if (runtimeDecision.StateLabel == "PendingMoveConfirm" && runtimeDecision.SelectedUnit == selectedUnit)
                 {
-                    _cellGrid.ShadowCompareSelectedStateUnitClick(
-                        selectedUnit,
-                        unit,
-                        frameworkStateLabel: "PendingMoveConfirm",
-                        frameworkSelectedUnitAfterClick: selectedUnit,
-                        frameworkPendingDestination: selectedUnit.Cell);
-                    customMoveAbility.OnSelectedUnitClicked(_cellGrid);
+                    var customMoveAbility = abilities.OfType<CustomMoveAbility>().FirstOrDefault();
+                    if (customMoveAbility != null)
+                    {
+                        customMoveAbility.OnSelectedUnitClicked(_cellGrid);
+                        return;
+                    }
+                }
+
+                if (runtimeDecision.StateLabel == "Selected" && runtimeDecision.SelectedUnit != null)
+                {
+                    _cellGrid.ApplyLegacyStateFromRuntime(() => _cellGrid.EnterSelectedState(runtimeDecision.SelectedUnit));
+                    return;
+                }
+
+                if (runtimeDecision.StateLabel == "Waiting")
+                {
+                    _cellGrid.ApplyLegacyStateFromRuntime(_cellGrid.EnterWaitingState);
                     return;
                 }
             }
-
-            bool willSelectAnotherFriendly =
-                unit != null
-                && _cellGrid.GetCurrentPlayerCustomUnits().Contains(unit)
-                && !unit.IsFinishedForTurn;
-
-            _cellGrid.ShadowCompareSelectedStateUnitClick(
-                selectedUnit,
-                unit,
-                frameworkStateLabel: willSelectAnotherFriendly ? "Selected" : "Waiting",
-                frameworkSelectedUnitAfterClick: willSelectAnotherFriendly ? unit : null,
-                frameworkPendingDestination: null);
 
             IBattleUnit battleUnit = unit;
             abilities.ForEach(action => action.OnUnitClicked(battleUnit, _cellGrid));
@@ -97,7 +103,21 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnCellClicked(IBattleCell cell)
         {
-            abilities.ForEach(action => action.OnCellClicked(cell, _cellGrid));
+            Cell legacyCell = ResolveLegacyCell(cell);
+            var runtimeDecision = _cellGrid.ProcessRuntimeSelectedStateCellClick(legacyCell);
+
+            if (runtimeDecision.StateLabel == "Waiting")
+            {
+                _cellGrid.ApplyLegacyStateFromRuntime(_cellGrid.EnterWaitingState);
+                return;
+            }
+
+            if (runtimeDecision.StateLabel == "PendingMoveConfirm"
+                && runtimeDecision.SelectedUnit == selectedUnit)
+            {
+                abilities.ForEach(action => action.OnCellClicked(cell, _cellGrid));
+                return;
+            }
         }
 
         public override void OnCellSelected(IBattleCell cell)
@@ -114,8 +134,18 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnRightClick()
         {
-            _cellGrid.ShadowCompareRightClick(selectedUnit, null);
-            _cellGrid.SetState(new CustomCellGridStateWaitingForInput(_cellGrid));
+            var runtimeDecision = _cellGrid.ProcessRuntimeRightClick();
+
+            if (runtimeDecision.StateLabel == "Waiting")
+            {
+                _cellGrid.ApplyLegacyStateFromRuntime(_cellGrid.EnterWaitingState);
+                return;
+            }
+
+            if (runtimeDecision.StateLabel == "Selected" && runtimeDecision.SelectedUnit != null)
+            {
+                _cellGrid.ApplyLegacyStateFromRuntime(() => _cellGrid.EnterSelectedState(runtimeDecision.SelectedUnit));
+            }
         }
     }
 }

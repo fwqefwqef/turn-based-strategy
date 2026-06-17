@@ -13,6 +13,8 @@ namespace Windy.Srpg.Game.Grid.States
             this.customMoveAbility = customMoveAbility;
         }
 
+        public CustomMoveAbility MoveAbility => customMoveAbility;
+
         public override void OnStateEnter()
         {
             base.OnStateEnter();

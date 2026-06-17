@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
+using Windy.Srpg.Runtime.AI;
+using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Players.AI
 {
@@ -15,10 +17,23 @@ namespace Windy.Srpg.Game.Players.AI
             List<CustomUnit> units = getUnits?.Invoke() ?? new List<CustomUnit>();
             while (visitedUnits.Count < units.Count)
             {
-                CustomUnit nextUnit = units
+                List<BattleUnit> candidateRuntimeUnits = units
                     .Where(unit => unit != null && !visitedUnits.Contains(unit))
-                    .OrderByDescending(unit => CountTraversableNeighbors(unit, cellGrid))
-                    .FirstOrDefault();
+                    .Select(unit => unit.GetComponent<BattleUnit>())
+                    .Where(unit => unit != null)
+                    .ToList();
+
+                CustomUnit nextUnit = AiTurnOrdering.OrderByMovementFreedom(candidateRuntimeUnits)
+                    .Select(unit => unit != null ? unit.GetComponent<CustomUnit>() : null)
+                    .FirstOrDefault(unit => unit != null && !visitedUnits.Contains(unit));
+
+                if (nextUnit == null)
+                {
+                    nextUnit = units
+                        .Where(unit => unit != null && !visitedUnits.Contains(unit))
+                        .OrderByDescending(unit => CountTraversableNeighbors(unit, cellGrid))
+                        .FirstOrDefault();
+                }
 
                 if (nextUnit == null)
                 {

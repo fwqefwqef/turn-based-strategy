@@ -11,14 +11,11 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnCustomUnitClicked(CustomUnit customUnit)
         {
-            bool willSelect = _cellGrid.GetCurrentPlayerCustomUnits().Contains(customUnit)
-                && !customUnit.IsFinishedForTurn;
+            CustomUnit selectedUnit = _cellGrid.ProcessRuntimeWaitingStateUnitClick(customUnit).SelectedUnit;
 
-            _cellGrid.ShadowCompareSelection(customUnit, willSelect ? customUnit : null);
-
-            if (willSelect)
+            if (selectedUnit != null)
             {
-                _cellGrid.SetState(new CustomUnitSelectedState(_cellGrid, customUnit, customUnit.GetBattleActions()));
+                _cellGrid.ApplyLegacyStateFromRuntime(() => _cellGrid.EnterSelectedState(selectedUnit));
             }
         }
     }

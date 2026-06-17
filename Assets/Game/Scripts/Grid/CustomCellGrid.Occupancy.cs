@@ -50,6 +50,9 @@ namespace Windy.Srpg.Game.Grid
                     unit.Cell.IsTaken = true;
                 }
             }
+
+            occupancyRevision++;
+            CustomUnit.InvalidateAllCachedPaths();
         }
 
         private static bool ShouldSyncRuntimeCellOccupancy(CustomUnit unit)
