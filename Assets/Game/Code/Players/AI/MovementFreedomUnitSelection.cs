@@ -17,9 +17,9 @@ namespace Windy.Srpg.Game.Players.AI
             List<Unit> units = getUnits?.Invoke() ?? new List<Unit>();
             while (visitedUnits.Count < units.Count)
             {
-                List<BoardUnit> candidateRuntimeUnits = units
+                List<GridUnit> candidateRuntimeUnits = units
                     .Where(unit => unit != null && !visitedUnits.Contains(unit))
-                    .Select(unit => unit.GetComponent<BoardUnit>())
+                    .Select(unit => unit.GetComponent<GridUnit>())
                     .Where(unit => unit != null)
                     .ToList();
 
@@ -55,7 +55,7 @@ namespace Windy.Srpg.Game.Players.AI
             }
 
             return unit.Cell
-                .GetNeighbours(cellGrid.GetAllBoardCells())
+                .GetNeighbours(cellGrid.GetAllCells())
                 .Count(unit.IsCellTraversable);
         }
     }

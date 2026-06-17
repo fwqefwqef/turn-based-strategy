@@ -21,9 +21,9 @@ This table reflects **actual status** in the current private Unity project (`C:\
 | 10 â€” Rewire scene and prefabs | **Done (smoke-tested)** | Active tiles use `BattleSquareCell`; `SampleSquare` / dual-cell mirror removed from active prefabs |
 | 11 â€” Remove framework references | **Done (private workspace)** | Active game/scenes code no longer references `TbsFramework`; asmdefs are project-owned; active project builds without `Assets/TBS Framework` |
 | 11B — Consolidate code root | **Done (compile-verified)** | Active code now lives under one root, `Assets/Game/Code/*`; the temporary `Gameplay` / `Runtime` split is gone |
-| 11C — Complexity / bridge cleanup | **In progress** | Assembly boundary removed, code domains merged, and the largest bridge-heavy hotspots remain |
-| 12 â€” Publication audit | **Not started** | Baseline inventory only: `Assets/Docs/Publication/PHASE12_AUDIT_BASELINE.md` |
-| 13 â€” Public repo packaging | **Not started** | |
+| 11C — Complexity / bridge cleanup | **In progress** | Assembly boundary removed, code domains merged; bridge helpers remain in `CellGrid` / `MoveAbility` |
+| 12 — Publication audit | **Done (private workspace)** | See `Assets/Docs/Publication/PHASE12_AUDIT_REPORT.md` — code/asset contamination checks pass; Phase 13 packaging pending |
+| 13 — Public repo packaging | **In progress** | `.gitattributes` export boundary added, public README updated, packaging checklist added; license added, Unity clone smoke test still pending |
 
 **Current position:** Phases 11 and 11B are complete at the code/build level in the private workspace, and **Phase 11C is now underway**. The next required checkpoint is a Unity smoke test on the aggressively merged code root before deeper bridge deletion.
 
@@ -963,8 +963,8 @@ If we proceed with this rewrite, the safest order is:
 11. rewire scene and prefabs (Phase 10) â€” **done (smoke-tested)**
 12. **remove TBS Framework dependencies (Phase 11)** â€” **done**
 13. consolidate public code into one root folder (Phase 11B) â€” **done (compile-verified)**
-14. complexity / bridge cleanup (Phase 11C) — **in progress; next checkpoint is Unity smoke test**
-15. run the publication audit (Phase 12)
+14. complexity / bridge cleanup (Phase 11C) — **in progress**
+15. run the publication audit (Phase 12) — **done** — see `Assets/Docs/Publication/PHASE12_AUDIT_REPORT.md`
 16. create the public rewrite workspace without framework (Phase 1, deferred)
 17. package the public repo (Phase 13)
 
@@ -982,7 +982,5 @@ This rewrite is only worth doing if we follow the publication boundary strictly:
 - public implementation based on game behavior requirements, not framework code lift
 
 If we do that, the result should match the vendor's condition far better than the earlier "decoupling" approach.
-
-
 
 

@@ -7,7 +7,7 @@ namespace Windy.Srpg.Runtime.Players
         int PlayerId { get; }
         bool IsHumanControlled { get; }
 
-        bool Owns(IBoardUnit unit);
+        bool Owns(IGridUnit unit);
     }
 }
 

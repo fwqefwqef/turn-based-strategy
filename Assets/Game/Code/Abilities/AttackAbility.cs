@@ -1,10 +1,11 @@
-using System.Collections;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
-using Windy.Srpg.Game.Units;
 using UnityEngine;
-using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Grid.States;
+using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Game.Units;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.Abilities
 {
@@ -48,7 +49,7 @@ namespace Windy.Srpg.Game.Abilities
             }
         }
 
-        protected override void OnCellClicked(BattleSquareCell cell, CellGrid cellGrid)
+        protected override void OnCellClicked(Cell cell, CellGrid cellGrid)
         {
             if (cell == null)
             {
@@ -82,5 +83,39 @@ namespace Windy.Srpg.Game.Abilities
             return inAttackRange.Count > 0;
         }
     }
-}
+    public class AttackRangeHighlightAbility : Ability
+    {
+        private List<Unit> inRange;
 
+        protected override void OnCellSelected(Cell cell, CellGrid cellGrid)
+        {
+            ClearHighlights();
+        }
+
+        protected override void OnCellDeselected(Cell cell, CellGrid cellGrid)
+        {
+            ClearHighlights();
+        }
+
+        protected override void CleanUp(CellGrid cellGrid)
+        {
+            ClearHighlights();
+        }
+
+        protected override void OnAbilityDeselected(CellGrid cellGrid)
+        {
+            ClearHighlights();
+        }
+
+        protected override void OnTurnEnd(CellGrid cellGrid)
+        {
+            ClearHighlights();
+        }
+
+        private void ClearHighlights()
+        {
+            inRange?.ForEach(u => u?.UnMark());
+            inRange = null;
+        }
+    }
+}

@@ -1,7 +1,7 @@
 using UnityEngine;
 using Windy.Srpg.Runtime.Units;
 
-public sealed class RuntimeSampleUnit : BoardUnit
+public sealed class RuntimeSampleUnit : GridUnit
 {
     [SerializeField] private bool applyVisualState;
 

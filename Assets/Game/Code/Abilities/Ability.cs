@@ -6,7 +6,7 @@ using UnityEngine;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Runtime.Actions;
-using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Abilities
@@ -23,20 +23,20 @@ namespace Windy.Srpg.Game.Abilities
                     return customUnit;
                 }
 
-                return GetUnit<BoardUnit>()?.GetComponent<Unit>();
+                return GetUnit<GridUnit>()?.GetComponent<Unit>();
             }
         }
 
         protected Unit UnitReference => UnitRef;
 
-        protected static CellGrid ResolveCellGrid(IBattleBoard board)
+        protected static CellGrid ResolveCellGrid(IGridContext grid)
         {
-            if (board is CellGrid customCellGrid)
+            if (grid is CellGrid customCellGrid)
             {
                 return customCellGrid;
             }
 
-            return (board as BattleBoard)?.GetComponent<CellGrid>();
+            return (grid as RuntimeGrid)?.GetComponent<CellGrid>();
         }
 
         protected IEnumerator HumanExecute(CellGrid cellGrid)
@@ -64,9 +64,9 @@ namespace Windy.Srpg.Game.Abilities
             yield return ExecuteInline(cellGrid, BattleActionExecutionMode.AiLocal, false);
         }
 
-        protected sealed override IEnumerator Act(IBattleBoard board, bool isRemoteInvocation = false)
+        protected sealed override IEnumerator Act(IGridContext grid, bool isRemoteInvocation = false)
         {
-            CellGrid customCellGrid = ResolveCellGrid(board);
+            CellGrid customCellGrid = ResolveCellGrid(grid);
             if (customCellGrid == null)
             {
                 yield break;
@@ -84,15 +84,15 @@ namespace Windy.Srpg.Game.Abilities
         {
         }
 
-        public override void InitializeAction(IBoardUnit unit)
+        public override void InitializeAction(IGridUnit unit)
         {
             base.InitializeAction(unit);
             Initialize();
         }
 
-        public override bool CanPerformAction(IBattleBoard board)
+        public override bool CanPerformAction(IGridContext grid)
         {
-            return CanPerform(ResolveCellGrid(board));
+            return CanPerform(ResolveCellGrid(grid));
         }
 
         public virtual void OnUnitClicked(Unit unit, CellGrid cellGrid) { }
@@ -103,57 +103,57 @@ namespace Windy.Srpg.Game.Abilities
 
         protected virtual void OnUnitDestroyed(CellGrid cellGrid) { }
 
-        protected virtual void OnCellClicked(BattleSquareCell cell, CellGrid cellGrid) { }
+        protected virtual void OnCellClicked(Cell cell, CellGrid cellGrid) { }
 
-        protected virtual void OnCellSelected(BattleSquareCell cell, CellGrid cellGrid) { }
+        protected virtual void OnCellSelected(Cell cell, CellGrid cellGrid) { }
 
-        protected virtual void OnCellDeselected(BattleSquareCell cell, CellGrid cellGrid) { }
+        protected virtual void OnCellDeselected(Cell cell, CellGrid cellGrid) { }
 
         protected virtual void Display(CellGrid cellGrid) { }
 
-        public override void DisplayAction(IBattleBoard board)
+        public override void DisplayAction(IGridContext grid)
         {
-            Display(ResolveCellGrid(board));
+            Display(ResolveCellGrid(grid));
         }
 
         protected virtual void CleanUp(CellGrid cellGrid) { }
 
-        public override void CleanUpAction(IBattleBoard board)
+        public override void CleanUpAction(IGridContext grid)
         {
-            CleanUp(ResolveCellGrid(board));
+            CleanUp(ResolveCellGrid(grid));
         }
 
         protected virtual void OnAbilitySelected(CellGrid cellGrid) { }
 
-        public override void OnActionSelected(IBattleBoard board)
+        public override void OnActionSelected(IGridContext grid)
         {
-            OnAbilitySelected(ResolveCellGrid(board));
+            OnAbilitySelected(ResolveCellGrid(grid));
         }
 
         protected virtual void OnAbilityDeselected(CellGrid cellGrid) { }
 
-        public override void OnActionDeselected(IBattleBoard board)
+        public override void OnActionDeselected(IGridContext grid)
         {
-            OnAbilityDeselected(ResolveCellGrid(board));
+            OnAbilityDeselected(ResolveCellGrid(grid));
         }
 
         protected virtual void OnTurnStart(CellGrid cellGrid) { }
 
-        public override void OnTurnStarted(IBattleBoard board)
+        public override void OnTurnStarted(IGridContext grid)
         {
-            OnTurnStart(ResolveCellGrid(board));
+            OnTurnStart(ResolveCellGrid(grid));
         }
 
         protected virtual void OnTurnEnd(CellGrid cellGrid) { }
 
-        public override void OnTurnEnded(IBattleBoard board)
+        public override void OnTurnEnded(IGridContext grid)
         {
-            OnTurnEnd(ResolveCellGrid(board));
+            OnTurnEnd(ResolveCellGrid(grid));
         }
 
-        public override void OnOwnerDestroyed(IBattleBoard board)
+        public override void OnOwnerDestroyed(IGridContext grid)
         {
-            OnUnitDestroyed(ResolveCellGrid(board));
+            OnUnitDestroyed(ResolveCellGrid(grid));
         }
 
         protected virtual bool CanPerform(CellGrid cellGrid) { return false; }
@@ -162,39 +162,34 @@ namespace Windy.Srpg.Game.Abilities
 
         protected virtual IEnumerator Apply(CellGrid cellGrid, IDictionary<string, string> actionParams, bool isNetworkInvoked = true) { throw new NotImplementedException(); }
 
-        public override void OnCellClicked(IBattleCell cell, IBattleBoard board)
+        public override void OnCellClicked(Cell cell, IGridContext grid)
         {
-            OnCellClicked(ResolveRegistryCellFromBattleCell(cell), ResolveCellGrid(board));
+            OnCellClicked(cell, ResolveCellGrid(grid));
         }
 
-        public override void OnCellHighlighted(IBattleCell cell, IBattleBoard board)
+        public override void OnCellHighlighted(Cell cell, IGridContext grid)
         {
-            OnCellSelected(ResolveRegistryCellFromBattleCell(cell), ResolveCellGrid(board));
+            OnCellSelected(cell, ResolveCellGrid(grid));
         }
 
-        public override void OnCellDehighlighted(IBattleCell cell, IBattleBoard board)
+        public override void OnCellDehighlighted(Cell cell, IGridContext grid)
         {
-            OnCellDeselected(ResolveRegistryCellFromBattleCell(cell), ResolveCellGrid(board));
+            OnCellDeselected(cell, ResolveCellGrid(grid));
         }
 
-        private static BattleSquareCell ResolveRegistryCellFromBattleCell(IBattleCell cell)
+        public override void OnUnitClicked(IGridUnit unit, IGridContext grid)
         {
-            return CellGrid.ResolveRegistryCellFromBattleCell(cell);
+            OnUnitClicked(unit as Unit, ResolveCellGrid(grid));
         }
 
-        public override void OnUnitClicked(IBoardUnit unit, IBattleBoard board)
+        public override void OnUnitHighlighted(IGridUnit unit, IGridContext grid)
         {
-            OnUnitClicked(unit as Unit, ResolveCellGrid(board));
+            OnUnitHighlighted(unit as Unit, ResolveCellGrid(grid));
         }
 
-        public override void OnUnitHighlighted(IBoardUnit unit, IBattleBoard board)
+        public override void OnUnitDehighlighted(IGridUnit unit, IGridContext grid)
         {
-            OnUnitHighlighted(unit as Unit, ResolveCellGrid(board));
-        }
-
-        public override void OnUnitDehighlighted(IBoardUnit unit, IBattleBoard board)
-        {
-            OnUnitDehighlighted(unit as Unit, ResolveCellGrid(board));
+            OnUnitDehighlighted(unit as Unit, ResolveCellGrid(grid));
         }
 
         private IEnumerator ExecuteInline(CellGrid cellGrid, BattleActionExecutionMode executionMode, bool isNetworkInvoked)

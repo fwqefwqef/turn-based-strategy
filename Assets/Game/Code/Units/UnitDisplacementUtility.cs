@@ -3,25 +3,26 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.Units
 {
     public readonly struct DisplacementResult
     {
-        public readonly BattleSquareCell UserStartCell;
-        public readonly BattleSquareCell UserEndCell;
-        public readonly BattleSquareCell TargetStartCell;
-        public readonly BattleSquareCell TargetEndCell;
+        public readonly Cell UserStartCell;
+        public readonly Cell UserEndCell;
+        public readonly Cell TargetStartCell;
+        public readonly Cell TargetEndCell;
         public readonly int UserStepsMoved;
         public readonly int TargetStepsMoved;
 
         public bool Success => TargetStepsMoved > 0 || UserStepsMoved > 0;
 
         public DisplacementResult(
-            BattleSquareCell userStartCell,
-            BattleSquareCell userEndCell,
-            BattleSquareCell targetStartCell,
-            BattleSquareCell targetEndCell,
+            Cell userStartCell,
+            Cell userEndCell,
+            Cell targetStartCell,
+            Cell targetEndCell,
             int userStepsMoved,
             int targetStepsMoved)
         {
@@ -38,9 +39,9 @@ namespace Windy.Srpg.Game.Units
     {
         public static bool CanDisplaceRelative(
             Unit user,
-            BattleSquareCell userCell,
+            Cell userCell,
             Unit target,
-            BattleSquareCell targetCell,
+            Cell targetCell,
             CellGrid cellGrid,
             int distance = 1,
             bool push = true,
@@ -57,8 +58,8 @@ namespace Windy.Srpg.Game.Units
             bool push = true,
             bool moveUserWithTarget = false)
         {
-            BattleSquareCell userCell = user?.Cell;
-            BattleSquareCell targetCell = target?.Cell;
+            Cell userCell = user?.Cell;
+            Cell targetCell = target?.Cell;
             if (!PlanDisplacement(user, userCell, target, targetCell, cellGrid, distance, push, moveUserWithTarget, out var plan))
             {
                 return new DisplacementResult(userCell, userCell, targetCell, targetCell, 0, 0);
@@ -70,19 +71,19 @@ namespace Windy.Srpg.Game.Units
 
         private sealed class DisplacementPlan
         {
-            public BattleSquareCell UserStartCell;
-            public BattleSquareCell UserCell;
-            public BattleSquareCell TargetStartCell;
-            public BattleSquareCell TargetCell;
+            public Cell UserStartCell;
+            public Cell UserCell;
+            public Cell TargetStartCell;
+            public Cell TargetCell;
             public int UserStepsMoved;
             public int TargetStepsMoved;
         }
 
         private static bool PlanDisplacement(
             Unit user,
-            BattleSquareCell userCell,
+            Cell userCell,
             Unit target,
-            BattleSquareCell targetCell,
+            Cell targetCell,
             CellGrid cellGrid,
             int distance,
             bool push,
@@ -107,7 +108,7 @@ namespace Windy.Srpg.Game.Units
 
             for (int i = 0; i < distance; i++)
             {
-                if (!TryPlanStep(user, target, cellGrid, workingPlan.UserCell, workingPlan.TargetCell, push, moveUserWithTarget, out BattleSquareCell nextUserCell, out BattleSquareCell nextTargetCell))
+                if (!TryPlanStep(user, target, cellGrid, workingPlan.UserCell, workingPlan.TargetCell, push, moveUserWithTarget, out Cell nextUserCell, out Cell nextTargetCell))
                 {
                     break;
                 }
@@ -143,31 +144,31 @@ namespace Windy.Srpg.Game.Units
             Unit user,
             Unit target,
             CellGrid cellGrid,
-            BattleSquareCell userCell,
-            BattleSquareCell targetCell,
+            Cell userCell,
+            Cell targetCell,
             bool push,
             bool moveUserWithTarget,
-            out BattleSquareCell nextUserCell,
-            out BattleSquareCell nextTargetCell)
+            out Cell nextUserCell,
+            out Cell nextTargetCell)
         {
             nextUserCell = userCell;
             nextTargetCell = targetCell;
 
-            List<BattleSquareCell> allCells = cellGrid?.GetAllBoardCells() ?? new List<BattleSquareCell>();
-            List<BattleSquareCell> neighbours = targetCell.GetNeighbours(allCells);
+            List<Cell> allCells = cellGrid?.GetAllCells() ?? new List<Cell>();
+            List<Cell> neighbours = targetCell.GetNeighbours(allCells);
             if (neighbours == null || neighbours.Count == 0)
             {
                 return false;
             }
 
             double currentDistance = GetWeightedDistance(userCell, targetCell);
-            BattleSquareCell bestTargetCell = null;
-            BattleSquareCell bestUserCell = userCell;
+            Cell bestTargetCell = null;
+            Cell bestUserCell = userCell;
             double bestDistance = push ? double.NegativeInfinity : double.PositiveInfinity;
             int bestManhattan = push ? int.MinValue : int.MaxValue;
             float bestEuclidean = push ? float.MinValue : float.MaxValue;
 
-            foreach (BattleSquareCell candidateTargetCell in neighbours)
+            foreach (Cell candidateTargetCell in neighbours)
             {
                 if (candidateTargetCell == null)
                 {
@@ -175,7 +176,7 @@ namespace Windy.Srpg.Game.Units
                 }
 
                 Vector2 stepVector = candidateTargetCell.OffsetCoord - targetCell.OffsetCoord;
-                BattleSquareCell candidateUserCell = userCell;
+                Cell candidateUserCell = userCell;
                 if (moveUserWithTarget)
                 {
                     candidateUserCell = FindCell(cellGrid, userCell.OffsetCoord + stepVector);
@@ -250,8 +251,8 @@ namespace Windy.Srpg.Game.Units
 
         private static void ApplyDisplacementPlan(Unit user, Unit target, CellGrid cellGrid, DisplacementPlan plan)
         {
-            BattleSquareCell originalUserCell = user.Cell;
-            BattleSquareCell originalTargetCell = target.Cell;
+            Cell originalUserCell = user.Cell;
+            Cell originalTargetCell = target.Cell;
 
             if (originalUserCell != null)
             {
@@ -288,7 +289,7 @@ namespace Windy.Srpg.Game.Units
             cellGrid?.RequestBattleOutcomeEvaluation();
         }
 
-        private static bool CanOccupyCandidate(BattleSquareCell candidateCell, Unit user, Unit target, BattleSquareCell simultaneouslyVacatedCell)
+        private static bool CanOccupyCandidate(Cell candidateCell, Unit user, Unit target, Cell simultaneouslyVacatedCell)
         {
             if (candidateCell == null)
             {
@@ -309,18 +310,18 @@ namespace Windy.Srpg.Game.Units
             return !HasExternalBlockingOccupant(candidateCell, user, target);
         }
 
-        private static bool HasExternalBlockingOccupant(BattleSquareCell cell, Unit user, Unit target)
+        private static bool HasExternalBlockingOccupant(Cell cell, Unit user, Unit target)
         {
             return cell.CurrentUnits
                 .Any(unit => unit != null && unit != user && unit != target && unit.Obstructable);
         }
 
-        private static void RefreshCellOccupancy(BattleSquareCell cell)
+        private static void RefreshCellOccupancy(Cell cell)
         {
             Unit.RefreshCellOccupancy(cell);
         }
 
-        private static void SnapUnitToCell(Unit unit, BattleSquareCell destinationCell, CellGrid cellGrid)
+        private static void SnapUnitToCell(Unit unit, Cell destinationCell, CellGrid cellGrid)
         {
             if (unit == null || destinationCell == null)
             {
@@ -336,12 +337,12 @@ namespace Windy.Srpg.Game.Units
             unit.transform.localPosition = destinationLocal;
         }
 
-        private static BattleSquareCell FindCell(CellGrid cellGrid, Vector2 offsetCoord)
+        private static Cell FindCell(CellGrid cellGrid, Vector2 offsetCoord)
         {
             return cellGrid?.FindCellByOffset(offsetCoord);
         }
 
-        private static double GetWeightedDistance(BattleSquareCell first, BattleSquareCell second)
+        private static double GetWeightedDistance(Cell first, Cell second)
         {
             if (first == null || second == null)
             {

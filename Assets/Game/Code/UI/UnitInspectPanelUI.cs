@@ -14,6 +14,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using RuntimeBuff = Windy.Srpg.Game.Buffs.Buff;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.UI
 {
@@ -1101,7 +1102,7 @@ namespace Windy.Srpg.Game.UI
                     return true;
                 }
 
-                BattleSquareCell hitCell = hit.collider.GetComponentInParent<BattleSquareCell>();
+                Cell hitCell = hit.collider.GetComponentInParent<Cell>();
                 if (hitCell?.CurrentUnits == null)
                 {
                     continue;

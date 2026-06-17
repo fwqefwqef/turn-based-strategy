@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -41,7 +41,7 @@ namespace Windy.Srpg.Game.Grid
             return units;
         }
 
-        public IReadOnlyList<Transform> GetInitialUnitTransforms(IBattleBoard board)
+        public IReadOnlyList<Transform> GetInitialUnitTransforms(IGridContext grid)
         {
             if (UnitsParent == null)
             {

@@ -1,4 +1,4 @@
-namespace Windy.Srpg.Runtime.Board
+namespace Windy.Srpg.Runtime.Grid
 {
     public enum CellHighlightKind
     {

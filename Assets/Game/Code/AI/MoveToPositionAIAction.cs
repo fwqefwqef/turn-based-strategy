@@ -11,17 +11,18 @@ using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players;
 using UnityEngine;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.AI.Actions
 {
     public class MoveToPositionAIAction : AIAction
     {
         public bool ShouldMoveAllTheWay = true;
-        private BattleSquareCell topDestination;
+        private Cell topDestination;
 
-        private Dictionary<BattleSquareCell, string> cellMetadata;
-        private IEnumerable<(BattleSquareCell cell, float value)> cellScores;
-        private Dictionary<BattleSquareCell, float> cellScoresDict;
+        private Dictionary<Cell, string> cellMetadata;
+        private IEnumerable<(Cell cell, float value)> cellScores;
+        private Dictionary<Cell, float> cellScoresDict;
         private Dictionary<string, Dictionary<string, float>> executionTime;
 
         private Gradient debugGradient;
@@ -45,19 +46,19 @@ namespace Windy.Srpg.Game.AI.Actions
             };
         }
 
-        private static List<BattleSquareCell> ResolveGridCells(CellGrid cellGrid)
+        private static List<Cell> ResolveCells(CellGrid cellGrid)
         {
-            return cellGrid?.GetAllBoardCells() ?? new List<BattleSquareCell>();
+            return cellGrid?.GetAllCells() ?? new List<Cell>();
         }
 
         public override void InitializeAction(Player player, Unit unit, CellGrid cellGrid)
         {
             unit.GetComponent<MoveAbility>()?.OnActionSelected(cellGrid);
 
-            List<BattleSquareCell> allCells = ResolveGridCells(cellGrid);
-            cellMetadata = new Dictionary<BattleSquareCell, string>();
-            cellScoresDict = new Dictionary<BattleSquareCell, float>();
-            foreach (BattleSquareCell boardCell in allCells)
+            List<Cell> allCells = ResolveCells(cellGrid);
+            cellMetadata = new Dictionary<Cell, string>();
+            cellScoresDict = new Dictionary<Cell, float>();
+            foreach (Cell boardCell in allCells)
             {
                 cellMetadata[boardCell] = string.Empty;
                 cellScoresDict[boardCell] = 0f;
@@ -89,7 +90,7 @@ namespace Windy.Srpg.Game.AI.Actions
                 stopWatch.Reset();
             }
 
-            List<BattleSquareCell> allCells = ResolveGridCells(cellGrid);
+            List<Cell> allCells = ResolveCells(cellGrid);
             cellScores = allCells.Select(c => (cell: c, value: evaluators.Select(evaluator =>
             {
                 stopWatch.Start();
@@ -108,7 +109,7 @@ namespace Windy.Srpg.Game.AI.Actions
                 return weightedScore;
             }).DefaultIfEmpty(0f).Aggregate((result, next) => result + next))).OrderByDescending(x => x.value);
 
-            HashSet<BattleSquareCell> reachableDestinations = unit.GetAvailableDestinations(allCells);
+            HashSet<Cell> reachableDestinations = unit.GetAvailableDestinations(allCells);
             var reachableCellScores = cellScores
                 .Where(o => reachableDestinations.Contains(o.cell))
                 .ToList();
@@ -128,7 +129,7 @@ namespace Windy.Srpg.Game.AI.Actions
                 return true;
             }
 
-            if (TrySelectPursuitDestination(unit, player, cellGrid, out BattleSquareCell pursuitDestination)
+            if (TrySelectPursuitDestination(unit, player, cellGrid, out Cell pursuitDestination)
                 && pursuitDestination != null
                 && pursuitDestination != unit.Cell)
             {
@@ -148,10 +149,10 @@ namespace Windy.Srpg.Game.AI.Actions
                 return;
             }
 
-            List<BattleSquareCell> allCells = ResolveGridCells(cellGrid);
+            List<Cell> allCells = ResolveCells(cellGrid);
             unit.CachePaths(allCells);
             var path = unit.FindPath(allCells, topDestination);
-            var selectedPath = new List<BattleSquareCell>();
+            var selectedPath = new List<Cell>();
             float cost = 0;
 
             for (int i = path.Count - 1; i >= 0; i--)
@@ -195,7 +196,7 @@ namespace Windy.Srpg.Game.AI.Actions
 
         public override void CleanUp(Player player, Unit unit, CellGrid cellGrid)
         {
-            foreach (var cell in ResolveGridCells(cellGrid))
+            foreach (var cell in ResolveCells(cellGrid))
             {
                 cell.UnMark();
             }
@@ -215,7 +216,7 @@ namespace Windy.Srpg.Game.AI.Actions
                 return;
             }
 
-            var cellDebugInfo = new Dictionary<BattleSquareCell, AiDebugInfo>();
+            var cellDebugInfo = new Dictionary<Cell, AiDebugInfo>();
 
             var maxScore = cellScores.Max(x => x.value);
             var minScore = cellScores.Min(x => x.value);
@@ -270,7 +271,7 @@ namespace Windy.Srpg.Game.AI.Actions
             UnityEngine.Debug.Log(sb.ToString());
         }
 
-        private bool TrySelectPursuitDestination(Unit customUnit, Player player, CellGrid cellGrid, out BattleSquareCell pursuitDestination)
+        private bool TrySelectPursuitDestination(Unit customUnit, Player player, CellGrid cellGrid, out Cell pursuitDestination)
         {
             pursuitDestination = customUnit?.Cell;
             if (customUnit == null || cellGrid == null || customUnit.Cell == null)
@@ -287,14 +288,14 @@ namespace Windy.Srpg.Game.AI.Actions
                 return false;
             }
 
-            List<BattleSquareCell> allCells = ResolveGridCells(cellGrid);
+            List<Cell> allCells = ResolveCells(cellGrid);
             customUnit.CachePaths(allCells);
 
-            BattleSquareCell bestAttackCell = null;
+            Cell bestAttackCell = null;
             float bestPathCost = float.PositiveInfinity;
             float bestAttackScore = float.NegativeInfinity;
 
-            foreach (BattleSquareCell candidateCell in allCells)
+            foreach (Cell candidateCell in allCells)
             {
                 if (candidateCell == null)
                 {
@@ -313,8 +314,8 @@ namespace Windy.Srpg.Game.AI.Actions
                     continue;
                 }
 
-                IList<BattleSquareCell> path = candidateCell == customUnit.Cell
-                    ? new List<BattleSquareCell>()
+                IList<Cell> path = candidateCell == customUnit.Cell
+                    ? new List<Cell>()
                     : customUnit.FindPath(allCells, candidateCell);
                 if (candidateCell != customUnit.Cell && (path == null || path.Count == 0))
                 {

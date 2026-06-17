@@ -1,4 +1,5 @@
 using UnityEngine;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -70,7 +71,7 @@ namespace Windy.Srpg.Game.Grid
 
         private Vector2 ResolveReferenceCellSize()
         {
-            BattleSquareCell cell = GetComponentInParent<BattleSquareCell>();
+            Cell cell = GetComponentInParent<Cell>();
             if (cell != null)
             {
                 Vector3 rawCellSize = cell.GetCellDimensions();

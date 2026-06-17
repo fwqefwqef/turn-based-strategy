@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.Units
 {
@@ -35,7 +35,7 @@ namespace Windy.Srpg.Game.Units
 
     public sealed class MovementEventArgs : EventArgs
     {
-        public MovementEventArgs(Unit unit, BattleSquareCell origin, BattleSquareCell destination)
+        public MovementEventArgs(Unit unit, Cell origin, Cell destination)
         {
             Unit = unit;
             Origin = origin;
@@ -43,8 +43,8 @@ namespace Windy.Srpg.Game.Units
         }
 
         public Unit Unit { get; }
-        public BattleSquareCell Origin { get; }
-        public BattleSquareCell Destination { get; }
+        public Cell Origin { get; }
+        public Cell Destination { get; }
     }
 
     public sealed class UnitCreatedEventArgs : EventArgs
@@ -56,5 +56,50 @@ namespace Windy.Srpg.Game.Units
 
         public Transform unitTransform { get; }
     }
-}
 
+
+    public class UnitHealthChangedEventArgs : EventArgs
+    {
+        public Unit Source;
+        public Unit Unit;
+        public int PreviousHitPoints;
+        public int CurrentHitPoints;
+        public int Delta;
+
+        public UnitHealthChangedEventArgs(Unit source, Unit unit, int previousHitPoints, int currentHitPoints)
+        {
+            Source = source;
+            Unit = unit;
+            PreviousHitPoints = previousHitPoints;
+            CurrentHitPoints = currentHitPoints;
+            Delta = currentHitPoints - previousHitPoints;
+        }
+    }
+
+    public class CombatSequenceEventArgs : EventArgs
+    {
+        public Unit Attacker;
+        public Unit Defender;
+
+        public CombatSequenceEventArgs(Unit attacker, Unit defender)
+        {
+            Attacker = attacker;
+            Defender = defender;
+        }
+    }
+
+    public class UnitDestroyedEventArgs : EventArgs
+    {
+        public Unit Attacker;
+        public Unit Defender;
+        public int Damage;
+
+        public UnitDestroyedEventArgs(Unit attacker, Unit defender, int damage)
+        {
+            Attacker = attacker;
+            Defender = defender;
+            Damage = damage;
+        }
+    }
+
+}

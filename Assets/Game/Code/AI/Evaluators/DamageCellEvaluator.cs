@@ -3,6 +3,7 @@ using System.Linq;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.AI.Evaluators
 {
@@ -29,7 +30,7 @@ namespace Windy.Srpg.Game.AI.Evaluators
             }
         }
 
-        public override float Evaluate(BattleSquareCell cellToEvaluate, Unit evaluatingUnit, Player currentPlayer, CellGrid cellGrid)
+        public override float Evaluate(Cell cellToEvaluate, Unit evaluatingUnit, Player currentPlayer, CellGrid cellGrid)
         {
             if (maxPossibleDamage.Equals(0f))
             {

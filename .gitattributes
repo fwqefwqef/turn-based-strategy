@@ -1,0 +1,7 @@
+TBS*Copy/ export-ignore
+framework_compare_code*.csv export-ignore
+Tools/ export-ignore
+Assets/Docs/Rewrite/CURSOR_HANDOFF.md export-ignore
+Assets/Docs/Rewrite/CODEX_HANDOVER.md export-ignore
+Assets/Docs/Publication/PHASE12_AUDIT_BASELINE.md export-ignore
+Assets/CLEAN_RUNTIME_REWRITE_PLAN.md export-ignore

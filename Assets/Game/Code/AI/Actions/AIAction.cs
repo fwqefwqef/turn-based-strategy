@@ -3,7 +3,7 @@ using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.AI;
-using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
 using Windy.Srpg.Runtime.Units;
 
@@ -16,64 +16,64 @@ namespace Windy.Srpg.Game.AI.Actions
             return player as Player;
         }
 
-        private static Unit ResolveUnit(IBoardUnit unit)
+        private static Unit ResolveUnit(IGridUnit unit)
         {
             if (unit is Unit customUnit)
             {
                 return customUnit;
             }
 
-            return (unit as BoardUnit)?.GetComponent<Unit>();
+            return (unit as GridUnit)?.GetComponent<Unit>();
         }
 
-        private static CellGrid ResolveCellGrid(IBattleBoard board)
+        private static CellGrid ResolveCellGrid(IGridContext grid)
         {
-            if (board is CellGrid customCellGrid)
+            if (grid is CellGrid customCellGrid)
             {
                 return customCellGrid;
             }
 
-            return (board as BattleBoard)?.GetComponent<CellGrid>();
+            return (grid as RuntimeGrid)?.GetComponent<CellGrid>();
         }
 
-        public sealed override void InitializeDecision(IBattlePlayer player, IBoardUnit unit, IBattleBoard board)
+        public sealed override void InitializeDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid)
         {
             Player customPlayer = ResolvePlayer(player);
             Unit customUnit = ResolveUnit(unit);
-            CellGrid customCellGrid = ResolveCellGrid(board);
+            CellGrid customCellGrid = ResolveCellGrid(grid);
             if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 InitializeAction(customPlayer, customUnit, customCellGrid);
             }
         }
 
-        public sealed override bool ShouldExecute(IBattlePlayer player, IBoardUnit unit, IBattleBoard board)
+        public sealed override bool ShouldExecute(IBattlePlayer player, IGridUnit unit, IGridContext grid)
         {
             Player customPlayer = ResolvePlayer(player);
             Unit customUnit = ResolveUnit(unit);
-            CellGrid customCellGrid = ResolveCellGrid(board);
+            CellGrid customCellGrid = ResolveCellGrid(grid);
             return customPlayer != null
                 && customUnit != null
                 && customCellGrid != null
                 && ShouldExecute(customPlayer, customUnit, customCellGrid);
         }
 
-        public sealed override void Precalculate(IBattlePlayer player, IBoardUnit unit, IBattleBoard board)
+        public sealed override void Precalculate(IBattlePlayer player, IGridUnit unit, IGridContext grid)
         {
             Player customPlayer = ResolvePlayer(player);
             Unit customUnit = ResolveUnit(unit);
-            CellGrid customCellGrid = ResolveCellGrid(board);
+            CellGrid customCellGrid = ResolveCellGrid(grid);
             if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 Precalculate(customPlayer, customUnit, customCellGrid);
             }
         }
 
-        public sealed override IEnumerator ExecuteDecision(IBattlePlayer player, IBoardUnit unit, IBattleBoard board)
+        public sealed override IEnumerator ExecuteDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid)
         {
             Player customPlayer = ResolvePlayer(player);
             Unit customUnit = ResolveUnit(unit);
-            CellGrid customCellGrid = ResolveCellGrid(board);
+            CellGrid customCellGrid = ResolveCellGrid(grid);
             if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 return Execute(customPlayer, customUnit, customCellGrid);
@@ -82,22 +82,22 @@ namespace Windy.Srpg.Game.AI.Actions
             return null;
         }
 
-        public sealed override void CleanUpDecision(IBattlePlayer player, IBoardUnit unit, IBattleBoard board)
+        public sealed override void CleanUpDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid)
         {
             Player customPlayer = ResolvePlayer(player);
             Unit customUnit = ResolveUnit(unit);
-            CellGrid customCellGrid = ResolveCellGrid(board);
+            CellGrid customCellGrid = ResolveCellGrid(grid);
             if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 CleanUp(customPlayer, customUnit, customCellGrid);
             }
         }
 
-        public sealed override void ShowDebugDecisionInfo(IBattlePlayer player, IBoardUnit unit, IBattleBoard board)
+        public sealed override void ShowDebugDecisionInfo(IBattlePlayer player, IGridUnit unit, IGridContext grid)
         {
             Player customPlayer = ResolvePlayer(player);
             Unit customUnit = ResolveUnit(unit);
-            CellGrid customCellGrid = ResolveCellGrid(board);
+            CellGrid customCellGrid = ResolveCellGrid(grid);
             if (customPlayer != null && customUnit != null && customCellGrid != null)
             {
                 ShowDebugInfo(customPlayer, customUnit, customCellGrid);

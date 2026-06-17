@@ -7,7 +7,7 @@ using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players.AI;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.AI;
-using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Players
@@ -37,27 +37,27 @@ namespace Windy.Srpg.Game.Players
 
         private IEnumerator ExecuteRuntimeRoutedTurn(CellGrid cellGrid)
         {
-            BattleBoard board = cellGrid.GetComponent<BattleBoard>();
-            if (board == null)
+            RuntimeGrid grid = cellGrid.GetComponent<RuntimeGrid>();
+            if (grid == null)
             {
                 yield return ExecuteTurn(cellGrid);
                 yield break;
             }
 
-            IReadOnlyList<BoardUnit> runtimeOrder = SelectRuntimeUnits(board, cellGrid);
+            IReadOnlyList<GridUnit> runtimeOrder = SelectRuntimeUnits(grid, cellGrid);
             cellGrid.PrepareRuntimeRoutedAiTurn();
 
             if (!DebugMode)
             {
                 yield return AiTurnRunner.ExecuteTurn(
                     this,
-                    runtimeOrder.Cast<IBoardUnit>(),
-                    board,
+                    runtimeOrder.Cast<IGridUnit>(),
+                    grid,
                     () => cellGrid.RequestEndTurn());
                 yield break;
             }
 
-            foreach (BoardUnit runtimeUnit in runtimeOrder)
+            foreach (GridUnit runtimeUnit in runtimeOrder)
             {
                 Unit unit = runtimeUnit?.GetComponent<Unit>();
                 if (unit == null)
@@ -79,18 +79,18 @@ namespace Windy.Srpg.Game.Players
 
                     yield return null;
 
-                    action.InitializeDecision(this, unit, board);
-                    bool shouldExecute = action.ShouldExecute(this, unit, board);
+                    action.InitializeDecision(this, unit, grid);
+                    bool shouldExecute = action.ShouldExecute(this, unit, grid);
 
-                    action.Precalculate(this, unit, board);
-                    action.ShowDebugDecisionInfo(this, unit, board);
+                    action.Precalculate(this, unit, grid);
+                    action.ShowDebugDecisionInfo(this, unit, grid);
                     Debug.Log($"Current action: {action.GetType().Name}, press A to execute");
                     yield return WaitForDebugKey(KeyCode.A);
 
                     if (shouldExecute)
                     {
                         yield return null;
-                        yield return action.ExecuteDecision(this, unit, board);
+                        yield return action.ExecuteDecision(this, unit, grid);
                     }
 
                     if (action == null || unit == null)
@@ -98,7 +98,7 @@ namespace Windy.Srpg.Game.Players
                         break;
                     }
 
-                    action.CleanUpDecision(this, unit, board);
+                    action.CleanUpDecision(this, unit, grid);
                 }
 
                 if (unit == null)
@@ -121,7 +121,7 @@ namespace Windy.Srpg.Game.Players
             {
                 yield return AiTurnRunner.ExecuteTurn(
                     this,
-                    orderedUnits.Cast<Windy.Srpg.Runtime.Units.IBoardUnit>(),
+                    orderedUnits.Cast<Windy.Srpg.Runtime.Units.IGridUnit>(),
                     cellGrid,
                     () => cellGrid.RequestEndTurn());
                 yield break;
@@ -193,19 +193,19 @@ namespace Windy.Srpg.Game.Players
             yield return null;
         }
 
-        private IReadOnlyList<BoardUnit> SelectRuntimeUnits(BattleBoard board, CellGrid cellGrid)
+        private IReadOnlyList<GridUnit> SelectRuntimeUnits(RuntimeGrid grid, CellGrid cellGrid)
         {
             var selector = GetComponent<UnitSelection>();
             if (selector == null)
             {
-                return AiTurnOrdering.OrderByMovementFreedom(board.GetCurrentPlayerUnits());
+                return AiTurnOrdering.OrderByMovementFreedom(grid.GetCurrentPlayerUnits());
             }
 
-            List<Unit> playerUnits = cellGrid.GetUnitsForPlayer(board.CurrentPlayerId);
+            List<Unit> playerUnits = cellGrid.GetUnitsForPlayer(grid.CurrentPlayerId);
             return selector
                 .SelectNext(() => playerUnits, cellGrid)
                 .Where(unit => unit != null)
-                .Select(unit => unit.GetComponent<BoardUnit>())
+                .Select(unit => unit.GetComponent<GridUnit>())
                 .Where(unit => unit != null)
                 .ToList();
         }
@@ -215,9 +215,9 @@ namespace Windy.Srpg.Game.Players
             var selector = GetComponent<UnitSelection>();
             if (selector == null)
             {
-                List<BoardUnit> runtimeUnits = cellGrid.GetCurrentPlayerUnits()
+                List<GridUnit> runtimeUnits = cellGrid.GetCurrentPlayerUnits()
                     .Where(unit => unit != null)
-                    .Select(unit => unit.GetComponent<BoardUnit>())
+                    .Select(unit => unit.GetComponent<GridUnit>())
                     .Where(unit => unit != null)
                     .ToList();
 

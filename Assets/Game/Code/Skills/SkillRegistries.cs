@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.Skills
 {
@@ -9,7 +10,7 @@ namespace Windy.Srpg.Game.Skills
     {
         public Unit User;
         public Unit PrimaryTargetUnit;
-        public BattleSquareCell TargetCell;
+        public Cell TargetCell;
         public CellGrid CellGrid;
         public IReadOnlyList<Unit> AreaTargets;
         public SkillData Skill;

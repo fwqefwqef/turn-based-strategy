@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
 using Windy.Srpg.Runtime.Units;
 
@@ -11,28 +11,28 @@ namespace Windy.Srpg.Runtime.AI
 {
     public abstract class AiDecisionAction : MonoBehaviour
     {
-        public abstract void InitializeDecision(IBattlePlayer player, IBoardUnit unit, IBattleBoard board);
-        public abstract bool ShouldExecute(IBattlePlayer player, IBoardUnit unit, IBattleBoard board);
-        public abstract void Precalculate(IBattlePlayer player, IBoardUnit unit, IBattleBoard board);
-        public abstract IEnumerator ExecuteDecision(IBattlePlayer player, IBoardUnit unit, IBattleBoard board);
-        public abstract void CleanUpDecision(IBattlePlayer player, IBoardUnit unit, IBattleBoard board);
-        public abstract void ShowDebugDecisionInfo(IBattlePlayer player, IBoardUnit unit, IBattleBoard board);
+        public abstract void InitializeDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid);
+        public abstract bool ShouldExecute(IBattlePlayer player, IGridUnit unit, IGridContext grid);
+        public abstract void Precalculate(IBattlePlayer player, IGridUnit unit, IGridContext grid);
+        public abstract IEnumerator ExecuteDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid);
+        public abstract void CleanUpDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid);
+        public abstract void ShowDebugDecisionInfo(IBattlePlayer player, IGridUnit unit, IGridContext grid);
     }
 
     public static class AiTurnRunner
     {
         public static IEnumerator ExecuteTurn(
             IBattlePlayer player,
-            IEnumerable<IBoardUnit> orderedUnits,
-            IBattleBoard board,
+            IEnumerable<IGridUnit> orderedUnits,
+            IGridContext grid,
             Action onTurnCompleted = null)
         {
-            List<IBoardUnit> units = orderedUnits?
+            List<IGridUnit> units = orderedUnits?
                 .Where(unit => unit != null)
                 .ToList()
-                ?? new List<IBoardUnit>();
+                ?? new List<IGridUnit>();
 
-            foreach (IBoardUnit unit in units)
+            foreach (IGridUnit unit in units)
             {
                 AiDecisionAction[] actions = ResolveActions(unit);
                 foreach (AiDecisionAction action in actions)
@@ -44,15 +44,15 @@ namespace Windy.Srpg.Runtime.AI
 
                     yield return null;
 
-                    action.InitializeDecision(player, unit, board);
-                    bool shouldExecute = action.ShouldExecute(player, unit, board);
+                    action.InitializeDecision(player, unit, grid);
+                    bool shouldExecute = action.ShouldExecute(player, unit, grid);
                     if (shouldExecute)
                     {
                         yield return null;
-                        action.Precalculate(player, unit, board);
+                        action.Precalculate(player, unit, grid);
                         yield return null;
 
-                        IEnumerator execution = action.ExecuteDecision(player, unit, board);
+                        IEnumerator execution = action.ExecuteDecision(player, unit, grid);
                         if (execution != null)
                         {
                             yield return execution;
@@ -64,14 +64,14 @@ namespace Windy.Srpg.Runtime.AI
                         break;
                     }
 
-                    action.CleanUpDecision(player, unit, board);
+                    action.CleanUpDecision(player, unit, grid);
                 }
             }
 
             onTurnCompleted?.Invoke();
         }
 
-        private static AiDecisionAction[] ResolveActions(IBoardUnit unit)
+        private static AiDecisionAction[] ResolveActions(IGridUnit unit)
         {
             if (unit is not Component component)
             {
@@ -85,24 +85,24 @@ namespace Windy.Srpg.Runtime.AI
 
     public static class AiTurnOrdering
     {
-        public static IReadOnlyList<BoardUnit> OrderByMovementFreedom(IEnumerable<BoardUnit> units)
+        public static IReadOnlyList<GridUnit> OrderByMovementFreedom(IEnumerable<GridUnit> units)
         {
             return units?
                 .Where(unit => unit != null)
                 .OrderByDescending(CountTraversableNeighbors)
                 .ToList()
-                ?? new List<BoardUnit>();
+                ?? new List<GridUnit>();
         }
 
-        private static int CountTraversableNeighbors(BoardUnit unit)
+        private static int CountTraversableNeighbors(GridUnit unit)
         {
-            if (unit?.CurrentCell == null || unit.Board == null)
+            if (unit?.CurrentCell == null || unit.Grid == null)
             {
                 return 0;
             }
 
             return unit.CurrentCell
-                .GetNeighbours(unit.Board.Cells)
+                .GetNeighbours(unit.Grid.Cells)
                 .Count(unit.CanTraverse);
         }
     }

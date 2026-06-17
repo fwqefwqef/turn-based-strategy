@@ -3,18 +3,18 @@ using System.Linq;
 using Windy.Srpg.Runtime.Players;
 using Windy.Srpg.Runtime.Units;
 
-namespace Windy.Srpg.Runtime.Board
+namespace Windy.Srpg.Runtime.Grid
 {
     public readonly struct RoundRobinTurnPlan
     {
-        public RoundRobinTurnPlan(IBattlePlayer nextPlayer, IReadOnlyList<IBoardUnit> playableUnits)
+        public RoundRobinTurnPlan(IBattlePlayer nextPlayer, IReadOnlyList<IGridUnit> playableUnits)
         {
             NextPlayer = nextPlayer;
-            PlayableUnits = playableUnits ?? System.Array.Empty<IBoardUnit>();
+            PlayableUnits = playableUnits ?? System.Array.Empty<IGridUnit>();
         }
 
         public IBattlePlayer NextPlayer { get; }
-        public IReadOnlyList<IBoardUnit> PlayableUnits { get; }
+        public IReadOnlyList<IGridUnit> PlayableUnits { get; }
     }
 
     public readonly struct BattleOutcome
@@ -33,45 +33,45 @@ namespace Windy.Srpg.Runtime.Board
 
     public static class RoundRobinBattleFlow
     {
-        public static RoundRobinTurnPlan ResolveStart(IBattleBoard board)
+        public static RoundRobinTurnPlan ResolveStart(IGridContext grid)
         {
-            return board == null
-                ? new RoundRobinTurnPlan(null, System.Array.Empty<IBoardUnit>())
-                : ResolveStart(board.Players, board.Units);
+            return grid == null
+                ? new RoundRobinTurnPlan(null, System.Array.Empty<IGridUnit>())
+                : ResolveStart(grid.Players, grid.Units);
         }
 
-        public static RoundRobinTurnPlan ResolveStart(IEnumerable<IBattlePlayer> players, IEnumerable<IBoardUnit> units)
+        public static RoundRobinTurnPlan ResolveStart(IEnumerable<IBattlePlayer> players, IEnumerable<IGridUnit> units)
         {
             List<IBattlePlayer> orderedPlayers = OrderPlayers(players);
             if (orderedPlayers.Count == 0)
             {
-                return new RoundRobinTurnPlan(null, System.Array.Empty<IBoardUnit>());
+                return new RoundRobinTurnPlan(null, System.Array.Empty<IGridUnit>());
             }
 
             IBattlePlayer firstActivePlayer = orderedPlayers[0];
             return new RoundRobinTurnPlan(firstActivePlayer, GetUnitsForPlayer(units, firstActivePlayer.PlayerId));
         }
 
-        public static RoundRobinTurnPlan ResolveTurn(IBattleBoard board)
+        public static RoundRobinTurnPlan ResolveTurn(IGridContext grid)
         {
-            return board == null
-                ? new RoundRobinTurnPlan(null, System.Array.Empty<IBoardUnit>())
-                : ResolveTurn(board.Players, board.Units, board.CurrentPlayerId);
+            return grid == null
+                ? new RoundRobinTurnPlan(null, System.Array.Empty<IGridUnit>())
+                : ResolveTurn(grid.Players, grid.Units, grid.CurrentPlayerId);
         }
 
-        public static RoundRobinTurnPlan ResolveTurn(IEnumerable<IBattlePlayer> players, IEnumerable<IBoardUnit> units, int currentPlayerId)
+        public static RoundRobinTurnPlan ResolveTurn(IEnumerable<IBattlePlayer> players, IEnumerable<IGridUnit> units, int currentPlayerId)
         {
             List<IBattlePlayer> orderedPlayers = OrderPlayers(players);
             if (orderedPlayers.Count == 0)
             {
-                return new RoundRobinTurnPlan(null, System.Array.Empty<IBoardUnit>());
+                return new RoundRobinTurnPlan(null, System.Array.Empty<IGridUnit>());
             }
 
             int startIndex = FindNextPlayerStartIndex(orderedPlayers, currentPlayerId);
             for (int offset = 0; offset < orderedPlayers.Count; offset++)
             {
                 IBattlePlayer candidate = orderedPlayers[(startIndex + offset) % orderedPlayers.Count];
-                List<IBoardUnit> candidateUnits = GetUnitsForPlayer(units, candidate.PlayerId);
+                List<IGridUnit> candidateUnits = GetUnitsForPlayer(units, candidate.PlayerId);
                 if (candidateUnits.Count > 0)
                 {
                     return new RoundRobinTurnPlan(candidate, candidateUnits);
@@ -82,21 +82,21 @@ namespace Windy.Srpg.Runtime.Board
             return new RoundRobinTurnPlan(fallbackPlayer, GetUnitsForPlayer(units, fallbackPlayer.PlayerId));
         }
 
-        public static BattleOutcome EvaluateLastSideStanding(IBattleBoard board)
+        public static BattleOutcome EvaluateLastSideStanding(IGridContext grid)
         {
-            return board == null
+            return grid == null
                 ? new BattleOutcome(false, null, null)
-                : EvaluateLastSideStanding(board.Players, board.Units);
+                : EvaluateLastSideStanding(grid.Players, grid.Units);
         }
 
-        public static BattleOutcome EvaluateLastSideStanding(IEnumerable<IBattlePlayer> players, IEnumerable<IBoardUnit> units)
+        public static BattleOutcome EvaluateLastSideStanding(IEnumerable<IBattlePlayer> players, IEnumerable<IGridUnit> units)
         {
-            List<IBoardUnit> survivingUnits = units?
+            List<IGridUnit> survivingUnits = units?
                 .Where(unit => unit != null)
                 .ToList()
-                ?? new List<IBoardUnit>();
+                ?? new List<IGridUnit>();
 
-            List<IBattlePlayer> orderedPlayers = BattleBoardQueries.OrderPlayers(players);
+            List<IBattlePlayer> orderedPlayers = GridQueries.OrderPlayers(players);
             if (survivingUnits.Count == 0 || orderedPlayers.Count == 0)
             {
                 return new BattleOutcome(false, null, null);
@@ -125,7 +125,7 @@ namespace Windy.Srpg.Runtime.Board
 
         private static List<IBattlePlayer> OrderPlayers(IEnumerable<IBattlePlayer> players)
         {
-            return BattleBoardQueries.OrderPlayers(players);
+            return GridQueries.OrderPlayers(players);
         }
 
         private static int FindNextPlayerStartIndex(IReadOnlyList<IBattlePlayer> orderedPlayers, int currentPlayerId)
@@ -141,13 +141,13 @@ namespace Windy.Srpg.Runtime.Board
             return 0;
         }
 
-        private static List<IBoardUnit> GetUnitsForPlayer(IEnumerable<IBoardUnit> units, int playerId)
+        private static List<IGridUnit> GetUnitsForPlayer(IEnumerable<IGridUnit> units, int playerId)
         {
-            return BattleBoardQueries.GetUnitsForPlayer(units, playerId);
+            return GridQueries.GetUnitsForPlayer(units, playerId);
         }
     }
 
-    public static class BattleBoardQueries
+    public static class GridQueries
     {
         public static List<TPlayer> OrderPlayers<TPlayer>(IEnumerable<TPlayer> players)
             where TPlayer : class, IBattlePlayer
@@ -167,7 +167,7 @@ namespace Windy.Srpg.Runtime.Board
         }
 
         public static List<TUnit> GetUnitsForPlayer<TUnit>(IEnumerable<TUnit> units, int playerId)
-            where TUnit : class, IBoardUnit
+            where TUnit : class, IGridUnit
         {
             return units?
                 .Where(unit => unit != null && unit.PlayerId == playerId)
@@ -176,7 +176,7 @@ namespace Windy.Srpg.Runtime.Board
         }
 
         public static List<TUnit> GetEnemyUnits<TUnit>(IEnumerable<TUnit> units, int playerId)
-            where TUnit : class, IBoardUnit
+            where TUnit : class, IGridUnit
         {
             return units?
                 .Where(unit => unit != null && unit.PlayerId != playerId)
@@ -185,7 +185,7 @@ namespace Windy.Srpg.Runtime.Board
         }
 
         public static List<TUnit> GetCurrentPlayerUnits<TUnit>(IEnumerable<TUnit> units, int currentPlayerId)
-            where TUnit : class, IBoardUnit
+            where TUnit : class, IGridUnit
         {
             return GetUnitsForPlayer(units, currentPlayerId);
         }

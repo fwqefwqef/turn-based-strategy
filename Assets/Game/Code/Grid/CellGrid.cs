@@ -7,14 +7,15 @@ using Windy.Srpg.Game.Units;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Abilities;
 using UnityEngine;
-using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
-using Windy.Srpg.Runtime.Board.States;
+using Windy.Srpg.Runtime.Grid.States;
 using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Grid
 {
-    public partial class CellGrid : MonoBehaviour, IBattleBoard
+    /// <summary>Scene gameplay grid: tiles, units, deployment, battle lifecycle, and scene input states.</summary>
+    public partial class CellGrid : MonoBehaviour, IGridContext, IRuntimeGridSceneInputCoordinator
     {
         [HideInInspector] public bool Is2D;
         public Transform PlayersParent;
@@ -35,11 +36,11 @@ namespace Windy.Srpg.Game.Grid
         public int RoundCount { get; private set; }
         public bool IsPreBattlePhase => enablePreBattleUi && !battleStarted;
         internal bool IsBattleStarted => battleStarted;
-        IReadOnlyList<IBattlePlayer> IBattleBoard.Players => GetOrderedPlayers().Cast<IBattlePlayer>().ToList();
-        IReadOnlyList<IBoardUnit> IBattleBoard.Units => GetAllUnits().Cast<IBoardUnit>().ToList();
+        IReadOnlyList<IBattlePlayer> IGridContext.Players => GetOrderedPlayers().Cast<IBattlePlayer>().ToList();
+        IReadOnlyList<IGridUnit> IGridContext.Units => GetAllUnits().Cast<IGridUnit>().ToList();
 
         private readonly HashSet<Unit> subscribedUnits = new HashSet<Unit>();
-        private readonly HashSet<BattleSquareCell> subscribedCells = new HashSet<BattleSquareCell>();
+        private readonly HashSet<Cell> subscribedCells = new HashSet<Cell>();
         [SerializeField] private bool autoCreateOwnedUnitSaveIfMissing;
         [SerializeField] private bool overwriteOwnedUnitSaveOnGameStarted;
         [SerializeField] private bool enablePreBattleUi = true;
@@ -58,14 +59,14 @@ namespace Windy.Srpg.Game.Grid
         private string[] stagedDeploymentRosterUnitIds = Array.Empty<string>();
         private bool hasUnsavedDeploymentRosterChanges;
         private int occupancyRevision;
-        private bool suppressLegacyToRuntimeStateMirror;
+        private bool suppressSceneToRuntimeStateMirror;
         public bool IsPreBattleDeploymentSwapModeActive => IsPreBattlePhase && isPreBattleDeploymentSwapMode;
         public bool HasUnsavedDeploymentRosterChanges => hasUnsavedDeploymentRosterChanges;
         public int OccupancyRevision => occupancyRevision;
 
         public int SelectedPreBattleDeploymentSlotIndex => selectedPreBattleDeploymentSlotIndex;
         public CellGridState CurrentState => currentState;
-        public Player CurrentPlayer => BattleBoardQueries.GetPlayerById(GetOrderedPlayers(), currentPlayerNumber);
+        public Player CurrentPlayer => GridQueries.GetPlayerById(GetOrderedPlayers(), currentPlayerNumber);
         public int CurrentPlayerId => currentPlayerNumber;
         public int CurrentPlayerNumber => currentPlayerNumber;
         public bool IsHumanTurn => CurrentPlayer is HumanPlayer;
@@ -89,29 +90,26 @@ namespace Windy.Srpg.Game.Grid
 
             if (runtimePlayers != null && runtimePlayers.Any())
             {
-                return BattleBoardQueries.OrderPlayers(runtimePlayers);
+                return GridQueries.OrderPlayers(runtimePlayers);
             }
 
-            return BattleBoardQueries.OrderPlayers(
+            return GridQueries.OrderPlayers(
                 Players?
                     .OfType<Player>()
                     .Where(player => player != null));
         }
 
-        public List<BattleSquareCell> GetAllBoardCells()
+        public List<Cell> GetAllCells()
         {
             return Cells?
                 .Where(cell => cell != null)
                 .ToList()
-                ?? new List<BattleSquareCell>();
+                ?? new List<Cell>();
         }
 
-        [Obsolete("Use GetAllBoardCells().")]
-        public List<BattleSquareCell> GetAllCells() => GetAllBoardCells();
-
-        public BattleSquareCell FindCellByOffset(Vector2 offsetCoord)
+        public Cell FindCellByOffset(Vector2 offsetCoord)
         {
-            return GetAllBoardCells().FirstOrDefault(cell =>
+            return GetAllCells().FirstOrDefault(cell =>
                 cell.Coordinates.x == Mathf.RoundToInt(offsetCoord.x)
                 && cell.Coordinates.y == Mathf.RoundToInt(offsetCoord.y));
         }
@@ -149,7 +147,7 @@ namespace Windy.Srpg.Game.Grid
 
         public List<Unit> GetUnitsForPlayer(int playerNumber)
         {
-            return BattleBoardQueries.GetUnitsForPlayer(GetAllUnits(), playerNumber);
+            return GridQueries.GetUnitsForPlayer(GetAllUnits(), playerNumber);
         }
 
         public List<Unit> GetUnitsForPlayer(Player player)
@@ -163,7 +161,7 @@ namespace Windy.Srpg.Game.Grid
         {
             return CurrentPlayer == null
                 ? new List<Unit>()
-                : BattleBoardQueries.GetCurrentPlayerUnits(GetAllUnits(), CurrentPlayer.PlayerNumber);
+                : GridQueries.GetCurrentPlayerUnits(GetAllUnits(), CurrentPlayer.PlayerNumber);
         }
 
         public List<Unit> GetEnemyUnits(Player player)
@@ -173,7 +171,7 @@ namespace Windy.Srpg.Game.Grid
                 return new List<Unit>();
             }
 
-            return BattleBoardQueries.GetEnemyUnits(GetAllUnits(), player.PlayerNumber);
+            return GridQueries.GetEnemyUnits(GetAllUnits(), player.PlayerNumber);
         }
 
         public void SetState(CellGridState state)
@@ -185,9 +183,9 @@ namespace Windy.Srpg.Game.Grid
 
             currentState?.OnStateExit();
             currentState = state;
-            if (!suppressLegacyToRuntimeStateMirror)
+            if (!suppressSceneToRuntimeStateMirror)
             {
-                MirrorLegacyStateToRuntimeBoard(state);
+                MirrorSceneStateToRuntimeGrid(state);
             }
 
             currentState?.OnStateEnter();
@@ -196,62 +194,62 @@ namespace Windy.Srpg.Game.Grid
 
         public void EnterWaitingState()
         {
-            if (suppressLegacyToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror)
             {
                 SetState(new CellGridStateWaitingForInput(this));
                 return;
             }
 
             ApplyRuntimeDrivenState(
-                new BoardStateWaitingForInput(runtimeBoard),
+                new RuntimeGridStateWaitingForInput(runtimeGrid),
                 () => SetState(new CellGridStateWaitingForInput(this)));
         }
 
         public void EnterBlockedInputState()
         {
-            if (suppressLegacyToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror)
             {
                 SetState(new CellGridStateBlockInput(this));
                 return;
             }
 
             ApplyRuntimeDrivenState(
-                new BoardStateBlockedInput(runtimeBoard),
+                new RuntimeGridStateBlockedInput(runtimeGrid),
                 () => SetState(new CellGridStateBlockInput(this)));
         }
 
         /// <summary>
-        /// Blocks framework input without replacing the runtime board state. Used during pending-move
-        /// combat presentation so <see cref="BattleBoard.ConfirmPendingMoveAfterCombat"/> can still run.
+        /// Blocks framework input without replacing the runtime grid state. Used during pending-move
+        /// combat presentation so <see cref="RuntimeGrid.ConfirmPendingMoveAfterCombat"/> can still run.
         /// </summary>
-        internal void EnterLegacyBlockedInputState()
+        internal void EnterSceneOnlyBlockedInputState()
         {
-            ApplyLegacyStateFromRuntime(() => SetState(new CellGridStateBlockInput(this)));
+            ApplySceneStateFromRuntime(() => SetState(new CellGridStateBlockInput(this)));
         }
 
         public void EnterRemotePlayerTurnState()
         {
-            if (suppressLegacyToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror)
             {
                 SetState(new CellGridStateRemotePlayerTurn(this));
                 return;
             }
 
             ApplyRuntimeDrivenState(
-                new BoardStateBlockedInput(runtimeBoard),
+                new RuntimeGridStateBlockedInput(runtimeGrid),
                 () => SetState(new CellGridStateRemotePlayerTurn(this)));
         }
 
         public void EnterAiTurnState(AiPlayer aiPlayer)
         {
-            if (suppressLegacyToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror)
             {
                 SetState(new CellGridStateAiTurn(this, aiPlayer));
                 return;
             }
 
             ApplyRuntimeDrivenState(
-                new BoardStateAiTurn(runtimeBoard),
+                new RuntimeGridStateAiTurn(runtimeGrid),
                 () => SetState(new CellGridStateAiTurn(this, aiPlayer)));
         }
 
@@ -263,7 +261,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (suppressLegacyToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror)
             {
                 SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
                 return;
@@ -271,7 +269,7 @@ namespace Windy.Srpg.Game.Grid
 
             if (ShouldRouteHumanMovementThroughRuntime)
             {
-                ResolveRuntimeBoard();
+                ResolveRuntimeGrid();
                 ApplyRuntimeDrivenState(
                     BuildRuntimeSelectedState(unit),
                     () => SetState(new UnitSelectedState(this, unit, unit.GetBattleActions())));
@@ -289,7 +287,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (suppressLegacyToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror)
             {
                 SetState(new CellGridStateMovePendingConfirm(this, moveAbility));
                 return;
@@ -297,7 +295,7 @@ namespace Windy.Srpg.Game.Grid
 
             if (ShouldRouteHumanMovementThroughRuntime)
             {
-                ResolveRuntimeBoard();
+                ResolveRuntimeGrid();
                 ApplyRuntimeDrivenState(
                     BuildRuntimePendingMoveState(moveAbility),
                     () => SetState(new CellGridStateMovePendingConfirm(this, moveAbility)));
@@ -353,7 +351,7 @@ namespace Windy.Srpg.Game.Grid
         }
 
         /// <summary>
-        /// Commits the pending move on the runtime board after combat presentation, then syncs legacy unit state.
+        /// Commits the pending move on the Runtime grid after combat presentation, then syncs legacy unit state.
         /// </summary>
         internal void ProcessRuntimeRoutedPendingAttackMoveCommit(Unit unit)
         {
@@ -361,7 +359,7 @@ namespace Windy.Srpg.Game.Grid
         }
 
         /// <summary>
-        /// Commits a pending move through runtime board authority, then syncs legacy unit/cell state.
+        /// Commits a pending move through Runtime grid authority, then syncs legacy unit/cell state.
         /// </summary>
         internal void ProcessRuntimeRoutedPendingMoveCommit(Unit unit, bool consumeAllRemainingMovement = false)
         {
@@ -370,16 +368,16 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            ResolveRuntimeBoard();
-            if (runtimeBoard == null)
+            ResolveRuntimeGrid();
+            if (runtimeGrid == null)
             {
                 return;
             }
 
             SyncRuntimeMirrorNow();
-            runtimeBoard.ConfirmPendingMoveAfterCombat(consumeAllRemainingMovement);
+            runtimeGrid.ConfirmPendingMoveAfterCombat(consumeAllRemainingMovement);
 
-            BoardUnit runtimeUnit = unit.GetComponent<BoardUnit>();
+            GridUnit runtimeUnit = unit.GetComponent<GridUnit>();
             if (unit.HasPendingMove
                 && runtimeUnit != null
                 && runtimeUnit.HasPendingMove)
@@ -387,7 +385,7 @@ namespace Windy.Srpg.Game.Grid
                 runtimeUnit.ConfirmPendingMove(consumeAllRemainingMovement, syncTransform: false);
             }
 
-            unit.ApplyLegacySyncAfterRuntimePendingMoveCommit(this);
+            unit.ApplySceneSyncAfterRuntimePendingMoveCommit(this);
         }
 
         /// <summary>
@@ -420,7 +418,7 @@ namespace Windy.Srpg.Game.Grid
 
         /// <summary>
         /// Restores human input after combat. When runtime turn routing is active, the runtime
-        /// board owns the post-combat return to waiting-for-input.
+        /// grid owns the post-combat return to waiting-for-input.
         /// </summary>
         public void EnterPostCombatGridState()
         {
@@ -455,7 +453,7 @@ namespace Windy.Srpg.Game.Grid
 
         /// <summary>
         /// Called when the outermost combat presentation ends. Refreshes occupancy/outcome on the
-        /// runtime board after combat mutations settle.
+        /// Runtime grid after combat mutations settle.
         /// </summary>
         internal void NotifyCombatPresentationEnded()
         {
@@ -477,16 +475,16 @@ namespace Windy.Srpg.Game.Grid
             currentState = new CellGridStateGameOver(this);
         }
 
-        internal void ApplyLegacyStateFromRuntime(Action applyState)
+        internal void ApplySceneStateFromRuntime(Action applyState)
         {
-            suppressLegacyToRuntimeStateMirror = true;
+            suppressSceneToRuntimeStateMirror = true;
             try
             {
                 applyState?.Invoke();
             }
             finally
             {
-                suppressLegacyToRuntimeStateMirror = false;
+                suppressSceneToRuntimeStateMirror = false;
             }
         }
 
@@ -498,6 +496,44 @@ namespace Windy.Srpg.Game.Grid
             }
 
             return sceneUnitGenerator;
+        }
+
+        // --- Deferred unit destroy queue ---
+        private readonly List<Unit> deferredDestroyQueue = new List<Unit>();
+
+        public void EnqueueDeferredDestroy(Unit unit)
+        {
+            if (unit == null || deferredDestroyQueue.Contains(unit))
+            {
+                return;
+            }
+
+            deferredDestroyQueue.Add(unit);
+        }
+
+        public void TryFlushDeferredDestroyQueue()
+        {
+            if (Unit.IsAnyCombatPresentationActive)
+            {
+                return;
+            }
+
+            FlushDeferredDestroyQueue();
+        }
+
+        private void FlushDeferredDestroyQueue()
+        {
+            for (int i = deferredDestroyQueue.Count - 1; i >= 0; i--)
+            {
+                Unit unit = deferredDestroyQueue[i];
+                deferredDestroyQueue.RemoveAt(i);
+                unit?.CompleteDeferredDestroy();
+            }
+        }
+
+        private void ProcessDeferredDestroyQueue()
+        {
+            TryFlushDeferredDestroyQueue();
         }
     }
 
@@ -523,4 +559,3 @@ namespace Windy.Srpg.Game.Grid
         public IReadOnlyList<int> LosingPlayerNumbers { get; }
     }
 }
-

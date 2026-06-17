@@ -7,6 +7,7 @@ using UnityEngine.EventSystems;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.UI;
 using Windy.Srpg.Game.Units;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.CameraControl
 {
@@ -52,7 +53,7 @@ namespace Windy.Srpg.Game.CameraControl
         private float maxFocusY;
         private float estimatedTileWorldSize = 1f;
         private bool pendingFocusWithinLeeway;
-        private BattleSquareCell focusLeewayAnchorCell;
+        private Cell focusLeewayAnchorCell;
         private Vector3 focusLeewayAnchorPosition;
 
         private bool combatSequenceVisible;
@@ -85,7 +86,7 @@ namespace Windy.Srpg.Game.CameraControl
             // Preview-specific camera bias is disabled in the simplified focus-tile camera.
         }
 
-        public static void SetFocusedCell(BattleSquareCell cell)
+        public static void SetFocusedCell(Cell cell)
         {
             if (activeInstance == null || cell == null)
             {
@@ -222,7 +223,7 @@ namespace Windy.Srpg.Game.CameraControl
 
             if (cellGrid != null && deriveGroundPlaneFromGrid)
             {
-                BattleSquareCell firstCell = cellGrid.GetAllBoardCells().FirstOrDefault(cell => cell != null);
+                Cell firstCell = cellGrid.GetAllCells().FirstOrDefault(cell => cell != null);
                 if (firstCell != null)
                 {
                     groundPlaneY = firstCell.transform.position.z;
@@ -483,7 +484,7 @@ namespace Windy.Srpg.Game.CameraControl
                 return focusTargetPosition;
             }
 
-            BattleSquareCell focusCell = unit.HasPendingMove ? unit.PreviewCell : unit.Cell;
+            Cell focusCell = unit.HasPendingMove ? unit.PreviewCell : unit.Cell;
             if (focusCell != null)
             {
                 return ToFocusPlane(focusCell.transform.position);
@@ -494,7 +495,7 @@ namespace Windy.Srpg.Game.CameraControl
 
         private void RecalculateBounds()
         {
-            List<BattleSquareCell> cells = cellGrid?.GetAllBoardCells();
+            List<Cell> cells = cellGrid?.GetAllCells();
             if (cells == null || cells.Count == 0)
             {
                 boundsInitialized = false;
@@ -510,7 +511,7 @@ namespace Windy.Srpg.Game.CameraControl
             List<float> xPositions = new List<float>();
             List<float> yPositions = new List<float>();
 
-            foreach (BattleSquareCell cell in cells)
+            foreach (Cell cell in cells)
             {
                 if (cell == null)
                 {
@@ -550,7 +551,7 @@ namespace Windy.Srpg.Game.CameraControl
                 return false;
             }
 
-            BattleSquareCell candidateCell = FindNearestCell(candidateFocusTarget);
+            Cell candidateCell = FindNearestCell(candidateFocusTarget);
             if (focusLeewayAnchorCell != null && candidateCell != null)
             {
                 int leewayCellDistance = Mathf.FloorToInt(leewayTiles);
@@ -575,17 +576,17 @@ namespace Windy.Srpg.Game.CameraControl
             focusLeewayAnchorCell = FindNearestCell(worldPosition);
         }
 
-        private BattleSquareCell FindNearestCell(Vector3 worldPosition)
+        private Cell FindNearestCell(Vector3 worldPosition)
         {
-            List<BattleSquareCell> cells = cellGrid?.GetAllBoardCells();
+            List<Cell> cells = cellGrid?.GetAllCells();
             if (cells == null || cells.Count == 0)
             {
                 return null;
             }
 
-            BattleSquareCell nearestCell = null;
+            Cell nearestCell = null;
             float nearestDistanceSqr = float.PositiveInfinity;
-            foreach (BattleSquareCell cell in cells)
+            foreach (Cell cell in cells)
             {
                 if (cell == null)
                 {
@@ -741,7 +742,7 @@ namespace Windy.Srpg.Game.CameraControl
                 || levelUpUiVisible;
         }
 
-        private bool TryGetUnoccupiedCellUnderPointer(out BattleSquareCell cell)
+        private bool TryGetUnoccupiedCellUnderPointer(out Cell cell)
         {
             cell = null;
             if (controlledCamera == null)
@@ -764,7 +765,7 @@ namespace Windy.Srpg.Game.CameraControl
                     continue;
                 }
 
-                BattleSquareCell hitCell = hit.collider.GetComponentInParent<BattleSquareCell>();
+                Cell hitCell = hit.collider.GetComponentInParent<Cell>();
                 if (hitCell == null)
                 {
                     continue;

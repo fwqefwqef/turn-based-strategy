@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -10,7 +11,7 @@ namespace Windy.Srpg.Game.Grid
         private const int DefaultSortingOrder = 5;
 
         [SerializeField] private int slotIndex;
-        [SerializeField] private BattleSquareCell boardCell;
+        [SerializeField] private Cell boardCell;
         [SerializeField] private SpriteRenderer highlightRenderer;
         [SerializeField] private Color highlightColor = new Color(0.55f, 0.85f, 1f, 0.72f);
         [SerializeField] private Color selectedHighlightColor = new Color(1f, 0.9f, 0.2f, 0.88f);
@@ -20,9 +21,9 @@ namespace Windy.Srpg.Game.Grid
         private bool isSelected;
 
         public int SlotIndex => slotIndex;
-        public BattleSquareCell Cell => boardCell;
+        public Cell Cell => boardCell;
 
-        public void EnsureRegistryCellBinding(BattleSquareCell[] candidateTiles = null)
+        public void EnsureRegistryCellBinding(Cell[] candidateTiles = null)
         {
             if (boardCell != null)
             {
@@ -32,19 +33,19 @@ namespace Windy.Srpg.Game.Grid
             boardCell = FindClosestTile(candidateTiles);
         }
 
-        private BattleSquareCell FindClosestTile(BattleSquareCell[] candidateTiles)
+        private Cell FindClosestTile(Cell[] candidateTiles)
         {
             if (candidateTiles == null || candidateTiles.Length == 0)
             {
-                candidateTiles = FindObjectsByType<BattleSquareCell>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                candidateTiles = FindObjectsByType<Cell>(FindObjectsInactive.Include);
             }
 
-            BattleSquareCell closestTile = null;
+            Cell closestTile = null;
             float closestDistance = float.MaxValue;
             const float maxBindingDistance = 1f;
             float maxBindingDistanceSqr = maxBindingDistance * maxBindingDistance;
             Vector3 slotPosition = transform.position;
-            foreach (BattleSquareCell tile in candidateTiles)
+            foreach (Cell tile in candidateTiles)
             {
                 if (tile == null)
                 {

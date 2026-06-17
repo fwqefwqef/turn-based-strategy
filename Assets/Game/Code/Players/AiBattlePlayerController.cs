@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Windy.Srpg.Runtime.AI;
-using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Runtime.Players
@@ -17,31 +17,30 @@ namespace Windy.Srpg.Runtime.Players
             StopAllCoroutines();
         }
 
-        public override void PlayTurn(IBattleBoard board)
+        public override void PlayTurn(IGridContext grid)
         {
-            if (board is not BattleBoard battleBoard)
+            if (grid is not RuntimeGrid runtimeGrid)
             {
                 return;
             }
 
             StopAllCoroutines();
-            StartCoroutine(ExecuteTurn(battleBoard));
+            StartCoroutine(ExecuteTurn(runtimeGrid));
         }
 
-        private IEnumerator ExecuteTurn(BattleBoard board)
+        private IEnumerator ExecuteTurn(RuntimeGrid grid)
         {
-            IReadOnlyList<BoardUnit> orderedUnits = SelectUnits(board);
+            IReadOnlyList<GridUnit> orderedUnits = SelectUnits(grid);
             yield return AiTurnRunner.ExecuteTurn(
                 this,
-                orderedUnits.Cast<IBoardUnit>(),
-                board,
-                () => board.EndCurrentTurn());
+                orderedUnits.Cast<IGridUnit>(),
+                grid,
+                () => grid.EndCurrentTurn());
         }
 
-        private IReadOnlyList<BoardUnit> SelectUnits(BattleBoard board)
+        private IReadOnlyList<GridUnit> SelectUnits(RuntimeGrid grid)
         {
-            return AiTurnOrdering.OrderByMovementFreedom(board.GetCurrentPlayerUnits());
+            return AiTurnOrdering.OrderByMovementFreedom(grid.GetCurrentPlayerUnits());
         }
     }
 }
-
