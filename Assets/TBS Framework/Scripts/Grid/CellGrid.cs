@@ -124,6 +124,7 @@ namespace TbsFramework.Grid
             GameFinished = false;
             Players = new List<Player>();
             RuntimePlayers = new List<IBattleTurnPlayer>();
+            IBattleBoard battleBoard = ResolveBattleBoard();
             for (int i = 0; i < PlayersParent.childCount; i++)
             {
                 Transform playerTransform = PlayersParent.GetChild(i);
@@ -137,9 +138,9 @@ namespace TbsFramework.Grid
                     .FirstOrDefault(component => component is IBattleTurnPlayer);
                 if (runtimePlayerComponent is IBattleTurnPlayer runtimePlayer)
                 {
-                    if (this is IBattleBoard runtimeBoard)
+                    if (battleBoard != null)
                     {
-                        runtimePlayer.InitializeBoard(runtimeBoard);
+                        runtimePlayer.InitializeBoard(battleBoard);
                     }
 
                     RuntimePlayers.Add(runtimePlayer);
@@ -181,7 +182,7 @@ namespace TbsFramework.Grid
 
             Units = new List<Unit>();
             var runtimeUnitSource = GetComponent<IBattleSceneUnitSource>();
-            if (runtimeUnitSource != null && this is IBattleBoard battleBoard)
+            if (runtimeUnitSource != null && battleBoard != null)
             {
                 var unitTransforms = runtimeUnitSource.GetInitialUnitTransforms(battleBoard) ?? Array.Empty<Transform>();
                 foreach (var unitTransform in unitTransforms)
@@ -201,6 +202,11 @@ namespace TbsFramework.Grid
                 LevelLoadingDone.Invoke(this, EventArgs.Empty);
         }
 
+        private IBattleBoard ResolveBattleBoard()
+        {
+            return this as IBattleBoard ?? GetComponent<IBattleBoard>();
+        }
+
         private void OnCellDehighlighted(object sender, EventArgs e)
         {
             DispatchCellDeselected(sender as Cell);
@@ -214,15 +220,17 @@ namespace TbsFramework.Grid
             DispatchCellClicked(sender as Cell);
         }
 
-        private void OnUnitClicked(object sender, EventArgs e)
+        protected void OnUnitClicked(object sender, EventArgs e)
         {
             DispatchUnitClicked(sender as Unit);
         }
-        private void OnUnitHighlighted(object sender, EventArgs e)
+
+        protected void OnUnitHighlighted(object sender, EventArgs e)
         {
             DispatchUnitHighlighted(sender as Unit);
         }
-        private void OnUnitDehighlighted(object sender, EventArgs e)
+
+        protected void OnUnitDehighlighted(object sender, EventArgs e)
         {
             DispatchUnitDehighlighted(sender as Unit);
         }
@@ -287,7 +295,7 @@ namespace TbsFramework.Grid
             cellGridState.OnUnitDehighlighted(unit);
         }
 
-        private void OnUnitDestroyed(object sender, AttackEventArgs e)
+        protected void OnUnitDestroyed(object sender, AttackEventArgs e)
         {
             Units.Remove(e.Defender);
             NotifyOwnerDestroyed(e.Defender);
@@ -299,13 +307,18 @@ namespace TbsFramework.Grid
             CheckGameFinished();
         }
 
+        protected void NotifyUnitAdded(Transform unitTransform)
+        {
+            UnitAdded?.Invoke(this, new UnitCreatedEventArgs(unitTransform));
+        }
+
         /// <summary>
         /// Adds unit to the game
         /// </summary>
         /// <param name="unit">Unit to add</param>
-        public void AddUnit(Transform unit, Cell targetCell = null, Player ownerPlayer = null)
+        public virtual void AddUnit(Transform unit, Cell targetCell = null, Player ownerPlayer = null)
         {
-            unit.GetComponent<Unit>().UnitID = UnitId++;
+            unit.GetComponent<Unit>().UnitID = AllocateNextUnitId();
             Units.Add(unit.GetComponent<Unit>());
 
             if (targetCell != null)
@@ -376,7 +389,7 @@ namespace TbsFramework.Grid
             unit.UnitMoved -= OnUnitMoved;
         }
 
-        private void OnUnitMoved(object sender, MovementEventArgs e)
+        protected void OnUnitMoved(object sender, MovementEventArgs e)
         {
             CheckGameFinished();
         }
@@ -394,7 +407,7 @@ namespace TbsFramework.Grid
         /// Applies legacy battle-start sync (player index, GameStarted, unit turn hooks).
         /// When runtime already kicked the first turn, pass kickPlayerPlay: false.
         /// </summary>
-        protected void SyncBattleStartFromPlan(RoundRobinTurnPlan plan, bool kickPlayerPlay = true)
+        protected void SyncBattleStartFromPlan(RoundRobinTurnPlan plan, bool kickPlayerPlay = true, bool syncUnitTurnHooks = true)
         {
             PlayableUnits = CreatePlayableUnitsAccessor(plan);
 
@@ -408,11 +421,14 @@ namespace TbsFramework.Grid
 
             GameStarted?.Invoke(this, EventArgs.Empty);
 
-            PlayableUnits().ForEach(u =>
+            if (syncUnitTurnHooks)
             {
-                NotifyTurnStarted(u);
-                u.OnTurnStart();
-            });
+                PlayableUnits().ForEach(u =>
+                {
+                    NotifyTurnStarted(u);
+                    u.OnTurnStart();
+                });
+            }
 
             if (!kickPlayerPlay)
             {
@@ -465,7 +481,7 @@ namespace TbsFramework.Grid
             }
         }
 
-        protected void CommitTurnTransition(RoundRobinTurnPlan plan, bool isNetworkInvoked = false, bool kickPlayerPlay = true)
+        protected void CommitTurnTransition(RoundRobinTurnPlan plan, bool isNetworkInvoked = false, bool kickPlayerPlay = true, bool syncUnitTurnHooks = true)
         {
             PlayableUnits = CreatePlayableUnitsAccessor(plan);
 
@@ -484,17 +500,20 @@ namespace TbsFramework.Grid
 
             Debug.Log(string.Format("Player {0} turn", CurrentPlayerNumber));
 
-            var playableUnits = PlayableUnits();
-            for (int i = 0; i < playableUnits.Count; i++)
+            if (syncUnitTurnHooks)
             {
-                var unit = playableUnits[i];
-                if (unit == null)
+                var playableUnits = PlayableUnits();
+                for (int i = 0; i < playableUnits.Count; i++)
                 {
-                    continue;
-                }
+                    var unit = playableUnits[i];
+                    if (unit == null)
+                    {
+                        continue;
+                    }
 
-                NotifyTurnStarted(unit);
-                unit.OnTurnStart();
+                    NotifyTurnStarted(unit);
+                    unit.OnTurnStart();
+                }
             }
 
             if (!kickPlayerPlay)
@@ -602,6 +621,11 @@ namespace TbsFramework.Grid
                 outcome.DefeatedPlayerIds?.ToList() ?? new List<int>());
         }
 
+        protected int AllocateNextUnitId()
+        {
+            return UnitId++;
+        }
+
         private IEnumerable<IBattleAction> GetRuntimeActions(Unit unit)
         {
             return unit == null
@@ -609,7 +633,7 @@ namespace TbsFramework.Grid
                 : unit.GetComponents<MonoBehaviour>().OfType<IBattleAction>();
         }
 
-        private void NotifyTurnStarted(Unit unit)
+        protected virtual void NotifyTurnStarted(Unit unit)
         {
             if (unit == null)
             {
@@ -634,7 +658,7 @@ namespace TbsFramework.Grid
             }
         }
 
-        private void NotifyTurnEnded(Unit unit)
+        protected virtual void NotifyTurnEnded(Unit unit)
         {
             if (unit == null)
             {
@@ -659,7 +683,7 @@ namespace TbsFramework.Grid
             }
         }
 
-        private void NotifyOwnerDestroyed(Unit unit)
+        protected virtual void NotifyOwnerDestroyed(Unit unit)
         {
             if (unit == null)
             {

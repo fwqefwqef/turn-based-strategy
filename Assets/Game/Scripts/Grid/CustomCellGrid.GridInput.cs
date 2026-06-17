@@ -12,8 +12,8 @@ namespace Windy.Srpg.Game.Grid
 
         private void InstallFrameworkInputRouter()
         {
-            endTurnRouter ??= new CustomCellGridEndTurnRouter(this);
-            cellGridState = endTurnRouter;
+            endTurnRouter ??= new CustomCellGridEndTurnRouter(LegacyGrid, this);
+            LegacyGrid.InstallEndTurnRouter(endTurnRouter);
         }
 
         internal bool TryRouteEndTurnThroughRuntime()
@@ -28,70 +28,73 @@ namespace Windy.Srpg.Game.Grid
             return true;
         }
 
-        protected override void DispatchCellDeselected(Cell cell)
+        internal bool TryDispatchCellDeselected(Cell cell)
         {
             if (cell is IBattleCell battleCell
                 && TryDispatchToCustomState(state => state.OnCellDeselected(battleCell)))
             {
-                return;
+                return true;
             }
 
-            base.DispatchCellDeselected(cell);
+            return false;
         }
 
-        protected override void DispatchCellSelected(Cell cell)
+        internal bool TryDispatchCellSelected(Cell cell)
         {
             if (cell is IBattleCell battleCell
                 && TryDispatchToCustomState(state => state.OnCellSelected(battleCell)))
             {
-                return;
+                return true;
             }
 
-            base.DispatchCellSelected(cell);
+            return false;
         }
 
-        protected override void DispatchCellClicked(Cell cell)
+        internal bool TryDispatchCellClicked(Cell cell)
         {
             if (cell is IBattleCell battleCell
                 && TryDispatchToCustomState(state => state.OnCellClicked(battleCell)))
             {
-                return;
+                return true;
             }
 
-            base.DispatchCellClicked(cell);
+            return false;
         }
 
-        protected override void DispatchUnitClicked(Unit unit)
+        internal bool TryDispatchUnitClicked(Unit unit)
         {
-            if (unit is IBattleUnit battleUnit
+            IBattleUnit battleUnit = ResolveBattleUnitFromRegistryUnit(unit);
+            if (battleUnit != null
                 && TryDispatchToCustomState(state => state.OnUnitClicked(battleUnit)))
             {
-                return;
+                return true;
             }
 
-            base.DispatchUnitClicked(unit);
+            return false;
         }
 
-        protected override void DispatchUnitHighlighted(Unit unit)
+        internal bool TryDispatchUnitHighlighted(Unit unit)
         {
-            if (unit is IBattleUnit battleUnit
+            IBattleUnit battleUnit = ResolveBattleUnitFromRegistryUnit(unit);
+            if (battleUnit != null
                 && TryDispatchToCustomState(state => state.OnUnitHighlighted(battleUnit)))
             {
-                return;
+                return true;
             }
 
-            base.DispatchUnitHighlighted(unit);
+            return false;
         }
 
-        protected override void DispatchUnitDehighlighted(Unit unit)
+        internal bool TryDispatchUnitDehighlighted(Unit unit)
         {
-            if (unit is IBattleUnit battleUnit
+            IBattleUnit battleUnit = ResolveBattleUnitFromRegistryUnit(unit);
+            if (battleUnit != null
                 && TryDispatchToCustomState(state => state.OnUnitDehighlighted(battleUnit)))
             {
-                return;
+                return true;
             }
 
-            base.DispatchUnitDehighlighted(unit);
+            return false;
         }
 
         private bool TryDispatchToCustomState(System.Action<CustomCellGridState> dispatch)

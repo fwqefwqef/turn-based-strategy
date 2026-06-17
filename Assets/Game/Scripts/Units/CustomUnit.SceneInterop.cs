@@ -66,7 +66,10 @@ namespace Windy.Srpg.Game.Units
             return true;
         }
 
-        private static bool TryBuildLegacyMovementPath(IList<BoardCell> runtimePath, out List<Cell> orderedLegacyPath)
+        private static bool TryBuildLegacyMovementPath(
+            IList<BoardCell> runtimePath,
+            BoardCell originRuntimeCell,
+            out List<Cell> orderedLegacyPath)
         {
             orderedLegacyPath = null;
             if (runtimePath == null || runtimePath.Count == 0)
@@ -77,7 +80,13 @@ namespace Windy.Srpg.Game.Units
             var path = new List<Cell>(runtimePath.Count);
             for (int i = runtimePath.Count - 1; i >= 0; i--)
             {
-                Cell legacyCell = ResolveLinkedLegacyCell(runtimePath[i]);
+                BoardCell runtimeCell = runtimePath[i];
+                if (originRuntimeCell != null && runtimeCell == originRuntimeCell)
+                {
+                    continue;
+                }
+
+                Cell legacyCell = ResolveLinkedLegacyCell(runtimeCell);
                 if (legacyCell == null)
                 {
                     return false;
@@ -120,7 +129,11 @@ namespace Windy.Srpg.Game.Units
 
             BoardCell runtimeCell = ResolveLinkedRuntimeCell(cell);
             bool hasLegacyOccupant = cell.CurrentUnits != null
-                && cell.CurrentUnits.Any(unit => unit != null && unit.Obstructable && !unit.ExcludedFromBattle);
+                && cell.CurrentUnits.Any(token =>
+                {
+                    CustomUnit occupant = token != null ? token.GetComponent<CustomUnit>() : null;
+                    return occupant != null && occupant.Obstructable && !occupant.ExcludedFromBattle;
+                });
             bool hasSceneOccupant = HasBlockingSceneOccupant(cell, null);
             bool hasRuntimeOccupant = runtimeCell != null
                 && runtimeCell.Occupants.Any(unit => unit != null && unit.BlocksOtherUnits);

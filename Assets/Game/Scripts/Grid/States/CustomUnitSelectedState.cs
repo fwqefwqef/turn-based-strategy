@@ -118,8 +118,15 @@ namespace Windy.Srpg.Game.Grid.States
                 }
             }
 
-            IBattleUnit battleUnit = unit;
-            abilities.ForEach(action => action.OnUnitClicked(battleUnit, _cellGrid));
+            if (unit != null
+                && _cellGrid.GetCurrentPlayerCustomUnits().Contains(unit)
+                && !unit.IsFinishedForTurn)
+            {
+                _cellGrid.EnterSelectedState(unit);
+                return;
+            }
+
+            _cellGrid.EnterWaitingState();
         }
     }
 }

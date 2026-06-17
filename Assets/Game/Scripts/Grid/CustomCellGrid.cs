@@ -16,7 +16,7 @@ using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Grid
 {
-    public partial class CustomCellGrid : CellGrid, IBattleBoard
+    public partial class CustomCellGrid : MonoBehaviour, IBattleBoard
     {
         private const float CampaignSaveFlushDelaySeconds = 0.15f;
 
@@ -32,6 +32,7 @@ namespace Windy.Srpg.Game.Grid
         public event EventHandler TurnStarted;
         public int RoundCount { get; private set; }
         public bool IsPreBattlePhase => enablePreBattleUi && !battleStarted;
+        internal bool IsBattleStarted => battleStarted;
         IReadOnlyList<IBattlePlayer> IBattleBoard.Players => GetOrderedCustomPlayers().Cast<IBattlePlayer>().ToList();
         IReadOnlyList<IBattleUnit> IBattleBoard.Units => GetAllCustomUnits().Cast<IBattleUnit>().ToList();
 
@@ -106,7 +107,7 @@ namespace Windy.Srpg.Game.Grid
         public List<CustomUnit> GetAllCustomUnits()
         {
             return Units?
-                .OfType<CustomUnit>()
+                .Select(ResolveCustomUnitFromRegistryUnit)
                 .Where(unit => unit != null)
                 .ToList()
                 ?? new List<CustomUnit>();
@@ -131,7 +132,7 @@ namespace Windy.Srpg.Game.Grid
 
         public void RequestFrameworkInitialize()
         {
-            Initialize();
+            InitializeBattleScene();
         }
 
         public Cell FindCellByOffset(Vector2 offsetCoord)

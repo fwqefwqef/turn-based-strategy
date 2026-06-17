@@ -105,7 +105,7 @@ namespace Windy.Srpg.Game.Grid.States
     {
         private readonly CustomCellGrid grid;
 
-        public CustomCellGridEndTurnRouter(CustomCellGrid grid) : base(grid)
+        public CustomCellGridEndTurnRouter(CellGrid legacyGrid, CustomCellGrid grid) : base(legacyGrid)
         {
             this.grid = grid;
         }

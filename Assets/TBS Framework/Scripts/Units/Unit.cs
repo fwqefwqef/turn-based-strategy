@@ -215,6 +215,31 @@ namespace TbsFramework.Units
             }
         }
 
+        protected void RaiseUnitClicked()
+        {
+            UnitClicked?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected void RaiseUnitHighlighted()
+        {
+            UnitHighlighted?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected void RaiseUnitDehighlighted()
+        {
+            UnitDehighlighted?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected void RaiseUnitDestroyed(AttackEventArgs args)
+        {
+            UnitDestroyed?.Invoke(this, args);
+        }
+
+        protected void RaiseUnitMoved(MovementEventArgs args)
+        {
+            UnitMoved?.Invoke(this, args);
+        }
+
         /// <summary>
         /// Method is called at the start of each turn.
         /// </summary>

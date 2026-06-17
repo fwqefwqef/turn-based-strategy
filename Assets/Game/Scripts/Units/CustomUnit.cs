@@ -34,7 +34,7 @@ namespace Windy.Srpg.Game.Units
     /// Base class for all units in the game.
     /// </summary>
     [ExecuteInEditMode]
-    public partial class CustomUnit : Unit, IBattleUnit
+    public partial class CustomUnit : MonoBehaviour, IBattleUnit
     {
         // Search for "CTRL+F:" to jump between major gameplay systems in this file.
         #region CTRL+F: Events / Runtime State / Serialized Fields
@@ -57,16 +57,6 @@ namespace Windy.Srpg.Game.Units
         public static event Action<Vector3> PreviewMoveCameraFollowRequested;
         public static event Action PreviewMoveCameraFollowReleased;
         private bool hasInitializedTurnState;
-        public new UnitState UnitState
-        {
-            get => base.UnitState;
-            set
-            {
-                base.UnitState = value;
-                currentTurnStateKind = ResolveTurnStateKind(value);
-                hasInitializedTurnState = value != null;
-            }
-        }
         public UnitTurnStateKind CurrentTurnStateKind => currentTurnStateKind;
         public bool HasInitializedTurnState => hasInitializedTurnState;
         public bool IsSelectedForTurn => currentTurnStateKind == UnitTurnStateKind.Selected;
@@ -77,19 +67,18 @@ namespace Windy.Srpg.Game.Units
         public bool IsLegacyFriendlyState => IsFriendlyForTurn;
         public bool IsFinishedForTurn => currentTurnStateKind == UnitTurnStateKind.Finished;
         public bool CanStartActionThisTurn => !IsFinishedForTurn;
-        public new void SetState(UnitState state)
+        public void SetState(UnitState state)
         {
             currentTurnStateKind = ResolveTurnStateKind(state);
-            base.UnitState = state ?? CreateCompatibilityTurnState(currentTurnStateKind);
             hasInitializedTurnState = true;
-            base.UnitState?.Apply();
+            ApplyTurnStateVisual(currentTurnStateKind);
             SyncMirroredRuntimeTurnState();
         }
         /// <summary>
         /// Legacy framework buff assets that directly mutate unit fields.
         /// </summary>
         private List<(FrameworkBuff buff, int timeLeft)> legacyBuffs;
-        public new void AddBuff(FrameworkBuff buff)
+        public void AddBuff(FrameworkBuff buff)
         {
             if (buff == null)
             {
@@ -97,7 +86,7 @@ namespace Windy.Srpg.Game.Units
             }
 
             legacyBuffs ??= new List<(FrameworkBuff, int)>();
-            buff.Apply(this);
+            buff.Apply(LegacyUnit);
             legacyBuffs.Add((buff, buff.Duration));
             RefreshHealthState();
             RaiseBuffsChanged();
@@ -231,14 +220,14 @@ namespace Windy.Srpg.Game.Units
                 return Mathf.Max(MinAttackRange, maxRange);
             }
         }
-        public new int AttackRange => MaxAttackRange;
+        public int AttackRange => MaxAttackRange;
         public virtual int NumHits => HasUsableWeapon ? Mathf.Max(1, GetActiveWeapon().NumHits) : 0;
         public virtual bool CanPursuitAttack => HasUsableWeapon && GetActiveWeapon().CanPursuitAttack;
         public virtual bool CanCounterAttack => HasUsableWeapon && GetActiveWeapon().CanCounterAttack;
         public virtual bool PreventsCounterattack => HasUsableWeapon && GetActiveWeapon().PreventsCounterattack;
         public virtual int BaseHitPoints => baseHitPoints;
         public virtual int MaxHitPoints => Mathf.Max(1, BaseHitPoints + GetPrimaryStatModifiers().MaxHitPoints + Strength);
-        public new int HitPoints { get; set; }
+        public int HitPoints { get; set; }
         public virtual int BaseManaPoints => baseManaPoints;
         public virtual int MaxManaPoints => Mathf.Max(0, BaseManaPoints + GetPrimaryStatModifiers().MaxManaPoints + ((Magic + Resistance) * 3));
         public int CurrentManaPoints { get; private set; }
@@ -306,26 +295,8 @@ namespace Windy.Srpg.Game.Units
                 return GetSecondaryStatModifiers().CritAvoid + Luck * CritPerLuck;
             }
         }
-        /// <summary>
-        /// Determines how far on the grid the unit can move.
-        /// </summary>
-        public override float MovementPoints
-        {
-            get
-            {
-                return base.MovementPoints;
-            }
-            protected set
-            {
-                base.MovementPoints = value;
-                SyncMirroredRuntimeMovementPoints();
-            }
-        }
-        /// <summary>
-        /// Determines speed of movement animation.
-        /// </summary>
         [Obsolete("ActionPoints is deprecated. Use CanStartActionThisTurn, EndTurnForUnit, and ResetTurnState instead.")]
-        public new float ActionPoints
+        public float ActionPoints
         {
             get
             {
@@ -390,7 +361,7 @@ namespace Windy.Srpg.Game.Units
         /// <summary>
         /// Method called when unit was added to the game to initialize fields etc. 
         /// </summary>
-        public override void Initialize()
+        public virtual void Initialize()
         {
             if (pendingOwnedUnitSaveData != null)
             {
@@ -529,7 +500,7 @@ namespace Windy.Srpg.Game.Units
             SyncMirroredRuntimeNow();
         }
 
-        public override void OnMouseDown()
+        public void OnMouseDown()
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
@@ -542,9 +513,10 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            base.OnMouseDown();
+            EnsureFrameworkUnitAnchor().RaiseUnitClicked();
+            UnitClicked?.Invoke(this, EventArgs.Empty);
         }
-        public override void OnMouseEnter()
+        public void OnMouseEnter()
         {
             CustomCellGrid grid = FindSceneCellGrid();
             if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
@@ -552,10 +524,11 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            base.OnMouseEnter();
+            EnsureFrameworkUnitAnchor().RaiseUnitHighlighted();
+            UnitHighlighted?.Invoke(this, EventArgs.Empty);
         }
 
-        public override void OnMouseExit()
+        public void OnMouseExit()
         {
             CustomCellGrid grid = FindSceneCellGrid();
             if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
@@ -563,36 +536,37 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            base.OnMouseExit();
+            EnsureFrameworkUnitAnchor().RaiseUnitDehighlighted();
+            UnitDehighlighted?.Invoke(this, EventArgs.Empty);
         }
 
         internal void RaiseSceneHighlightEvent()
         {
-            base.OnMouseEnter();
+            EnsureFrameworkUnitAnchor().RaiseUnitHighlighted();
+            UnitHighlighted?.Invoke(this, EventArgs.Empty);
         }
 
         internal void RaiseSceneDehighlightEvent()
         {
-            base.OnMouseExit();
+            EnsureFrameworkUnitAnchor().RaiseUnitDehighlighted();
+            UnitDehighlighted?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
         /// Method is called at the start of each turn.
         /// </summary>
-        public override void OnTurnStart()
+        public void OnTurnStart()
         {
             cachedPaths = null;
 
             legacyBuffs ??= new List<(FrameworkBuff, int)>();
-            legacyBuffs.FindAll(b => b.timeLeft == 0).ForEach(b => { b.buff.Undo(this); });
+            legacyBuffs.FindAll(b => b.timeLeft == 0).ForEach(b => { b.buff.Undo(LegacyUnit); });
             legacyBuffs.RemoveAll(b => b.timeLeft == 0);
             PassiveList?.OnTurnStart();
             BuffList?.OnTurnStart();
             RefreshHealthState();
             SkillList?.ResetTurnUsage();
             RaiseBuffsChanged();
-            var name = this.name;
-            var state = UnitState;
             SetTurnStateKind(UnitTurnStateKind.Friendly);
         }
 
@@ -643,8 +617,7 @@ namespace Windy.Srpg.Game.Units
         {
             currentTurnStateKind = stateKind;
             hasInitializedTurnState = true;
-            base.UnitState = CreateCompatibilityTurnState(stateKind);
-            base.UnitState.Apply();
+            ApplyTurnStateVisual(stateKind);
 
             if (syncRuntime)
             {
@@ -652,18 +625,8 @@ namespace Windy.Srpg.Game.Units
             }
         }
 
-        private UnitState CreateCompatibilityTurnState(UnitTurnStateKind stateKind)
-        {
-            return new CompatibilityUnitState(this, stateKind);
-        }
-
         private static UnitTurnStateKind ResolveTurnStateKind(UnitState state)
         {
-            if (state is CompatibilityUnitState compatibilityState)
-            {
-                return compatibilityState.Kind;
-            }
-
             return state?.GetType().Name switch
             {
                 "UnitStateMarkedAsSelected" => UnitTurnStateKind.Selected,
@@ -693,30 +656,6 @@ namespace Windy.Srpg.Game.Units
                 default:
                     UnMark();
                     break;
-            }
-        }
-
-        private sealed class CompatibilityUnitState : UnitState
-        {
-            public CompatibilityUnitState(CustomUnit unit, UnitTurnStateKind kind) : base(unit)
-            {
-                Kind = kind;
-            }
-
-            public UnitTurnStateKind Kind { get; }
-
-            public override void Apply()
-            {
-                if (_unit is CustomUnit customUnit)
-                {
-                    customUnit.ApplyTurnStateVisual(Kind);
-                }
-            }
-
-            public override void MakeTransition(UnitState state)
-            {
-                _unit.UnitState = state;
-                state?.Apply();
             }
         }
         #endregion
@@ -2004,7 +1943,7 @@ namespace Windy.Srpg.Game.Units
 
         public bool CanDisplaceTarget(CustomUnit target, CellGrid cellGrid, int distance = 1, bool push = true, bool moveUserWithTarget = false)
         {
-            return CanDisplaceTarget(target, cellGrid as Windy.Srpg.Game.Grid.CustomCellGrid, distance, push, moveUserWithTarget);
+            return CanDisplaceTarget(target, ResolveHostCellGrid(cellGrid), distance, push, moveUserWithTarget);
         }
 
         public DisplacementResult DisplaceTarget(CustomUnit target, Windy.Srpg.Game.Grid.CustomCellGrid cellGrid, int distance = 1, bool push = true, bool moveUserWithTarget = false)
@@ -2014,12 +1953,17 @@ namespace Windy.Srpg.Game.Units
 
         public DisplacementResult DisplaceTarget(CustomUnit target, CellGrid cellGrid, int distance = 1, bool push = true, bool moveUserWithTarget = false)
         {
-            return DisplaceTarget(target, cellGrid as Windy.Srpg.Game.Grid.CustomCellGrid, distance, push, moveUserWithTarget);
+            return DisplaceTarget(target, ResolveHostCellGrid(cellGrid), distance, push, moveUserWithTarget);
+        }
+
+        private static Windy.Srpg.Game.Grid.CustomCellGrid ResolveHostCellGrid(CellGrid cellGrid)
+        {
+            return cellGrid != null ? cellGrid.GetComponent<Windy.Srpg.Game.Grid.CustomCellGrid>() : null;
         }
         /// <summary>
         /// Method is called at the end of each turn.
         /// </summary>
-        public override void OnTurnEnd()
+        public void OnTurnEnd()
         {
             if (HasPendingMove && !ConfirmPendingMove())
             {
@@ -2066,12 +2010,12 @@ namespace Windy.Srpg.Game.Units
         /// <summary>
         /// Method is called when units HP drops below 1.
         /// </summary>
-        protected override void OnDestroyed()
+        protected void OnDestroyed()
         {
             bool wasRunningAttackSequence = IsAttackSequenceRunning;
 
             Cell currentCell = Cell;
-            currentCell?.CurrentUnits.Remove(this);
+            UnregisterLegacyCellOccupancy(currentCell);
             RefreshLegacyCellOccupancy(currentCell);
             ClearMirroredRuntimeCell();
             MarkAsDestroyed();
@@ -2157,7 +2101,7 @@ namespace Windy.Srpg.Game.Units
         /// <summary>
         /// Method is called when unit is selected.
         /// </summary>
-        public override void OnUnitSelected()
+        public void OnUnitSelected()
         {
             if (BelongsToCurrentGameplayPlayer())
             {
@@ -2165,11 +2109,12 @@ namespace Windy.Srpg.Game.Units
             }
 
             GameplaySelected?.Invoke(this, EventArgs.Empty);
+            UnitSelected?.Invoke(this, EventArgs.Empty);
         }
         /// <summary>
         /// Method is called when unit is deselected.
         /// </summary>
-        public override void OnUnitDeselected()
+        public void OnUnitDeselected()
         {
             if (BelongsToCurrentGameplayPlayer())
             {
@@ -2177,6 +2122,7 @@ namespace Windy.Srpg.Game.Units
             }
 
             GameplayDeselected?.Invoke(this, EventArgs.Empty);
+            UnitDeselected?.Invoke(this, EventArgs.Empty);
         }
 
         private bool BelongsToCurrentGameplayPlayer()
@@ -2247,7 +2193,7 @@ namespace Windy.Srpg.Game.Units
 
         public void UseSupportSkill(CustomUnit primaryTarget, bool endsTurn, Action resolveEffect, SkillData skill = null, CellGrid cellGrid = null)
         {
-            UseSupportSkill(primaryTarget, endsTurn, resolveEffect, skill, cellGrid as Windy.Srpg.Game.Grid.CustomCellGrid);
+            UseSupportSkill(primaryTarget, endsTurn, resolveEffect, skill, ResolveHostCellGrid(cellGrid));
         }
 
         public void UseAreaSkill(IReadOnlyList<CustomUnit> targets, bool endsTurn, Action<CustomUnit> resolvePerTarget, SkillData skill = null, Windy.Srpg.Game.Grid.CustomCellGrid cellGrid = null)
@@ -2262,7 +2208,7 @@ namespace Windy.Srpg.Game.Units
 
         public void UseAreaSkill(IReadOnlyList<CustomUnit> targets, bool endsTurn, Action<CustomUnit> resolvePerTarget, SkillData skill = null, CellGrid cellGrid = null)
         {
-            UseAreaSkill(targets, endsTurn, resolvePerTarget, skill, cellGrid as Windy.Srpg.Game.Grid.CustomCellGrid);
+            UseAreaSkill(targets, endsTurn, resolvePerTarget, skill, ResolveHostCellGrid(cellGrid));
         }
         /// <summary>
         /// Method for calculating damage and action points cost of attacking given unit
@@ -2276,7 +2222,7 @@ namespace Windy.Srpg.Game.Units
         /// Method called after unit performed an attack.
         /// </summary>
         /// <param name="actionCost">Action point cost of performed attack</param>
-        protected override void AttackActionPerformed(float actionCost)
+        protected void AttackActionPerformed(float actionCost)
         {
             EndTurnForUnit();
         }
@@ -2588,7 +2534,7 @@ namespace Windy.Srpg.Game.Units
                     if (HitPoints <= 0)
                     {
                         DestroyedInCombat?.Invoke(this, new CustomUnitDestroyedEventArgs(aggressor, this, damageTaken));
-                        CombatDestroyed?.Invoke(this, new AttackEventArgs(aggressor, this, damageTaken));
+                        CombatDestroyed?.Invoke(this, new AttackEventArgs(aggressor?.LegacyUnit, LegacyUnit, damageTaken));
                         OnDestroyed();
                     }
                 }
@@ -2609,7 +2555,7 @@ namespace Windy.Srpg.Game.Units
         /// <summary>
         /// Method callef after unit performed defence.
         /// </summary>
-        protected override void DefenceActionPerformed() { }
+        protected void DefenceActionPerformed() { }
 
         public void RefreshHealthState(CustomUnit source = null)
         {
@@ -3392,7 +3338,7 @@ namespace Windy.Srpg.Game.Units
         /// </summary>
         /// <param name="destinationCell">Cell to move the unit to</param>
         /// <param name="path">A list of cells, path from source to destination cell</param>
-        public override IEnumerator Move(Cell destinationCell, IList<Cell> path)
+        public IEnumerator Move(Cell destinationCell, IList<Cell> path)
         {
             if (destinationCell == null || path == null || path.Count == 0)
             {
@@ -3404,14 +3350,11 @@ namespace Windy.Srpg.Game.Units
             Cell resolvedStartCell = ResolveTransformStartCell(cellGrid, fromCell);
             if (resolvedStartCell != null && resolvedStartCell != fromCell)
             {
-                fromCell?.CurrentUnits.Remove(this);
+                UnregisterLegacyCellOccupancy(fromCell);
                 RefreshLegacyCellOccupancy(fromCell);
 
                 Cell = resolvedStartCell;
-                if (!resolvedStartCell.CurrentUnits.Contains(this))
-                {
-                    resolvedStartCell.CurrentUnits.Add(this);
-                }
+                RegisterLegacyCellOccupancy(resolvedStartCell);
 
                 RefreshLegacyCellOccupancy(resolvedStartCell);
                 SyncMirroredRuntimeCell(resolvedStartCell);
@@ -3462,23 +3405,7 @@ namespace Windy.Srpg.Game.Units
 
                     if (runtimeMovementUnit.ConfirmPendingMove(consumeAllRemainingMovement: false, syncTransform: false))
                     {
-                        fromCell?.CurrentUnits.Remove(this);
-                        RefreshLegacyCellOccupancy(fromCell);
-
-                        Cell resolvedDestinationCell = ResolveLinkedLegacyCell(runtimeMovementUnit.CurrentCell) ?? destinationCell;
-                        Cell = resolvedDestinationCell;
-                        if (resolvedDestinationCell != null && !resolvedDestinationCell.CurrentUnits.Contains(this))
-                        {
-                            resolvedDestinationCell.CurrentUnits.Add(this);
-                        }
-
-                        MovementPoints = runtimeMovementUnit.MovementPointsRemaining;
-                        cachedPaths = null;
-                        RefreshLegacyCellOccupancy(resolvedDestinationCell);
-                        SyncMirroredRuntimeCell(resolvedDestinationCell);
-                        RefreshSceneOccupancyFromLiveUnits();
-                        OnMoveFinished();
-                        cellGrid?.RequestBattleOutcomeEvaluation();
+                        ApplyLegacySyncFromRuntimeMoveCommit(cellGrid);
                         yield break;
                     }
 
@@ -3499,14 +3426,11 @@ namespace Windy.Srpg.Game.Units
                 OnMoveFinished();
             }
 
-            fromCell?.CurrentUnits.Remove(this);
+            UnregisterLegacyCellOccupancy(fromCell);
             RefreshLegacyCellOccupancy(fromCell);
 
             Cell = destinationCell;
-            if (destinationCell != null && !destinationCell.CurrentUnits.Contains(this))
-            {
-                destinationCell.CurrentUnits.Add(this);
-            }
+            RegisterLegacyCellOccupancy(destinationCell);
 
             cachedPaths = null;
             RefreshLegacyCellOccupancy(destinationCell);
@@ -3601,14 +3525,11 @@ namespace Windy.Srpg.Game.Units
                 ? 0f
                 : Mathf.Max(0f, p.MovementPointsBefore - p.MovementCost);
 
-            p.FromCell?.CurrentUnits.Remove(this);
+            UnregisterLegacyCellOccupancy(p.FromCell);
             RefreshLegacyCellOccupancy(p.FromCell);
 
             Cell = p.ToCell;
-            if (p.ToCell != null && !p.ToCell.CurrentUnits.Contains(this))
-            {
-                p.ToCell.CurrentUnits.Add(this);
-            }
+            RegisterLegacyCellOccupancy(p.ToCell);
 
             RefreshLegacyCellOccupancy(p.ToCell);
             SyncMirroredRuntimeCell(p.ToCell);
@@ -3667,23 +3588,7 @@ namespace Windy.Srpg.Game.Units
                 return false;
             }
 
-            Cell fromCell = pendingMove.FromCell;
-            fromCell?.CurrentUnits.Remove(this);
-            RefreshLegacyCellOccupancy(fromCell);
-
-            Cell resolvedDestinationCell = ResolveLinkedLegacyCell(runtimeUnit.CurrentCell) ?? pendingMove.ToCell;
-            Cell = resolvedDestinationCell;
-            if (resolvedDestinationCell != null && !resolvedDestinationCell.CurrentUnits.Contains(this))
-            {
-                resolvedDestinationCell.CurrentUnits.Add(this);
-            }
-
-            MovementPoints = runtimeUnit.MovementPointsRemaining;
-            cachedPaths = null;
-            RefreshLegacyCellOccupancy(resolvedDestinationCell);
-            RefreshSceneOccupancyFromLiveUnits();
-            OnMoveFinished();
-            cellGrid?.RequestBattleOutcomeEvaluation();
+            ApplyLegacySyncFromRuntimeMoveCommit(cellGrid);
             return true;
         }
 
@@ -3694,31 +3599,7 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            BattleUnit runtimeUnit = ResolveRuntimeUnit();
-            if (runtimeUnit == null)
-            {
-                return;
-            }
-
-            PendingMove pendingMove = _pendingMove.Value;
-            Cell fromCell = pendingMove.FromCell;
-            fromCell?.CurrentUnits.Remove(this);
-            RefreshLegacyCellOccupancy(fromCell);
-
-            Cell resolvedDestinationCell = pendingMove.ToCell
-                ?? ResolveLinkedLegacyCell(runtimeUnit.CurrentCell);
-            Cell = resolvedDestinationCell;
-            if (resolvedDestinationCell != null && !resolvedDestinationCell.CurrentUnits.Contains(this))
-            {
-                resolvedDestinationCell.CurrentUnits.Add(this);
-            }
-
-            MovementPoints = runtimeUnit.MovementPointsRemaining;
-            cachedPaths = null;
-            RefreshLegacyCellOccupancy(resolvedDestinationCell);
-            RefreshSceneOccupancyFromLiveUnits();
-            OnMoveFinished();
-            cellGrid?.RequestBattleOutcomeEvaluation();
+            ApplyLegacySyncFromRuntimeMoveCommit(cellGrid);
             _pendingMove = null;
         }
 
@@ -3882,7 +3763,7 @@ namespace Windy.Srpg.Game.Units
             return closestDistanceSqr <= maxSnapDistanceSqr ? closestCell : fallbackCell;
         }
 
-        protected override IEnumerator MovementAnimation(IList<Cell> path)
+        protected IEnumerator MovementAnimation(IList<Cell> path)
         {
             yield return AnimateMovementPath(path);
             OnMoveFinished();
@@ -3890,21 +3771,21 @@ namespace Windy.Srpg.Game.Units
         /// <summary>
         /// Method called after movement animation has finished.
         /// </summary>
-        protected override void OnMoveFinished() {
+        protected void OnMoveFinished() {
         
         }
 
         ///<summary>
         /// Method indicates if unit is capable of moving to cell given as parameter.
         /// </summary>
-        public override bool IsCellMovableTo(Cell cell)
+        public bool IsCellMovableTo(Cell cell)
         {
             return CanOccupyLegacyCell(cell);
         }
         /// <summary>
         /// Method indicates if unit is capable of moving through cell given as parameter.
         /// </summary>
-        public override bool IsCellTraversable(Cell cell)
+        public bool IsCellTraversable(Cell cell)
         {
             return CanTraverseLegacyCell(cell);
         }
@@ -3980,7 +3861,10 @@ namespace Windy.Srpg.Game.Units
                     .ToList() ?? new List<BoardCell>();
                 BoardCell runtimeDestination = ResolveLinkedRuntimeCell(destination);
                 if (runtimeDestination != null
-                    && TryBuildLegacyMovementPath(runtimeUnit.FindPath(runtimeCells, runtimeDestination), out List<Cell> runtimePath))
+                    && TryBuildLegacyMovementPath(
+                        runtimeUnit.FindPath(runtimeCells, runtimeDestination),
+                        runtimeUnit.CurrentCell,
+                        out List<Cell> runtimePath))
                 {
                     return runtimePath;
                 }
@@ -4053,9 +3937,16 @@ namespace Windy.Srpg.Game.Units
                 return HasBlockingSceneOccupant(cell, this);
             }
 
+            Unit selfToken = LegacyUnit;
             foreach (Unit occupant in cell.CurrentUnits)
             {
-                if (occupant == null || occupant == this || !occupant.Obstructable || occupant.ExcludedFromBattle)
+                if (occupant == null || occupant == selfToken)
+                {
+                    continue;
+                }
+
+                CustomUnit otherUnit = occupant.GetComponent<CustomUnit>();
+                if (otherUnit == null || otherUnit == this || !otherUnit.Obstructable || otherUnit.ExcludedFromBattle)
                 {
                     continue;
                 }
@@ -4069,7 +3960,7 @@ namespace Windy.Srpg.Game.Units
         /// <summary>
         /// Method returns graph representation of cell grid for pathfinding.
         /// </summary>
-        protected override Dictionary<Cell, Dictionary<Cell, float>> GetGraphEdges(List<Cell> cells)
+        protected Dictionary<Cell, Dictionary<Cell, float>> GetGraphEdges(List<Cell> cells)
         {
             Dictionary<Cell, Dictionary<Cell, float>> ret = new Dictionary<Cell, Dictionary<Cell, float>>();
             foreach (var cell in cells)
@@ -4101,9 +3992,9 @@ namespace Windy.Srpg.Game.Units
         /// </param>
         public virtual void MarkAsDefending(CustomUnit aggressor)
         {
-            if (UnitHighlighterAggregator != null)
+            if (unitHighlighter != null)
             {
-                UnitHighlighterAggregator.MarkAsDefendingFn?.ForEach(o => o.Apply(this, aggressor));
+                unitHighlighter.MarkAsDefendingFn?.ForEach(o => o.Apply(LegacyUnit, aggressor?.LegacyUnit));
             }
         }
         /// <summary>
@@ -4114,83 +4005,83 @@ namespace Windy.Srpg.Game.Units
         /// </param>
         public virtual void MarkAsAttacking(CustomUnit target)
         {
-            if (UnitHighlighterAggregator != null)
+            if (unitHighlighter != null)
             {
-                UnitHighlighterAggregator.MarkAsAttackingFn?.ForEach(o => o.Apply(this, target));
+                unitHighlighter.MarkAsAttackingFn?.ForEach(o => o.Apply(LegacyUnit, target?.LegacyUnit));
             }
         }
         /// <summary>
         /// Gives visual indication that the unit is destroyed. It gets called right before the unit game object is
         /// destroyed.
         /// </summary>
-        public override void MarkAsDestroyed()
+        public void MarkAsDestroyed()
         {
-            if (UnitHighlighterAggregator != null)
+            if (unitHighlighter != null)
             {
-                UnitHighlighterAggregator.MarkAsDestroyedFn?.ForEach(o => o.Apply(this, null));
+                unitHighlighter.MarkAsDestroyedFn?.ForEach(o => o.Apply(LegacyUnit, null));
             }
         }
 
         /// <summary>
         /// Method marks unit as current players unit.
         /// </summary>
-        public override void MarkAsFriendly()
+        public virtual void MarkAsFriendly()
         {
-            if (UnitHighlighterAggregator != null)
+            if (unitHighlighter != null)
             {
-                UnitHighlighterAggregator.MarkAsFriendlyFn?.ForEach(o => o.Apply(this, null));
+                unitHighlighter.MarkAsFriendlyFn?.ForEach(o => o.Apply(LegacyUnit, null));
             }
         }
         /// <summary>
         /// Method mark units to indicate user that the unit is in range and can be attacked.
         /// </summary>
-        public override void MarkAsReachableEnemy()
+        public virtual void MarkAsReachableEnemy()
         {
-            if (UnitHighlighterAggregator != null)
+            if (unitHighlighter != null)
             {
-                UnitHighlighterAggregator.MarkAsReachableEnemyFn?.ForEach(o => o.Apply(this, null));
+                unitHighlighter.MarkAsReachableEnemyFn?.ForEach(o => o.Apply(LegacyUnit, null));
             }
         }
         /// <summary>
         /// Method marks unit as currently selected, to distinguish it from other units.
         /// </summary>
-        public override void MarkAsSelected()
+        public virtual void MarkAsSelected()
         {
-            if (UnitHighlighterAggregator != null)
+            if (unitHighlighter != null)
             {
-                UnitHighlighterAggregator.MarkAsSelectedFn?.ForEach(o => o.Apply(this, null));
+                unitHighlighter.MarkAsSelectedFn?.ForEach(o => o.Apply(LegacyUnit, null));
             }
         }
         /// <summary>
         /// Method marks unit to indicate user that he can't do anything more with it this turn.
         /// </summary>
-        public override void MarkAsFinished()
+        public virtual void MarkAsFinished()
         {
-            if (UnitHighlighterAggregator != null)
+            if (unitHighlighter != null)
             {
-                UnitHighlighterAggregator.MarkAsFinishedFn?.ForEach(o => o.Apply(this, null));
+                unitHighlighter.MarkAsFinishedFn?.ForEach(o => o.Apply(LegacyUnit, null));
             }
         }
         /// <summary>
         /// Method returns the unit to its base appearance
         /// </summary>
-        public override void UnMark()
+        public virtual void UnMark()
         {
-            if (UnitHighlighterAggregator != null)
+            if (unitHighlighter != null)
             {
-                UnitHighlighterAggregator.UnMarkFn?.ForEach(o => o.Apply(this, null));
+                unitHighlighter.UnMarkFn?.ForEach(o => o.Apply(LegacyUnit, null));
             }
         }
-        public override void SetColor(Color color) { }
+        public virtual void SetColor(Color color) { }
 
         [ExecuteInEditMode]
-        public new void OnDestroy()
+        public void OnDestroy()
         {
             #if UNITY_EDITOR
-            if (Cell != null && !Application.isPlaying)
+            if (this.Cell != null && !Application.isPlaying)
             {
-                Cell.IsTaken = false;
-                UnityEditor.EditorUtility.SetDirty(Cell);
+                this.Cell.IsTaken = false;
+                UnityEditor.EditorUtility.SetDirty(this.Cell);
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
             }
             #endif

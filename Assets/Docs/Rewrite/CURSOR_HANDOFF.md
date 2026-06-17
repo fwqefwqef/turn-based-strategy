@@ -1,6 +1,6 @@
 # Cursor Handoff — Framework Rewrite Work Log
 
-Last updated: 2026-06-17 (grid-state adapter removed)  
+Last updated: 2026-06-17 (CustomCellGrid `: CellGrid` drop — compile green)  
 Workspace: `C:\Users\sjkim\Turn Based Strategy`  
 Prior chat transcript: `C:\Users\sjkim\.cursor\projects\c-Users-sjkim-Turn-Based-Strategy\agent-transcripts\235f9eff-6e30-49c4-8ef9-729c8c24e36a\235f9eff-6e30-49c4-8ef9-729c8c24e36a.jsonl`
 
@@ -436,7 +436,10 @@ CustomCellGridState*               BoardState* (skeletal)
 CustomMoveAbility, etc.            BattleAction* (partial)
 ```
 
-Sync direction today: **framework → runtime** via `SyncMirroredRuntimeNow()` / lifecycle hooks in `CustomCellGrid.RuntimeMirror.cs` and `CustomUnit.RuntimeMirror.cs`.
+Sync direction today: **bidirectional with battle-aware routing** in `CustomUnit.RuntimeMirror.cs`:
+- **Pre-battle / deployment:** legacy → runtime via `PushLegacyStateToRuntimeMirror()`.
+- **During battle (no pending move):** runtime → legacy via `PullRuntimeStateToLegacy()` — path queries and grid mirror sync read runtime authority.
+- **Pending move preview/confirm:** legacy → runtime push until commit; `ApplyLegacySyncFromRuntimeMoveCommit()` pulls cell/MP after runtime confirms.
 
 ### Movement path direction
 
@@ -478,7 +481,7 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 
 | Item | Status |
 |------|--------|
-| Compiles cleanly | Verify in Unity after this session |
+| Compiles cleanly | **Yes** (`dotnet build com.windy.srpg.game.csproj`, 0 errors) |
 | Reachable parity | **MATCH** (proven) |
 | Movement animation flip | **Implemented + smoke-tested OK** |
 | Runtime pending move + input routing | **Implemented by Codex; gated behind toggle (Cursor fix)** |
@@ -501,9 +504,10 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | Deferred destroy queue | **Implemented** |
 | Counterattack EXP + AI turn stall | **Implemented + smoke-tested OK** |
 | Input/turn-loop flip | **Human scene input authority on runtime board** (framework states legacy-only when toggle ON) |
-| Cell collapse | **Explicitly deferred** |
+| Units `: Unit` drop | **Smoke-tested OK** |
+| Abilities on `BattleAction` | **Done** — `CustomAbility : BattleAction` (never inherited framework `Ability`); turn/destroy hooks route via `CustomUnit.GetBattleActions()` |
 
-**Next action:** Smoke-test grid-state routing (human select/move, AI turn, end turn, pre-battle deploy). Next slice: unit inheritance (`CustomUnit : Unit`).
+**Next action:** Smoke-test grid host slice (battle init, deploy, turns, win/lose). Cells prefab collapse remains deferred.
 
 ---
 
@@ -517,18 +521,36 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | Battle start | `StartBattleViaRuntimeBoard` + `BeginBattleFromHost(refreshSceneCollections: false)` | `CustomCellGrid.BattleBootstrap.cs`, `BattleBoard.cs` |
 | AI turn fix | `SelectRuntimeUnits` uses `board.CurrentPlayerId`; kick after legacy sync | `CustomAiPlayer.cs` |
 | **Grid state adapter removed** | Direct dispatch to `currentCustomState`; `CustomCellGridEndTurnRouter` for `EndTurn` only | `CustomCellGrid.GridInput.cs`, `CustomCellGridState.cs`, `CellGrid.cs` |
+| **Unit turn-start (partial)** | Runtime `BeginTurn` authoritative; legacy hooks via `ApplyLegacyTurnStartFromRuntime`; `syncUnitTurnHooks:false` on routed transitions | `CustomCellGrid.UnitSync.cs`, `CustomUnit.RuntimeMirror.cs`, `CellGrid.cs`, `BattleUnit.cs` |
+| **Unit cell/MP pull (battle)** | `SyncMirroredRuntimeNow` pulls from runtime when `IsBattleStarted` and no pending move; `ApplyLegacySyncFromRuntimeMoveCommit` consolidates post-commit legacy sync | `CustomUnit.RuntimeMirror.cs`, `CustomUnit.cs`, `CustomCellGrid.cs` |
+| **Unit turn-end (game-owned)** | End-turn unit hooks route through `GetCurrentPlayerCustomUnits()`; removed framework `UnitState` shim (`CompatibilityUnitState`) | `CustomCellGrid.UnitSync.cs`, `CustomUnit.cs` |
+| **Unit `: Unit` drop** | `CustomUnit : MonoBehaviour, IBattleUnit`; thin `FrameworkUnitAnchor : Unit` on same GO for `CellGrid.Units` / `Cell.CurrentUnits`; game-owned Unit surface in `CustomUnit.LegacyUnitSurface.cs`; `CustomCellGrid.AddUnit` override registers anchor | `CustomUnit.cs`, `FrameworkUnitAnchor.cs`, `CustomUnit.LegacyUnitSurface.cs`, `CustomUnit.FrameworkBridge.cs`, `CustomCellGrid.UnitRegistry.cs`, `CellGrid.cs`, `Unit.cs` |
+| **Turn-state mirror fix** | Inactive-side units no longer pull `Finished` grey from runtime mirror; only current player syncs acting-state visuals | `CustomUnit.RuntimeMirror.cs` |
+| **Action notification routing** | `CustomCellGrid` overrides `NotifyTurnStarted/Ended/OwnerDestroyed` to call `CustomUnit.GetBattleActions()`; fixed `PrepareRuntimeTurnStartForPlan` to resolve `BattleUnit` → `CustomUnit` | `CustomCellGrid.ActionSync.cs`, `CustomCellGrid.UnitSync.cs`, `CellGrid.cs` |
+| **Grid `: CellGrid` drop** | `CustomCellGrid : MonoBehaviour, IBattleBoard`; `FrameworkCellGridAnchor : CellGrid` on same GO for registries, initialize, turn transitions; game-owned `InitializeBattleScene()` | `CustomCellGrid.LegacyGridBridge.cs`, `FrameworkCellGridAnchor.cs`, `CellGrid.cs` |
 
-### Smoke test required before unit slice
+### Smoke test required (CustomUnit `: Unit` drop)
 
-1. Human select → move → pending confirm → attack/skill menus
-2. End turn → AI moves → human turn returns
-3. Pre-battle deploy → start battle
-4. Right-click deselect / pending-move cancel
+1. Battle start + deployment — units register, occupy cells, win/lose still works
+2. Human turn — select unit, move (pending confirm + commit), attack menu, deselect
+3. AI turn — move + attack; turn handoff back to human
+4. Unit hover / inspect UI (uses `CustomUnit.UnitClicked` / `UnitHighlighted`)
+5. Cell occupancy — pathfinding, displacement, obstructable tiles
+6. End turn — MP refresh, finished-unit visuals, buff turn hooks
+7. Unit death — removal from grid registry and occupancy lists
+
+### Smoke test required (turn-end / turn-state slice — prior)
+
+1. End turn — outgoing units show finished/gray state; pending moves cancel cleanly
+2. New turn — MP resets, friendly tint returns, buff/skill turn-start hooks fire
+3. AI turn end → human turn start (both players)
+4. Unit select/deselect visuals (selected tint, friendly tint) unchanged
+5. Battle start first-turn MP/state still correct
 
 ### Still anchored on framework
 
-- `CustomCellGrid : CellGrid` — `Initialize()`, `Units`/`Cells`, `CommitTurnTransition`, `GameFinished`
-- `CustomUnit : Unit`, `CustomSquare : Square`, `TbsFramework.Cells.Cell` references (~25 scripts)
+- `CustomCellGrid : MonoBehaviour` + `FrameworkCellGridAnchor : CellGrid` — game-owned scene host; anchor is registry/turn token only
+- `CustomUnit : MonoBehaviour` + `FrameworkUnitAnchor : Unit` — game-owned Unit fields/events; anchor is registry token only
 - Assembly `com.windy.srpg.game` → `com.crookedhead.tbsf`
 
 ---
@@ -542,10 +564,10 @@ Goal: remove `Assets/TBS Framework` from the publishable project. The private wo
 | Anchor | Game type | Runtime replacement | Status |
 |--------|-----------|---------------------|--------|
 | Turn loop / end turn | `CellGrid.EndTurn`, `CommitTurnTransition` | `BattleBoard.EndCurrentTurn` | **Done** — runtime kicks; legacy sync skips duplicate kick |
-| Grid board | `CustomCellGrid : CellGrid` | `BattleBoard` + thin scene host | Bridge |
-| Units | `CustomUnit : Unit` | `BattleUnit` mirror on same GO | Bridge |
+| Grid board | `CustomCellGrid : MonoBehaviour` + `FrameworkCellGridAnchor : CellGrid` | `BattleBoard` + thin scene host | **Partial** — `: CellGrid` inheritance dropped (compile green); anchor keeps registries + turn transitions |
+| Units | `FrameworkUnitAnchor : Unit` (registry token) + `CustomUnit : MonoBehaviour` | `BattleUnit` mirror on same GO | **Done (smoke-tested)** — `: Unit` inheritance dropped; runtime owns turn hooks + cell/MP pull |
 | Cells | `CustomSquare : Square` | `RuntimeSampleSquareCell : BoardCell` | Dual prefab mirror |
-| Abilities | `CustomAbility : Ability` | `BattleAction` | Partial |
+| Abilities | `CustomAbility : BattleAction` | `BattleAction` / `IBattleAction` | **Done** — no framework `Ability` inheritance; grid notifies via `GetBattleActions()` |
 | Grid states | `LegacyCustomCellGridStateAdapter : CellGridState` | `BoardState*` + direct `CustomCellGridState` dispatch | **Done** — adapter removed; end-turn router only |
 | Lifecycle | `Initialize`, `StartGame` | Game-owned bootstrap | **Partial** — battle start runtime-led; `Initialize()` still framework |
 
@@ -554,11 +576,11 @@ Goal: remove `Assets/TBS Framework` from the publishable project. The private wo
 1. ~~**Turn loop**~~ — **Done** (smoke-tested).
 2. ~~**Battle start**~~ — **Done** (smoke-tested).
 3. ~~**Grid states**~~ — **Done** — adapter removed; smoke-test before unit slice.
-4. **Units** — stop inheriting `Unit`; move turn-state/MP/cell assignment fully to `BattleUnit` with legacy sync one-way.
-5. **Cells** — drop `SampleSquare`/`CustomSquare` from prefabs; use `BoardCell` only (Phase 10 scene rewire).
-6. **Abilities** — drop `Ability` base; actions implement `BattleAction` only.
-7. **Delete `CustomCellGrid : CellGrid`** — scene host is `BattleBoard` + small `BattleSceneController` MonoBehaviour.
-8. **Phase 10–13** — scene/prefab rewire, namespace cleanup, publication audit.
+4. ~~**Units**~~ — **Done (smoke-tested)** — `: Unit` drop; `FrameworkUnitAnchor` keeps registries; turn-state mirror fix.
+5. ~~**Abilities**~~ — **Done** — already `BattleAction`-only; action notification routing via `CustomCellGrid.ActionSync`.
+7. ~~**Delete `CustomCellGrid : CellGrid`**~~ — **`: CellGrid` drop done (compile green; smoke test pending)** — `FrameworkCellGridAnchor` keeps framework registries.
+8. **Cells** — drop `SampleSquare`/`CustomSquare` from prefabs; use `BoardCell` only (Phase 10 scene rewire). **Deferred until cells slice.**
+9. **Phase 10–13** — scene/prefab rewire, namespace cleanup, publication audit.
 
 ### Do not do yet
 

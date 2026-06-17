@@ -41,9 +41,9 @@ namespace Windy.Srpg.Game.Grid
                     continue;
                 }
 
-                if (!unit.Cell.CurrentUnits.Contains(unit))
+                if (!unit.Cell.CurrentUnits.Contains(unit.LegacyUnit))
                 {
-                    unit.Cell.CurrentUnits.Add(unit);
+                    unit.Cell.CurrentUnits.Add(unit.LegacyUnit);
                 }
 
                 if (unit.Obstructable)

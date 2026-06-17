@@ -41,13 +41,7 @@ namespace Windy.Srpg.Game.Abilities
 
         public override void OnUnitClicked(CustomUnit unit, CustomCellGrid cellGrid)
         {
-            if (CustomUnitRef.IsUnitAttackable(unit, CustomUnitRef.Cell))
-            {
-                UnitToAttack = unit;
-                UnitToAttackID = unit.UnitID;
-                StartCoroutine(HumanExecute(cellGrid));
-            }
-            else if (cellGrid != null
+            if (cellGrid != null
                 && cellGrid.GetCurrentPlayerCustomUnits().Contains(unit)
                 && !unit.IsFinishedForTurn)
             {

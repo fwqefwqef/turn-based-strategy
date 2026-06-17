@@ -3975,20 +3975,63 @@ namespace Windy.Srpg.Game.Abilities
             {
                 RestoreReachableDisplay(cellGrid);
                 currentPath = UnitReference.FindPath(ResolveGridCells(cellGrid), cell);
-                foreach (var c in currentPath)
-                {
-                    MarkPathCell(c, cellGrid);
-                }
+                MarkCurrentPath(cellGrid);
             }
         }
+
         protected override void OnCellDeselected(Cell cell, CustomCellGrid cellGrid)
         {
             RefreshAvailableDestinationsIfNeeded(cellGrid);
 
+            ClearCurrentPathHighlights(cellGrid);
+            currentPath = null;
+
             if (UnitReference.CanStartActionThisTurn && availableDestinations.Contains(cell))
             {
                 RestoreReachableDisplay(cellGrid);
-                currentPath = null;
+            }
+        }
+
+        private void MarkCurrentPath(CustomCellGrid cellGrid)
+        {
+            Cell originCell = UnitReference?.Cell;
+            if (originCell != null)
+            {
+                ClearCellMark(originCell, cellGrid);
+            }
+
+            if (currentPath == null)
+            {
+                return;
+            }
+
+            foreach (var pathCell in currentPath)
+            {
+                if (pathCell == null || pathCell == originCell)
+                {
+                    continue;
+                }
+
+                MarkPathCell(pathCell, cellGrid);
+            }
+        }
+
+        private void ClearCurrentPathHighlights(CustomCellGrid cellGrid)
+        {
+            if (currentPath == null)
+            {
+                return;
+            }
+
+            Cell originCell = UnitReference?.Cell;
+            foreach (var pathCell in currentPath)
+            {
+                if (pathCell == null || pathCell == originCell)
+                {
+                    continue;
+                }
+
+                ClearCellMark(pathCell, cellGrid);
             }
         }
 

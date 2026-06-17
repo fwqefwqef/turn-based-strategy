@@ -7,7 +7,7 @@ namespace Windy.Srpg.Game.Grid
     {
         public void RequestFrameworkInitializeAndStart()
         {
-            Initialize();
+            InitializeBattleScene();
             StartBattleViaRuntimeBoard();
         }
 
@@ -24,7 +24,7 @@ namespace Windy.Srpg.Game.Grid
             ResolveRuntimeBoard();
             if (runtimeBoard == null)
             {
-                StartGame();
+                StartLegacyBattle();
                 return;
             }
 
@@ -36,13 +36,16 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            ApplyLegacyStateFromRuntime(() => SyncBattleStartFromPlan(plan, kickPlayerPlay: false));
+            ApplyLegacyStateFromRuntime(() => SyncBattleStartFromPlan(plan, kickPlayerPlay: false, syncUnitTurnHooks: false));
+            PrepareRuntimeTurnStartForPlan(plan);
             runtimeBoard.BeginBattleFromHost(
                 plan,
-                kickFirstTurn: true,
+                kickFirstTurn: false,
                 refreshSceneCollections: false);
+            ApplyRuntimeTurnStartToLegacyPlayableUnits();
             SyncRuntimeMirrorNow();
             SyncRuntimeSceneInputGate();
+            runtimeBoard.KickCurrentTurnPlay();
             Debug.Log("Game started via runtime board");
         }
     }

@@ -99,21 +99,26 @@ namespace Windy.Srpg.Game.Abilities
 
         public void OnUnitClicked(CustomUnit unit, CellGrid cellGrid)
         {
-            OnUnitClicked(unit, cellGrid as CustomCellGrid);
+            OnUnitClicked(unit, ResolveHostCellGrid(cellGrid));
         }
 
         public virtual void OnUnitClicked(CustomUnit unit, CustomCellGrid cellGrid) { }
 
         public void OnUnitHighlighted(CustomUnit unit, CellGrid cellGrid)
         {
-            OnUnitHighlighted(unit, cellGrid as CustomCellGrid);
+            OnUnitHighlighted(unit, ResolveHostCellGrid(cellGrid));
         }
 
         public virtual void OnUnitHighlighted(CustomUnit unit, CustomCellGrid cellGrid) { }
 
         public void OnUnitDehighlighted(CustomUnit unit, CellGrid cellGrid)
         {
-            OnUnitDehighlighted(unit, cellGrid as CustomCellGrid);
+            OnUnitDehighlighted(unit, ResolveHostCellGrid(cellGrid));
+        }
+
+        private static CustomCellGrid ResolveHostCellGrid(CellGrid cellGrid)
+        {
+            return cellGrid != null ? cellGrid.GetComponent<CustomCellGrid>() : null;
         }
 
         public virtual void OnUnitDehighlighted(CustomUnit unit, CustomCellGrid cellGrid) { }

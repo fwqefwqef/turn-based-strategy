@@ -24,13 +24,10 @@ namespace Windy.Srpg.Game.Grid
 
         private void Awake()
         {
+            EnsureLegacyGridHost();
             PrepareFriendlyDeploymentFromSave();
             ResolveRuntimeBoard();
-            GameStarted += OnGameStarted;
-            GameEnded += OnLegacyGameEnded;
-            LevelLoadingDone += OnLevelLoadingDoneInternal;
-            TurnEnded += OnTurnEnded;
-            UnitAdded += OnUnitAdded;
+            WireLegacyGridEvents();
             SubscribeToExistingCells();
         }
 
@@ -59,11 +56,7 @@ namespace Windy.Srpg.Game.Grid
         private void OnDestroy()
         {
             FlushCampaignSaveImmediate();
-            GameStarted -= OnGameStarted;
-            GameEnded -= OnLegacyGameEnded;
-            LevelLoadingDone -= OnLevelLoadingDoneInternal;
-            TurnEnded -= OnTurnEnded;
-            UnitAdded -= OnUnitAdded;
+            UnwireLegacyGridEvents();
 
             foreach (var unit in subscribedUnits)
             {
@@ -160,11 +153,15 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (defender is CustomUnit customUnit)
+            if (defender is FrameworkUnitAnchor anchor)
             {
-                customUnit.CombatDestroyed -= OnCombatDestroyed;
-                subscribedUnits.Remove(customUnit);
-                customUnit.GetBattleActions().ForEach(action => action.OnOwnerDestroyed(this));
+                CustomUnit customUnit = anchor.GetComponent<CustomUnit>();
+                if (customUnit != null)
+                {
+                    customUnit.CombatDestroyed -= OnCombatDestroyed;
+                    subscribedUnits.Remove(customUnit);
+                    customUnit.GetBattleActions().ForEach(action => action.OnOwnerDestroyed(this));
+                }
             }
             Units.Remove(defender);
             MarkRuntimeBoardDirty();

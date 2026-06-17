@@ -265,12 +265,6 @@ namespace Windy.Srpg.Game.Grid
                         break;
                     }
 
-                    if (!GetCurrentPlayerCustomUnits().Contains(clickedUnit))
-                    {
-                        ForwardUnitClickToAbilities(previouslySelectedUnit, clickedUnit);
-                        break;
-                    }
-
                     RuntimeStateTransitionDecision selectedRuntimeDecision =
                         ProcessRuntimeSelectedStateUnitClick(clickedUnit);
                     ApplyLegacyEffectsAfterRuntimeUnitClick(
@@ -422,10 +416,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (previouslySelectedUnit != null)
-            {
-                ForwardUnitClickToAbilities(previouslySelectedUnit, clickedUnit);
-            }
+            ApplyLegacyStateFromRuntime(EnterWaitingState);
         }
 
         private void ApplyLegacyEffectsAfterRuntimeCellClick(
@@ -452,20 +443,6 @@ namespace Windy.Srpg.Game.Grid
                 {
                     ForwardCellClickToAbilities(previouslySelectedUnit, (IBattleCell)legacyCell);
                 }
-            }
-        }
-
-        private void ForwardUnitClickToAbilities(CustomUnit actingUnit, CustomUnit clickedUnit)
-        {
-            if (actingUnit == null || clickedUnit == null)
-            {
-                return;
-            }
-
-            IBattleUnit battleUnit = clickedUnit;
-            foreach (Windy.Srpg.Runtime.Actions.IBattleAction action in actingUnit.GetBattleActions())
-            {
-                action?.OnUnitClicked(battleUnit, this);
             }
         }
 
@@ -752,6 +729,17 @@ namespace Windy.Srpg.Game.Grid
             SyncRuntimeMirrorNow();
         }
 
+        internal void EndUnitsForCurrentPlayerTurnViaCustomUnits()
+        {
+            if (ShouldRouteTurnLoopThroughRuntime)
+            {
+                ApplyLegacyTurnEndToCurrentPlayerCustomUnits();
+                return;
+            }
+
+            EndUnitsForCurrentPlayerTurn();
+        }
+
         internal void ProcessRuntimeRoutedEndTurn()
         {
             ResolveRuntimeBoard();
@@ -767,7 +755,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            EndUnitsForCurrentPlayerTurn();
+            EndUnitsForCurrentPlayerTurnViaCustomUnits();
 
             RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveTurn(this);
             if (plan.NextPlayer == null)
@@ -776,9 +764,10 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            SyncRuntimeMirrorNow();
+            PrepareRuntimeTurnStartForPlan(plan);
             runtimeBoard.EndCurrentTurn(kickTurnPlayerPlay: false);
-            ApplyLegacyStateFromRuntime(() => CommitTurnTransition(plan, kickPlayerPlay: false));
+            ApplyLegacyStateFromRuntime(() => CommitTurnTransition(plan, kickPlayerPlay: false, syncUnitTurnHooks: false));
+            ApplyRuntimeTurnStartToLegacyPlayableUnits();
             SyncRuntimeMirrorNow();
             runtimeBoard.KickCurrentTurnPlay();
         }

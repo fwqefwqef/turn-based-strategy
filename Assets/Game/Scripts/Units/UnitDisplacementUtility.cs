@@ -62,7 +62,7 @@ namespace Windy.Srpg.Game.Units
             bool push = true,
             bool moveUserWithTarget = false)
         {
-            return CanDisplaceRelative(user, userCell, target, targetCell, cellGrid as CustomCellGrid, distance, push, moveUserWithTarget);
+            return CanDisplaceRelative(user, userCell, target, targetCell, ResolveHostCellGrid(cellGrid), distance, push, moveUserWithTarget);
         }
 
         public static DisplacementResult TryDisplaceRelative(
@@ -92,7 +92,7 @@ namespace Windy.Srpg.Game.Units
             bool push = true,
             bool moveUserWithTarget = false)
         {
-            return TryDisplaceRelative(user, target, cellGrid as CustomCellGrid, distance, push, moveUserWithTarget);
+            return TryDisplaceRelative(user, target, ResolveHostCellGrid(cellGrid), distance, push, moveUserWithTarget);
         }
 
         private sealed class DisplacementPlan
@@ -282,13 +282,13 @@ namespace Windy.Srpg.Game.Units
 
             if (originalUserCell != null)
             {
-                originalUserCell.CurrentUnits.Remove(user);
+                originalUserCell.CurrentUnits.Remove(user.LegacyUnit);
                 RefreshCellOccupancy(originalUserCell);
             }
 
             if (originalTargetCell != null)
             {
-                originalTargetCell.CurrentUnits.Remove(target);
+                originalTargetCell.CurrentUnits.Remove(target.LegacyUnit);
                 RefreshCellOccupancy(originalTargetCell);
             }
 
@@ -297,13 +297,13 @@ namespace Windy.Srpg.Game.Units
 
             if (plan.UserCell != null)
             {
-                plan.UserCell.CurrentUnits.Add(user);
+                plan.UserCell.CurrentUnits.Add(user.LegacyUnit);
                 RefreshCellOccupancy(plan.UserCell);
             }
 
             if (plan.TargetCell != null)
             {
-                plan.TargetCell.CurrentUnits.Add(target);
+                plan.TargetCell.CurrentUnits.Add(target.LegacyUnit);
                 RefreshCellOccupancy(plan.TargetCell);
             }
 
@@ -389,6 +389,11 @@ namespace Windy.Srpg.Game.Units
             float diagonalSteps = Mathf.Min(dx, dy);
             float straightSteps = Mathf.Max(dx, dy) - diagonalSteps;
             return diagonalSteps * 1.5d + straightSteps;
+        }
+
+        private static CustomCellGrid ResolveHostCellGrid(CellGrid cellGrid)
+        {
+            return cellGrid != null ? cellGrid.GetComponent<CustomCellGrid>() : null;
         }
     }
 }

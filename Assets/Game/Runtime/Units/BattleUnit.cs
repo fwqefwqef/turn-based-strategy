@@ -174,6 +174,11 @@ namespace Windy.Srpg.Runtime.Units
             MovementPointsRemaining = Mathf.Max(0f, MovementPointsRemaining - Mathf.Max(0f, amount));
         }
 
+        public virtual void SetBaseMovementPoints(float amount)
+        {
+            baseMovementPoints = Mathf.Max(0f, amount);
+        }
+
         public virtual void SetMovementPointsRemaining(float amount)
         {
             MovementPointsRemaining = Mathf.Max(0f, amount);

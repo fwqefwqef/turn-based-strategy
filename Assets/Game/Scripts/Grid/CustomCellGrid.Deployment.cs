@@ -477,7 +477,7 @@ namespace Windy.Srpg.Game.Grid
 
             if (shouldSyncOccupancy && previousCell != null && previousCell != nextCell)
             {
-                previousCell.CurrentUnits.Remove(unit);
+                previousCell.CurrentUnits.Remove(unit.LegacyUnit);
                 RefreshCellOccupancy(previousCell);
             }
 
@@ -485,9 +485,9 @@ namespace Windy.Srpg.Game.Grid
 
             if (shouldSyncOccupancy)
             {
-                if (!nextCell.CurrentUnits.Contains(unit))
+                if (!nextCell.CurrentUnits.Contains(unit.LegacyUnit))
                 {
-                    nextCell.CurrentUnits.Add(unit);
+                    nextCell.CurrentUnits.Add(unit.LegacyUnit);
                 }
 
                 RefreshCellOccupancy(nextCell);
@@ -509,7 +509,7 @@ namespace Windy.Srpg.Game.Grid
             }
 
             Cell currentCell = unit.Cell;
-            currentCell.CurrentUnits.Remove(unit);
+            currentCell.CurrentUnits.Remove(unit.LegacyUnit);
             RefreshCellOccupancy(currentCell);
             unit.Cell = null;
             unit.ClearMirroredRuntimeCell();
