@@ -1,6 +1,6 @@
 # Cursor Handoff — Framework Rewrite Work Log
 
-Last updated: 2026-06-17 (toggle removed)  
+Last updated: 2026-06-17 (grid-state adapter removed)  
 Workspace: `C:\Users\sjkim\Turn Based Strategy`  
 Prior chat transcript: `C:\Users\sjkim\.cursor\projects\c-Users-sjkim-Turn-Based-Strategy\agent-transcripts\235f9eff-6e30-49c4-8ef9-729c8c24e36a\235f9eff-6e30-49c4-8ef9-729c8c24e36a.jsonl`
 
@@ -486,6 +486,9 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | Shadow parity (toggle on) | Movement + routing + reachable + pending attack **MATCH** (user smoke-tested) |
 | Pending attack routing | **Implemented** (acting cell, attack highlights, parity logs) |
 | End-turn runtime routing | **Implemented** (user smoke-tested OK) |
+| Turn loop runtime kick | **Implemented** — `EndCurrentTurn` owns player kick |
+| Battle start runtime routing | **Implemented** — smoke test pending |
+| Grid state lifecycle (game-owned) | **Implemented** — adapter click/`EndTurn` routing remains |
 | Combat recovery (game over / AI counter) | **Implemented** |
 | Battle outcome shadow | **Done** (user smoke-tested MATCH) |
 | Win/lose runtime routing | **Implemented + smoke-tested OK** |
@@ -500,7 +503,33 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | Input/turn-loop flip | **Human scene input authority on runtime board** (framework states legacy-only when toggle ON) |
 | Cell collapse | **Explicitly deferred** |
 
-**Next action:** Runtime turn loop now kicks player execution via `BattleBoard` first. Continue framework detachment per roadmap below.
+**Next action:** Smoke-test grid-state routing (human select/move, AI turn, end turn, pre-battle deploy). Next slice: unit inheritance (`CustomUnit : Unit`).
+
+---
+
+## Framework Detachment — Session Progress (2026-06-17)
+
+### Completed this session
+
+| Slice | Change | Files |
+|-------|--------|-------|
+| Turn loop kick | `BattleBoard.EndCurrentTurn(kick:false)` → legacy sync → `KickCurrentTurnPlay()` | `CustomCellGrid.RuntimeMirror.cs`, `BattleBoard.cs` |
+| Battle start | `StartBattleViaRuntimeBoard` + `BeginBattleFromHost(refreshSceneCollections: false)` | `CustomCellGrid.BattleBootstrap.cs`, `BattleBoard.cs` |
+| AI turn fix | `SelectRuntimeUnits` uses `board.CurrentPlayerId`; kick after legacy sync | `CustomAiPlayer.cs` |
+| **Grid state adapter removed** | Direct dispatch to `currentCustomState`; `CustomCellGridEndTurnRouter` for `EndTurn` only | `CustomCellGrid.GridInput.cs`, `CustomCellGridState.cs`, `CellGrid.cs` |
+
+### Smoke test required before unit slice
+
+1. Human select → move → pending confirm → attack/skill menus
+2. End turn → AI moves → human turn returns
+3. Pre-battle deploy → start battle
+4. Right-click deselect / pending-move cancel
+
+### Still anchored on framework
+
+- `CustomCellGrid : CellGrid` — `Initialize()`, `Units`/`Cells`, `CommitTurnTransition`, `GameFinished`
+- `CustomUnit : Unit`, `CustomSquare : Square`, `TbsFramework.Cells.Cell` references (~25 scripts)
+- Assembly `com.windy.srpg.game` → `com.crookedhead.tbsf`
 
 ---
 
@@ -512,19 +541,19 @@ Goal: remove `Assets/TBS Framework` from the publishable project. The private wo
 
 | Anchor | Game type | Runtime replacement | Status |
 |--------|-----------|---------------------|--------|
-| Turn loop / end turn | `CellGrid.EndTurn`, `CommitTurnTransition` | `BattleBoard.EndCurrentTurn` | **In progress** — runtime now kicks AI/human `PlayTurn`; legacy sync skips duplicate kick |
+| Turn loop / end turn | `CellGrid.EndTurn`, `CommitTurnTransition` | `BattleBoard.EndCurrentTurn` | **Done** — runtime kicks; legacy sync skips duplicate kick |
 | Grid board | `CustomCellGrid : CellGrid` | `BattleBoard` + thin scene host | Bridge |
 | Units | `CustomUnit : Unit` | `BattleUnit` mirror on same GO | Bridge |
 | Cells | `CustomSquare : Square` | `RuntimeSampleSquareCell : BoardCell` | Dual prefab mirror |
 | Abilities | `CustomAbility : Ability` | `BattleAction` | Partial |
-| Grid states | `LegacyCustomCellGridStateAdapter : CellGridState` | `BoardState*` | Dual (runtime authoritative for human input) |
-| Lifecycle | `Initialize`, `StartGame` | Game-owned bootstrap | Still framework |
+| Grid states | `LegacyCustomCellGridStateAdapter : CellGridState` | `BoardState*` + direct `CustomCellGridState` dispatch | **Done** — adapter removed; end-turn router only |
+| Lifecycle | `Initialize`, `StartGame` | Game-owned bootstrap | **Partial** — battle start runtime-led; `Initialize()` still framework |
 
 ### Recommended slice order
 
-1. **Turn loop** — runtime `EndCurrentTurn` owns player kick; game-owned sync for player index + unit hooks (current slice).
-2. **Battle start** — replace `RequestFrameworkInitializeAndStart` / `StartGame` with game-owned bootstrap on `BattleBoard`.
-3. **Grid states** — stop assigning `LegacyCustomCellGridStateAdapter`; manage `CustomCellGridState` directly; route cell clicks through runtime cells only.
+1. ~~**Turn loop**~~ — **Done** (smoke-tested).
+2. ~~**Battle start**~~ — **Done** (smoke-tested).
+3. ~~**Grid states**~~ — **Done** — adapter removed; smoke-test before unit slice.
 4. **Units** — stop inheriting `Unit`; move turn-state/MP/cell assignment fully to `BattleUnit` with legacy sync one-way.
 5. **Cells** — drop `SampleSquare`/`CustomSquare` from prefabs; use `BoardCell` only (Phase 10 scene rewire).
 6. **Abilities** — drop `Ability` base; actions implement `BattleAction` only.
@@ -535,4 +564,4 @@ Goal: remove `Assets/TBS Framework` from the publishable project. The private wo
 
 - Delete `Assets/TBS Framework` folder (still needed for `Unit`, `Cell`, `Ability` bases and `Initialize`).
 - Collapse cell identity on prefabs without smoke test.
-- Big-bang remove `LegacyCustomCellGridStateAdapter` before battle-start path is game-owned.
+- Big-bang remove `LegacyCustomCellGridStateAdapter` before battle-start path is game-owned. **Done.**

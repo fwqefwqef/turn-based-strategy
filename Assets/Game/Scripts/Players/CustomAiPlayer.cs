@@ -201,8 +201,9 @@ namespace Windy.Srpg.Game.Players
                 return AiTurnOrdering.OrderByMovementFreedom(board.GetCurrentPlayerUnits());
             }
 
+            List<CustomUnit> playerUnits = cellGrid.GetUnitsForPlayer(board.CurrentPlayerId);
             return selector
-                .SelectNext(() => cellGrid.GetCurrentPlayerCustomUnits().ToList(), cellGrid)
+                .SelectNext(() => playerUnits, cellGrid)
                 .Where(unit => unit != null)
                 .Select(unit => unit.GetComponent<BattleUnit>())
                 .Where(unit => unit != null)

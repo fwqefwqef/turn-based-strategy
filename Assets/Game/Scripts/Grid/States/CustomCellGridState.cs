@@ -1,6 +1,5 @@
 using TbsFramework.Cells;
 using TbsFramework.Grid;
-using TbsFramework.Units;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Board;
 using Windy.Srpg.Runtime.Units;
@@ -102,73 +101,36 @@ namespace Windy.Srpg.Game.Grid.States
         }
     }
 
-    internal sealed class LegacyCustomCellGridStateAdapter : CellGrid.CellGridState, ICustomRightClickHandler
+    internal sealed class CustomCellGridEndTurnRouter : CellGrid.CellGridState
     {
-        private readonly CustomCellGridState state;
+        private readonly CustomCellGrid grid;
 
-        public LegacyCustomCellGridStateAdapter(CustomCellGrid cellGrid, CustomCellGridState state) : base(cellGrid)
+        public CustomCellGridEndTurnRouter(CustomCellGrid grid) : base(grid)
         {
-            this.state = state;
+            this.grid = grid;
         }
 
-        public override CellGrid.CellGridState MakeTransition(CellGrid.CellGridState nextState)
+        public override void OnStateEnter()
         {
-            return nextState;
         }
 
-        public override void OnUnitClicked(Unit unit)
+        public override void OnStateExit()
         {
-            state?.OnUnitClicked(unit as IBattleUnit);
-        }
-
-        public override void OnUnitHighlighted(Unit unit)
-        {
-            state?.OnUnitHighlighted(unit as IBattleUnit);
-        }
-
-        public override void OnUnitDehighlighted(Unit unit)
-        {
-            state?.OnUnitDehighlighted(unit as IBattleUnit);
-        }
-
-        public override void OnCellDeselected(Cell cell)
-        {
-            state?.OnCellDeselected(cell as IBattleCell);
-        }
-
-        public override void OnCellSelected(Cell cell)
-        {
-            state?.OnCellSelected(cell as IBattleCell);
-        }
-
-        public override void OnCellClicked(Cell cell)
-        {
-            state?.OnCellClicked(cell as IBattleCell);
         }
 
         public override void EndTurn(bool isNetworkInvoked)
         {
-            if (state?.BlocksEndTurn == true)
+            if (grid.CurrentCustomState?.BlocksEndTurn == true)
+            {
+                return;
+            }
+
+            if (grid.TryRouteEndTurnThroughRuntime())
             {
                 return;
             }
 
             base.EndTurn(isNetworkInvoked);
-        }
-
-        public override void OnStateEnter()
-        {
-            state?.OnStateEnter();
-        }
-
-        public override void OnStateExit()
-        {
-            state?.OnStateExit();
-        }
-
-        public void OnRightClick()
-        {
-            state?.OnRightClick();
         }
     }
 }

@@ -76,20 +76,45 @@ namespace Windy.Srpg.Runtime.Board
 
         public virtual void StartBattle()
         {
-            RefreshSceneCollections();
-            WireCellEvents();
-            WireUnitEvents();
+            RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(this);
+            BeginBattleFromHost(plan, kickFirstTurn: true, enableSceneInput: true, refreshSceneCollections: true);
+        }
+
+        /// <summary>
+        /// Host-driven battle start: init players, set first player, kick first turn.
+        /// When refreshSceneCollections is false the host must already have mirrored units/players
+        /// (e.g. via SetMirroredCollections) because scene units may live outside this transform.
+        /// </summary>
+        public virtual void BeginBattleFromHost(
+            RoundRobinTurnPlan startPlan,
+            bool kickFirstTurn = true,
+            bool enableSceneInput = false,
+            bool refreshSceneCollections = false)
+        {
+            if (refreshSceneCollections)
+            {
+                RefreshSceneCollections();
+            }
+            else
+            {
+                WireCellEvents();
+                WireUnitEvents();
+            }
+
             battleStarted = true;
-            sceneInputEnabled = true;
+            if (enableSceneInput)
+            {
+                sceneInputEnabled = true;
+            }
+
             foreach (var player in players.OfType<IBattleTurnPlayer>())
             {
                 player.InitializeBoard(this);
             }
 
-            RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(this);
-            SetCurrentPlayerById(plan.NextPlayer?.PlayerId ?? -1);
+            SetCurrentPlayerById(startPlan.NextPlayer?.PlayerId ?? -1);
             BattleStarted?.Invoke(this);
-            BeginCurrentTurn();
+            BeginCurrentTurn(kickFirstTurn);
         }
 
         public virtual void SetState(BoardState nextState)
@@ -182,6 +207,28 @@ namespace Windy.Srpg.Runtime.Board
         public virtual void RequestAiTurn()
         {
             AiTurnRequested?.Invoke();
+        }
+
+        /// <summary>
+        /// Starts the active player's turn execution after legacy board sync has caught up.
+        /// </summary>
+        public virtual void KickCurrentTurnPlay()
+        {
+            var player = CurrentPlayer;
+            if (player == null)
+            {
+                return;
+            }
+
+            if (!player.IsHumanControlled)
+            {
+                RequestAiTurn();
+            }
+
+            if (player is IBattleTurnPlayer turnPlayer)
+            {
+                turnPlayer.PlayTurn(this);
+            }
         }
 
         public virtual void ProcessUnitClick(BattleUnit unit)

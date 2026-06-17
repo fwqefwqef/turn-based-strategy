@@ -489,17 +489,10 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (IsLegacyWaitingForInputState(cellGridState))
+            if (cellGridState != null && cellGridState.GetType().Name == "CellGridStateWaitingForInput")
             {
                 EnterWaitingState();
             }
-        }
-
-        private static bool IsLegacyWaitingForInputState(object state)
-        {
-            return state != null
-                && state.GetType() != typeof(LegacyCustomCellGridStateAdapter)
-                && state.GetType().Name == "CellGridStateWaitingForInput";
         }
 
         private void ResolveRuntimeBoard()
@@ -784,8 +777,10 @@ namespace Windy.Srpg.Game.Grid
             }
 
             SyncRuntimeMirrorNow();
-            runtimeBoard.EndCurrentTurn(kickTurnPlayerPlay: true);
+            runtimeBoard.EndCurrentTurn(kickTurnPlayerPlay: false);
             ApplyLegacyStateFromRuntime(() => CommitTurnTransition(plan, kickPlayerPlay: false));
+            SyncRuntimeMirrorNow();
+            runtimeBoard.KickCurrentTurnPlay();
         }
 
         internal Cell ResolveRuntimeActingCell(CustomUnit unit)

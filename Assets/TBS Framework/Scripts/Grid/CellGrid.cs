@@ -203,28 +203,88 @@ namespace TbsFramework.Grid
 
         private void OnCellDehighlighted(object sender, EventArgs e)
         {
-            cellGridState.OnCellDeselected(sender as Cell);
+            DispatchCellDeselected(sender as Cell);
         }
         private void OnCellHighlighted(object sender, EventArgs e)
         {
-            cellGridState.OnCellSelected(sender as Cell);
+            DispatchCellSelected(sender as Cell);
         }
         private void OnCellClicked(object sender, EventArgs e)
         {
-            cellGridState.OnCellClicked(sender as Cell);
+            DispatchCellClicked(sender as Cell);
         }
 
         private void OnUnitClicked(object sender, EventArgs e)
         {
-            cellGridState.OnUnitClicked(sender as Unit);
+            DispatchUnitClicked(sender as Unit);
         }
         private void OnUnitHighlighted(object sender, EventArgs e)
         {
-            cellGridState.OnUnitHighlighted(sender as Unit);
+            DispatchUnitHighlighted(sender as Unit);
         }
         private void OnUnitDehighlighted(object sender, EventArgs e)
         {
-            cellGridState.OnUnitDehighlighted(sender as Unit);
+            DispatchUnitDehighlighted(sender as Unit);
+        }
+
+        protected virtual void DispatchCellDeselected(Cell cell)
+        {
+            if (cellGridState == null || cell == null)
+            {
+                return;
+            }
+
+            cellGridState.OnCellDeselected(cell);
+        }
+
+        protected virtual void DispatchCellSelected(Cell cell)
+        {
+            if (cellGridState == null || cell == null)
+            {
+                return;
+            }
+
+            cellGridState.OnCellSelected(cell);
+        }
+
+        protected virtual void DispatchCellClicked(Cell cell)
+        {
+            if (cellGridState == null || cell == null)
+            {
+                return;
+            }
+
+            cellGridState.OnCellClicked(cell);
+        }
+
+        protected virtual void DispatchUnitClicked(Unit unit)
+        {
+            if (cellGridState == null || unit == null)
+            {
+                return;
+            }
+
+            cellGridState.OnUnitClicked(unit);
+        }
+
+        protected virtual void DispatchUnitHighlighted(Unit unit)
+        {
+            if (cellGridState == null || unit == null)
+            {
+                return;
+            }
+
+            cellGridState.OnUnitHighlighted(unit);
+        }
+
+        protected virtual void DispatchUnitDehighlighted(Unit unit)
+        {
+            if (cellGridState == null || unit == null)
+            {
+                return;
+            }
+
+            cellGridState.OnUnitDehighlighted(unit);
         }
 
         private void OnUnitDestroyed(object sender, AttackEventArgs e)
@@ -326,7 +386,16 @@ namespace TbsFramework.Grid
         /// </summary>
         public void StartGame()
         {
-            RoundRobinTurnPlan plan = ResolveStartPlan();
+            SyncBattleStartFromPlan(ResolveStartPlan(), kickPlayerPlay: true);
+            Debug.Log("Game started");
+        }
+
+        /// <summary>
+        /// Applies legacy battle-start sync (player index, GameStarted, unit turn hooks).
+        /// When runtime already kicked the first turn, pass kickPlayerPlay: false.
+        /// </summary>
+        protected void SyncBattleStartFromPlan(RoundRobinTurnPlan plan, bool kickPlayerPlay = true)
+        {
             PlayableUnits = CreatePlayableUnitsAccessor(plan);
 
             if (plan.NextPlayer == null)
@@ -344,6 +413,12 @@ namespace TbsFramework.Grid
                 NotifyTurnStarted(u);
                 u.OnTurnStart();
             });
+
+            if (!kickPlayerPlay)
+            {
+                return;
+            }
+
             if (CurrentRuntimePlayer != null && this is IBattleBoard battleBoard)
             {
                 CurrentRuntimePlayer.PlayTurn(battleBoard);
@@ -352,7 +427,6 @@ namespace TbsFramework.Grid
             {
                 CurrentPlayer?.Play(this);
             }
-            Debug.Log("Game started");
         }
 
         public void EndTurn(bool isNetworkInvoked=false)

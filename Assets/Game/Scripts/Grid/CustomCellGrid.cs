@@ -134,16 +134,6 @@ namespace Windy.Srpg.Game.Grid
             Initialize();
         }
 
-        public void RequestFrameworkInitializeAndStart()
-        {
-            InitializeAndStart();
-        }
-
-        public void RequestFrameworkBattleStart()
-        {
-            StartGame();
-        }
-
         public Cell FindCellByOffset(Vector2 offsetCoord)
         {
             return GetAllCells().FirstOrDefault(cell => cell.OffsetCoord == offsetCoord);
@@ -180,12 +170,20 @@ namespace Windy.Srpg.Game.Grid
 
         public void SetState(CustomCellGridState state)
         {
+            if (ReferenceEquals(currentCustomState, state))
+            {
+                return;
+            }
+
+            currentCustomState?.OnStateExit();
             currentCustomState = state;
-            cellGridState = new LegacyCustomCellGridStateAdapter(this, state);
             if (!suppressLegacyToRuntimeStateMirror)
             {
                 MirrorLegacyStateToRuntimeBoard(state);
             }
+
+            currentCustomState?.OnStateEnter();
+            InstallFrameworkInputRouter();
         }
 
         public void EnterWaitingState()
