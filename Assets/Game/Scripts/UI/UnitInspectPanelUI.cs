@@ -1101,7 +1101,7 @@ namespace Windy.Srpg.Game.UI
                     return true;
                 }
 
-                CustomSquare hitCell = hit.collider.GetComponentInParent<CustomSquare>();
+                BattleSquareCell hitCell = hit.collider.GetComponentInParent<BattleSquareCell>();
                 if (hitCell?.LegacyCell?.CurrentUnits == null)
                 {
                     continue;

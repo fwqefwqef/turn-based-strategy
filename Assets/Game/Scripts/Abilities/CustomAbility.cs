@@ -201,12 +201,7 @@ namespace Windy.Srpg.Game.Abilities
 
         private static Cell ResolveRegistryCellFromBattleCell(IBattleCell cell)
         {
-            if (cell is CustomSquare square)
-            {
-                return square.LegacyCell;
-            }
-
-            return cell as Cell;
+            return CustomCellGrid.ResolveRegistryCellFromBattleCell(cell);
         }
 
         public override void OnUnitClicked(IBattleUnit unit, IBattleBoard board)

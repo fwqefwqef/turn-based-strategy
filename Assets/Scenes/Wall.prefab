@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 5636828509973431517}
   - component: {fileID: 7312266316620190414}
-  - component: {fileID: 4945065386468622561}
   - component: {fileID: 3305875738382126914}
-  - component: {fileID: 9001000000000000011}
+  - component: {fileID: 9001000000000000013}
+  - component: {fileID: 9001000000000000014}
   - component: {fileID: 9001000000000000012}
   m_Layer: 0
   m_Name: Wall
@@ -97,30 +97,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!114 &4945065386468622561
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 707191654263235427}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 194ec018fabb2c34b9ddd18e3fa16236, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _offsetCoord: {x: 0, y: 0}
-  IsTaken: 1
-  MovementCost: 1
-  MarkAsAttackPreviewFn: []
-  MarkAsTradePreviewFn: []
-  MarkAsAnyPreviewFn: []
-  baseRenderer: {fileID: 0}
-  highlightOverlayRenderer: {fileID: 0}
-  topBorderRenderer: {fileID: 0}
-  rightBorderRenderer: {fileID: 0}
-  bottomBorderRenderer: {fileID: 0}
-  leftBorderRenderer: {fileID: 0}
 --- !u!65 &3305875738382126914
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -142,7 +118,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 0.2}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &9001000000000000011
+--- !u!114 &9001000000000000013
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -151,7 +127,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 707191654263235427}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8573350a99924bf4a9704b107f2aabe6, type: 3}
+  m_Script: {fileID: 11500000, guid: c47a2f8e1b0943d6a5f7e9d0c8b6a4f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   coordinates: {x: 0, y: 0}
@@ -161,6 +137,25 @@ MonoBehaviour:
   explicitNeighbours: []
   highlighters:
   - {fileID: 9001000000000000012}
+--- !u!114 &9001000000000000014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 707191654263235427}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f81fab9f299a19418ca8a4e1cd4bdb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _offsetCoord: {x: 0, y: 0}
+  MarkAsReachableFn: []
+  MarkAsPathFn: []
+  MarkAsHighlightedFn: []
+  UnMarkFn: []
+  IsTaken: 1
+  MovementCost: 1
 --- !u!114 &9001000000000000012
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -175,6 +170,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   baseRenderer: {fileID: 7312266316620190414}
   overlayRenderer: {fileID: 0}
+  topBorderRenderer: {fileID: 0}
+  rightBorderRenderer: {fileID: 0}
+  bottomBorderRenderer: {fileID: 0}
+  leftBorderRenderer: {fileID: 0}
 --- !u!1 &4299448289120758759
 GameObject:
   m_ObjectHideFlags: 0

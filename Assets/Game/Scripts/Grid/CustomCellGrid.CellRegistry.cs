@@ -7,21 +7,30 @@ namespace Windy.Srpg.Game.Grid
 {
     public partial class CustomCellGrid
     {
-        internal static CustomSquare ResolveCustomSquareFromRegistryCell(Cell cell)
+        internal static BattleSquareCell ResolveBattleSquareFromRegistryCell(Cell cell)
         {
-            return cell != null ? cell.GetComponent<CustomSquare>() : null;
+            return cell != null ? cell.GetComponent<BattleSquareCell>() : null;
         }
 
         internal static IBattleCell ResolveBattleCellFromRegistryCell(Cell cell)
         {
-            return ResolveCustomSquareFromRegistryCell(cell);
+            return ResolveBattleSquareFromRegistryCell(cell);
         }
 
         internal static Cell ResolveRegistryCellFromBattleCell(IBattleCell cell)
         {
-            if (cell is CustomSquare square)
+            if (cell is BattleSquareCell tile)
             {
-                return square.LegacyCell;
+                return tile.LegacyCell;
+            }
+
+            if (cell is BoardCell boardCell)
+            {
+                FrameworkSquareAnchor anchor = boardCell.GetComponent<FrameworkSquareAnchor>();
+                if (anchor != null)
+                {
+                    return anchor;
+                }
             }
 
             return cell as Cell;
@@ -29,14 +38,14 @@ namespace Windy.Srpg.Game.Grid
 
         private void EnsureSceneCellAnchors()
         {
-            foreach (CustomSquare square in GetComponentsInChildren<CustomSquare>(true))
+            foreach (BattleSquareCell tile in GetComponentsInChildren<BattleSquareCell>(true))
             {
-                if (square == null)
+                if (tile == null)
                 {
                     continue;
                 }
 
-                square.EnsureFrameworkSquareAnchor();
+                tile.EnsureFrameworkSquareAnchor();
             }
 
             EnsureDeploymentSlotCellBindings();
@@ -44,10 +53,10 @@ namespace Windy.Srpg.Game.Grid
 
         private void EnsureDeploymentSlotCellBindings()
         {
-            CustomSquare[] squares = GetComponentsInChildren<CustomSquare>(true);
+            BattleSquareCell[] tiles = GetComponentsInChildren<BattleSquareCell>(true);
             foreach (DeploymentSlot slot in GetDeploymentSlots())
             {
-                slot?.EnsureRegistryCellBinding(squares);
+                slot?.EnsureRegistryCellBinding(tiles);
             }
         }
     }

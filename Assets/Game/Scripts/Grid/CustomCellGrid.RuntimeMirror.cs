@@ -145,10 +145,10 @@ namespace Windy.Srpg.Game.Grid
             }
 
             Cell legacyCell = GetLegacyCell(cell);
-            CustomSquare customSquare = ResolveCustomSquareFromRegistryCell(legacyCell);
-            if (customSquare != null)
+            BattleSquareCell tile = ResolveBattleSquareFromRegistryCell(legacyCell);
+            if (tile != null)
             {
-                customSquare.RaiseSceneHighlightEvent();
+                tile.RaiseSceneHighlightEvent();
                 return;
             }
 
@@ -166,10 +166,10 @@ namespace Windy.Srpg.Game.Grid
             }
 
             Cell legacyCell = GetLegacyCell(cell);
-            CustomSquare customSquare = ResolveCustomSquareFromRegistryCell(legacyCell);
-            if (customSquare != null)
+            BattleSquareCell tile = ResolveBattleSquareFromRegistryCell(legacyCell);
+            if (tile != null)
             {
-                customSquare.RaiseSceneDehighlightEvent();
+                tile.RaiseSceneDehighlightEvent();
                 return;
             }
 

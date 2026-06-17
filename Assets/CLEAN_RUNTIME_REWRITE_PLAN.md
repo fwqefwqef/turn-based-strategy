@@ -1,8 +1,47 @@
 # Publishable Runtime Rewrite Plan
 
-Last updated: 2026-06-10
+Last updated: 2026-06-17
 
-## Purpose
+## Progress At A Glance (Private Workspace)
+
+This table reflects **actual status** in the current private Unity project (`C:\Users\sjkim\Turn Based Strategy`). Detailed session notes live in `Assets/Docs/Rewrite/CURSOR_HANDOFF.md`.
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 0 — Baseline | **Done** | Private workspace baseline preserved; smoke tests recorded during migration |
+| 1 — Public rewrite workspace | **Not started** | Migration uses **gated cutover in the private workspace** first; separate public workspace still future |
+| 2 — Public runtime spec | **Done** | `PUBLIC_RUNTIME_SPEC.md`, `PUBLIC_RUNTIME_ACCEPTANCE.md` exist |
+| 3 — Runtime scaffold | **Done** | `com.windy.srpg.runtime`, `Assets/Game/Runtime/**` |
+| 4 — Board and cells | **Done** | `BoardCell`, `SquareBoardCell`, occupancy, highlighting |
+| 5 — Pathfinding | **Done** | `DijkstraPathfinder`; game uses via `CustomDijkstraPathfinding` adapter |
+| 6 — Units and actions | **Done** | `BattleUnit`, `BattleAction`, unit turn states |
+| 7 — Board state flow | **Done** | `BoardState*` types; game states dispatch to runtime board |
+| 8 — Players and AI | **Done** | Human/AI player controllers, `AiDecisionAction` |
+| 9 — Retarget game scripts | **Done (private workspace)** | Runtime owns turn loop, input, movement, battle start, win/lose; framework sync via bridges |
+| 10 — Rewire scene and prefabs | **Done (smoke-tested)** | Active tiles use `BattleSquareCell`; `SampleSquare` / dual-cell mirror removed from active prefabs |
+| 11 — Remove framework references | **Not started** | ~35 game scripts + 3 anchor components still depend on `TbsFramework`; asmdef still references `com.crookedhead.tbsf` |
+| 11B — Consolidate code root | **Not started** | `Assets/Game/Scripts` and `Assets/Game/Runtime` still split |
+| 11C — Complexity / bridge cleanup | **Not started** | Large hotspot files and migration bridges remain |
+| 12 — Publication audit | **Not started** | Baseline inventory only: `Assets/Docs/Publication/PHASE12_AUDIT_BASELINE.md` |
+| 13 — Public repo packaging | **Not started** | |
+
+**Current position:** Phase 10 complete in the private workspace. **Phase 11 is next** — remove remaining `TbsFramework` usage and bridge components so the project can compile without `Assets/TBS Framework`.
+
+**Important:** Gameplay authority has largely moved to `Windy.Srpg.Runtime`, but the project **still compiles against and ships with** `Assets/TBS Framework` in the private workspace. Do not delete the framework folder until Phase 11 is complete and smoke-tested.
+
+## Migration Strategy (Revised)
+
+The original plan assumed an immediate **two-workspace** split (Phase 1: duplicate project, delete framework, implement runtime from spec only).
+
+In practice, migration proceeded as **gated cutover in the private workspace**:
+
+1. Build and prove the replacement runtime (`Assets/Game/Runtime`) while the framework remains available locally.
+2. Move gameplay **authority** to the runtime in small slices (turn loop, input, units, cells, prefabs), each compile-green and smoke-tested.
+3. Keep thin **framework anchor** components (`FrameworkCellGridAnchor`, `FrameworkSquareAnchor`, `FrameworkUnitAnchor`) on scene objects for registries and pathfinding tokens until Phase 11 removes them.
+4. Only after Phase 11–12 pass in the private workspace, create or sync the public rewrite workspace (Phase 1 + 13).
+
+This is slower than a big-bang flip but avoids the failed cell-bridge collapse documented in `CURSOR_HANDOFF.md`.
+
 
 This plan is for producing a public, publishable version of the project that complies with the vendor's written condition:
 
@@ -353,25 +392,34 @@ The spec should document:
 
 These are the game-owned scripts that define the runtime contract we actually need to satisfy:
 
-- [CustomCellGrid](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Game/Scripts/Grid/CustomCellGrid.cs)
-- [CustomUnit](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Game/Scripts/Units/CustomUnit.cs)
-- [CustomAbility](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Game/Scripts/Abilities/CustomAbility.cs)
-- `Assets/Game/Scripts/Grid/States/*.cs`
+- [CustomCellGrid](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Game/Scripts/Grid/CustomCellGrid.cs) — scene host (`IBattleBoard`); legacy registry via `FrameworkCellGridAnchor`
+- [CustomUnit](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Game/Scripts/Units/CustomUnit.cs) — gameplay unit (`IBattleUnit`); legacy registry via `FrameworkUnitAnchor`
+- [CustomAbility](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Game/Scripts/Abilities/CustomAbility.cs) — `BattleAction` (does not inherit framework `Ability`)
+- [BattleSquareCell](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Game/Scripts/Grid/BattleSquareCell.cs) — active tile host (`SquareBoardCell`); legacy token via `FrameworkSquareAnchor`
+- `Assets/Game/Scripts/Grid/States/*.cs` — game-owned grid states; dispatch to runtime board
 - `Assets/Game/Scripts/AI/*.cs`
 - `Assets/Game/Scripts/UI/*.cs`
-- [SampleUnit](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Scenes/SampleUnit.cs)
-- [SampleSquare](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Scenes/SampleSquare.cs)
+- [SampleUnit](/c:/Users/sjkim/Turn%20Based%20Strategy/Assets/Scenes/SampleUnit.cs) — scene unit prefab script (still in active use)
+
+**Removed from active use (Phase 10):**
+
+- ~~`SampleSquare`~~ — deleted; was framework-derived sample cell on prefabs
+- ~~`RuntimeSampleSquareCell`~~ — deleted; dual-cell mirror replaced by `BattleSquareCell`
+- ~~`CustomSquare`~~ — deleted; superseded by `BattleSquareCell` + anchor pattern
 
 The implementation target is not "match the framework."
 
 The target is:
 
-- make these game-owned scripts work against a new runtime
+- make these game-owned scripts work against the new runtime
 - keep the current scene behavior intact
+- then remove all remaining framework dependencies (Phase 11)
 
 ## Concrete Rewrite Phases
 
 ## Phase 0 - Record The Vendor Condition And Freeze The Baseline
+
+**Status: Done (private workspace)**
 
 ### Actions
 
@@ -402,6 +450,8 @@ Do not begin the rewrite if the private baseline is already unstable.
 
 ## Phase 1 - Create The Public Rewrite Workspace
 
+**Status: Not started** (deferred until Phase 11–12 pass in private workspace)
+
 ### Actions
 
 1. duplicate the project into a new rewrite workspace
@@ -414,6 +464,8 @@ Do not begin the rewrite if the private baseline is already unstable.
 The rewrite workspace should not compile yet, but it should already be free of vendor source files and be positioned to become the final self-contained public project.
 
 ## Phase 2 - Write The Public Runtime Spec
+
+**Status: Done**
 
 ### Actions
 
@@ -442,6 +494,8 @@ These names do not need to match this exact list, but they should be new names.
 
 ## Phase 3 - Scaffold The New Runtime
 
+**Status: Done**
+
 ### Actions
 
 Create fresh files under:
@@ -469,6 +523,8 @@ No copied framework metas.
 
 ## Phase 4 - Implement The Board And Cell Layer
 
+**Status: Done**
+
 ### Build
 
 - board cell component
@@ -485,6 +541,8 @@ No copied framework metas.
 
 ## Phase 5 - Implement Pathfinding
 
+**Status: Done**
+
 ### Build
 
 - pathfinder interface
@@ -499,6 +557,8 @@ No copied framework metas.
 - impassable or occupied cells are handled correctly
 
 ## Phase 6 - Implement Units And Actions
+
+**Status: Done**
 
 ### Build
 
@@ -517,6 +577,8 @@ No copied framework metas.
 - a unit can be marked as finished
 
 ## Phase 7 - Implement Board State Flow
+
+**Status: Done**
 
 ### Build
 
@@ -537,6 +599,8 @@ Add only states actually needed by the current game.
 
 ## Phase 8 - Implement Players And AI
 
+**Status: Done**
+
 ### Build
 
 - human player runtime type
@@ -552,20 +616,36 @@ Add only states actually needed by the current game.
 
 ## Phase 9 - Retarget Game-Owned Scripts
 
-### Actions
+**Status: Done (private workspace)** — runtime authority proven; framework bridge sync remains until Phase 11.
+
+### Completed retargeting (smoke-tested in private workspace)
+
+| Slice | Result |
+|-------|--------|
+| Pathfinding | Game uses `Windy.Srpg.Runtime.Pathfinding.DijkstraPathfinder` via `CustomDijkstraPathfinding` |
+| Turn loop / end turn | `BattleBoard.EndCurrentTurn` owns player kick; legacy sync only |
+| Battle start | `StartBattleViaRuntimeBoard` + `BeginBattleFromHost` |
+| Human input / movement | Runtime board routes selection, cell click, pending move, right-click |
+| Win / lose | Runtime outcome routing smoke-tested |
+| Grid `: CellGrid` drop | `CustomCellGrid : MonoBehaviour, IBattleBoard` + `FrameworkCellGridAnchor` token |
+| Units `: Unit` drop | `CustomUnit : MonoBehaviour, IBattleUnit` + `FrameworkUnitAnchor` token |
+| Abilities | `CustomAbility : BattleAction` (never framework `Ability`) |
+| Grid states | Direct `CustomCellGridState` dispatch; `CustomCellGridEndTurnRouter` for legacy `EndTurn` only |
+
+### Actions (original plan — all addressed in private workspace)
 
 Change game-owned scripts to use the new runtime.
 
 Priority order:
 
-1. pathfinding
-2. cells
-3. units
-4. actions
-5. board and board states
-6. players and AI
-7. scene sample scripts
-8. UI bridge code
+1. pathfinding — **done**
+2. cells — **done** (runtime mirror + Phase 10 prefab collapse)
+3. units — **done**
+4. actions — **done**
+5. board and board states — **done**
+6. players and AI — **done**
+7. scene sample scripts — **done** (SampleSquare removed; SampleUnit remains)
+8. UI bridge code — **done** (uses game/runtime types; some methods still accept framework `Cell`/`Unit`)
 
 ### Important Rule
 
@@ -579,6 +659,8 @@ This includes:
 
 ## Phase 10 - Rewire Scene And Prefabs
 
+**Status: Done (smoke-tested)** — active scene prefabs rewired; framework anchor components remain on tiles/units/grid.
+
 ### Active Assets
 
 - `Assets/Scenes/test.unity`
@@ -587,30 +669,66 @@ This includes:
 - `Assets/Scenes/Square.prefab`
 - `Assets/Scenes/Wall.prefab`
 
-### Actions
+### Completed (2026-06-17)
 
-1. replace missing runtime components with the new runtime components
-2. reassign serialized references
-3. verify deployment slots, unit spawning, and UI links
-4. replace any framework-derived art or sample assets still in active use
+1. Collapsed dual-cell prefabs to single host: `BattleSquareCell` (`SquareBoardCell`) + baked `FrameworkSquareAnchor` + `BattleSquareCellHighlighter`
+2. Removed `SampleSquare`, `RuntimeSampleSquareCell`, `CustomSquare` from active prefabs and scenes assembly
+3. Rewired `test.unity` serialized references (~400 prefab override / stripped-component updates)
+4. Deployment slots recover bindings via `DeploymentSlot.EnsureRegistryCellBinding()`
 
-### Acceptance
+### Private-workspace acceptance (met)
 
-- the current scene runs only on the new runtime
-- no framework runtime scripts are attached anywhere
-- no asset or prefab in active use references files that are absent from the public repo
+- `test.unity` loads without missing tile scripts
+- Pre-battle deploy, movement highlights, cell click, skills/borders, AI pathfinding, win/lose — smoke-tested OK
 
-## Phase 11 - Rename Game Namespaces For Publication
+### Publication acceptance (not met — deferred to Phase 11)
 
-### Actions
+The original Phase 10 acceptance criteria assumed framework removal in the same step. That was incorrect for the gated approach:
 
-Move game namespaces away from `TbsFramework.*`.
+- ~~the current scene runs only on the new runtime~~ — **partial:** runtime owns gameplay; framework anchors still required
+- ~~no framework runtime scripts are attached anywhere~~ — **false:** `FrameworkCellGridAnchor`, `FrameworkSquareAnchor`, `FrameworkUnitAnchor` remain
+- ~~no asset in active use references files absent from the public repo~~ — **false:** `com.windy.srpg.game` still references `com.crookedhead.tbsf`
 
-Recommended target:
+Those items move to **Phase 11** acceptance.
 
-- `Windy.Srpg.Game.*`
+### Actions (original list)
 
-### Coverage
+1. replace missing runtime components with the new runtime components — **done**
+2. reassign serialized references — **done**
+3. verify deployment slots, unit spawning, and UI links — **done (smoke-tested)**
+4. replace any framework-derived art or sample assets still in active use — **partial** (sample cell scripts removed; framework folder and anchor bases remain)
+
+## Phase 11 - Remove TBS Framework Dependencies
+
+**Status: Not started** — **this is the current phase.**
+
+Game **namespaces** already use `Windy.Srpg.Game.*` and `Windy.Srpg.Runtime.*`. Phase 11 is not primarily a namespace rename; it is **eliminating compile-time and scene-time dependency on `Assets/TBS Framework`**.
+
+See also `Assets/Docs/Publication/PHASE12_AUDIT_BASELINE.md` for the current contamination inventory.
+
+### What still depends on the framework (today)
+
+| Category | Examples |
+|----------|----------|
+| Asmdef reference | `com.windy.srpg.game` → `com.crookedhead.tbsf` |
+| Anchor inheritance | `FrameworkCellGridAnchor : CellGrid`, `FrameworkSquareAnchor : Square`, `FrameworkUnitAnchor : Unit` |
+| End-turn hook | `CustomCellGridEndTurnRouter : CellGrid.CellGridState` |
+| Game script imports | ~35 files with `using TbsFramework.*` (mostly `Cell`, `Unit`, `Player`, `CellGrid` types) |
+| On-disk folder | `Assets/TBS Framework/` (required for private workspace compile today) |
+
+`Assets/Game/Runtime/**` and `Assets/Scenes/*.cs` are already **free** of `TbsFramework` imports.
+
+### Recommended slice order (Phase 11)
+
+1. Replace framework type usage in gameplay code with runtime interfaces (`IBattleCell`, `IBattleUnit`, `IBattleBoard`) and registry helpers
+2. Move pathfinding edge maps and occupancy fully to runtime cell/coordinate keys
+3. Remove `FrameworkSquareAnchor` when cell registry and graph no longer need framework `Square`/`Cell`
+4. Remove `FrameworkUnitAnchor` when unit registry is runtime-owned
+5. Remove `FrameworkCellGridAnchor` and `CustomCellGridEndTurnRouter` when init/turn/end-game no longer touch `CellGrid`
+6. Remove `com.crookedhead.tbsf` from game/scenes asmdef references
+7. Delete `Assets/TBS Framework` and verify compile + full smoke test
+
+### Namespace coverage (already using `Windy.Srpg.Game.*`)
 
 - grid
 - units
@@ -627,10 +745,19 @@ Recommended target:
 
 ### Acceptance
 
-- no public code references `TbsFramework`
-- no public asmdef references `com.crookedhead.tbsf`
+- no game or scenes code references `TbsFramework` — **not met** (~35 game scripts remain)
+- no game or scenes asmdef references `com.crookedhead.tbsf` — **not met**
+- no scene/prefab component inherits from framework `CellGrid`, `Square`, or `Unit` — **not met** (three anchor types)
+- `Assets/TBS Framework` can be deleted without breaking the active scene — **not met**
+
+### Prep work already done (does not satisfy Phase 11)
+
+- Asmdef **filenames** renamed to `com.windy.srpg.game.asmdef` / `com.windy.srpg.game.scenes.asmdef` (assembly names already matched; GUIDs preserved)
+- `RuntimeSampleSquareHighlighter` renamed to `BattleSquareCellHighlighter` (Phase 10 naming cleanup)
 
 ## Phase 11B - Consolidate To One Public Code Root
+
+**Status: Not started**
 
 ### Actions
 
@@ -666,6 +793,8 @@ It should read as one project-owned code tree.
 - scene and prefab script references survive the move
 
 ## Phase 11C - Complexity Reduction And Legacy Cleanup
+
+**Status: Not started** (defer major file-splitting until Phase 11 framework removal is stable)
 
 This phase exists to prevent the rewrite from becoming "old game code plus a new runtime plus a pile of glue."
 
@@ -731,7 +860,9 @@ That means:
 
 ## Phase 12 - Publication Audit
 
-This phase is mandatory.
+**Status: Not started** (baseline only: `Assets/Docs/Publication/PHASE12_AUDIT_BASELINE.md`)
+
+This phase is mandatory before publication.
 
 ### Code Audit Searches
 
@@ -782,6 +913,8 @@ Confirm:
 
 ## Phase 13 - Public Repo Packaging
 
+**Status: Not started**
+
 ### Include
 
 - game-owned scripts
@@ -803,6 +936,8 @@ Confirm:
 
 The project is only ready for publication when all of these are true:
 
+**As of 2026-06-17:** Phases 0–10 are complete in the private workspace. **None of the publication checklist items below are fully met yet** — Phase 11 must finish first.
+
 - the runtime in the public repo is newly authored
 - the public repo contains no files from `Assets/TBS Framework`
 - the public repo contains no framework example assets
@@ -820,23 +955,23 @@ The project is only ready for publication when all of these are true:
 
 If we proceed with this rewrite, the safest order is:
 
-1. preserve the vendor reply privately
-2. create the public rewrite workspace
-3. remove `Assets/TBS Framework` from that workspace
-4. write `PUBLIC_RUNTIME_SPEC.md`
-5. write `PUBLIC_RUNTIME_ACCEPTANCE.md`
-6. scaffold `com.windy.srpg.runtime`
-7. implement board and cells
-8. implement pathfinding
-9. implement units and actions
-10. implement board states
-11. implement players and AI
-12. retarget game-owned scripts
-13. rewire scene and prefabs
-14. rename public namespaces
-15. consolidate public code into one root folder
-16. run the publication audit
-17. package the public repo
+1. preserve the vendor reply privately — **done**
+2. write `PUBLIC_RUNTIME_SPEC.md` — **done**
+3. write `PUBLIC_RUNTIME_ACCEPTANCE.md` — **done**
+4. scaffold `com.windy.srpg.runtime` — **done**
+5. implement board and cells — **done**
+6. implement pathfinding — **done**
+7. implement units and actions — **done**
+8. implement board states — **done**
+9. implement players and AI — **done**
+10. retarget game-owned scripts (gated cutover in private workspace) — **done**
+11. rewire scene and prefabs (Phase 10) — **done (smoke-tested)**
+12. **remove TBS Framework dependencies (Phase 11)** — **next**
+13. consolidate public code into one root folder (Phase 11B)
+14. complexity / bridge cleanup (Phase 11C)
+15. run the publication audit (Phase 12)
+16. create the public rewrite workspace without framework (Phase 1, deferred)
+17. package the public repo (Phase 13)
 
 ## Recommendation
 

@@ -12,6 +12,7 @@ using Windy.Srpg.Game.Skills;
 using Windy.Srpg.Game.Units;
 using UnityEngine;
 using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Rendering;
 
 namespace Windy.Srpg.Game.Abilities
 {
@@ -1409,14 +1410,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                GetRuntimeBoardCell(cell)?.ApplyHighlight(CellHighlightKind.Attack);
-            }
-            else if (CustomCellGrid.ResolveCustomSquareFromRegistryCell(cell) is { } customSquare)
-            {
-                customSquare.MarkAsAttackPreview();
-            }
+            GetRuntimeBoardCell(cell)?.ApplyHighlight(CellHighlightKind.Attack);
         }
 
         private static void ClearAttackPreviewCellMark(Cell cell, CustomCellGrid cellGrid)
@@ -1625,11 +1619,7 @@ namespace Windy.Srpg.Game.Abilities
         {
             foreach (var cell in pendingAreaSkillCenterCells)
             {
-                if (CustomCellGrid.ResolveCustomSquareFromRegistryCell(cell) is { } customSquare)
-                {
-                    customSquare.ClearPreviewBorder();
-                }
-
+                CellTilePreviewUtility.ClearPreviewBorder(cell);
                 if (cell != null)
                 {
                     cell.UnMark();
@@ -2237,14 +2227,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                GetRuntimeBoardCell(cell)?.ApplyHighlight(CellHighlightKind.Deployment);
-            }
-            else if (CustomCellGrid.ResolveCustomSquareFromRegistryCell(cell) is { } customSquare)
-            {
-                customSquare.MarkAsTradePreview();
-            }
+            GetRuntimeBoardCell(cell)?.ApplyHighlight(CellHighlightKind.Deployment);
         }
 
         private static void ClearTradePreviewCellMark(Cell cell, CustomCellGrid cellGrid)
@@ -3449,56 +3432,31 @@ namespace Windy.Srpg.Game.Abilities
 
         private static void ApplySkillPreviewHighlight(Cell cell, SkillHighlightMode highlightMode, bool faint = false)
         {
-            CustomSquare customSquare = CustomCellGrid.ResolveCustomSquareFromRegistryCell(cell);
-            if (customSquare == null)
+            CellHighlightKind kind = highlightMode switch
             {
+                SkillHighlightMode.Enemy => CellHighlightKind.Attack,
+                SkillHighlightMode.Any => CellHighlightKind.Support,
+                _ => CellHighlightKind.Support
+            };
+
+            if (faint)
+            {
+                CellTilePreviewUtility.ApplySkillPreviewHighlight(cell, kind, faint: true);
                 return;
             }
 
-            switch (highlightMode)
-            {
-                case SkillHighlightMode.Enemy:
-                    if (faint)
-                    {
-                        customSquare.MarkAsAttackPreviewFaint();
-                    }
-                    else
-                    {
-                        customSquare.MarkAsAttackPreview();
-                    }
-                    break;
-                case SkillHighlightMode.Any:
-                    if (faint)
-                    {
-                        customSquare.MarkAsAnyPreviewFaint();
-                    }
-                    else
-                    {
-                        customSquare.MarkAsAnyPreview();
-                    }
-                    break;
-                default:
-                    if (faint)
-                    {
-                        customSquare.MarkAsTradePreviewFaint();
-                    }
-                    else
-                    {
-                        customSquare.MarkAsTradePreview();
-                    }
-                    break;
-            }
+            CellTilePreviewUtility.ApplySkillPreviewHighlight(cell, kind);
         }
 
         private static void ApplyAreaCenterBorderPreview(AreaBorderOutline outline, SkillHighlightMode highlightMode)
         {
-            CustomSquare customSquare = CustomCellGrid.ResolveCustomSquareFromRegistryCell(outline.Cell);
-            if (customSquare == null)
+            if (outline.Cell == null)
             {
                 return;
             }
 
-            customSquare.ShowPreviewBorder(
+            CellTilePreviewUtility.ShowPreviewBorder(
+                outline.Cell,
                 outline.Top,
                 outline.Right,
                 outline.Bottom,

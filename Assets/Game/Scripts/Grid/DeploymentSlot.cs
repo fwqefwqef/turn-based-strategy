@@ -1,5 +1,7 @@
+using System;
 using TbsFramework.Cells;
 using UnityEngine;
+using Windy.Srpg.Runtime.Board;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -11,6 +13,7 @@ namespace Windy.Srpg.Game.Grid
 
         [SerializeField] private int slotIndex;
         [SerializeField] private Cell cell;
+        [SerializeField] private BattleSquareCell boardCell;
         [SerializeField] private SpriteRenderer highlightRenderer;
         [SerializeField] private Color highlightColor = new Color(0.55f, 0.85f, 1f, 0.72f);
         [SerializeField] private Color selectedHighlightColor = new Color(1f, 0.9f, 0.2f, 0.88f);
@@ -20,60 +23,78 @@ namespace Windy.Srpg.Game.Grid
         private bool isSelected;
 
         public int SlotIndex => slotIndex;
-        public Cell Cell => cell;
+        public Cell Cell => ResolveRegistryCell();
 
-        public void EnsureRegistryCellBinding(CustomSquare[] candidateSquares = null)
+        public void EnsureRegistryCellBinding(BattleSquareCell[] candidateTiles = null)
+        {
+            Cell resolvedCell = ResolveRegistryCell();
+            if (resolvedCell != null)
+            {
+                cell = resolvedCell;
+                return;
+            }
+
+            BattleSquareCell closestTile = FindClosestTile(candidateTiles);
+            if (closestTile == null)
+            {
+                return;
+            }
+
+            boardCell = closestTile;
+            cell = closestTile.LegacyCell;
+        }
+
+        private Cell ResolveRegistryCell()
         {
             if (cell != null)
             {
-                CustomSquare host = cell.GetComponent<CustomSquare>();
+                BattleSquareCell host = cell.GetComponent<BattleSquareCell>();
                 if (host != null && cell is not FrameworkSquareAnchor)
                 {
-                    cell = host.LegacyCell;
+                    return host.LegacyCell;
                 }
 
-                return;
+                return cell;
             }
 
-            CustomSquare closestSquare = FindClosestSquare(candidateSquares);
-            if (closestSquare == null)
+            if (boardCell != null)
             {
-                return;
+                return boardCell.LegacyCell;
             }
 
-            cell = closestSquare.LegacyCell;
+            return null;
         }
 
-        private CustomSquare FindClosestSquare(CustomSquare[] candidateSquares)
+        private BattleSquareCell FindClosestTile(BattleSquareCell[] candidateTiles)
         {
-            if (candidateSquares == null || candidateSquares.Length == 0)
+            if (candidateTiles == null || candidateTiles.Length == 0)
             {
-                candidateSquares = FindObjectsByType<CustomSquare>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                candidateTiles = FindObjectsByType<BattleSquareCell>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             }
 
-            CustomSquare closestSquare = null;
+            BattleSquareCell closestTile = null;
             float closestDistance = float.MaxValue;
             const float maxBindingDistance = 1f;
             float maxBindingDistanceSqr = maxBindingDistance * maxBindingDistance;
             Vector3 slotPosition = transform.position;
-            foreach (CustomSquare square in candidateSquares)
+            foreach (BattleSquareCell tile in candidateTiles)
             {
-                if (square == null)
+                if (tile == null)
                 {
                     continue;
                 }
 
-                float distance = (square.transform.position - slotPosition).sqrMagnitude;
+                float distance = (tile.transform.position - slotPosition).sqrMagnitude;
                 if (distance > maxBindingDistanceSqr || distance >= closestDistance)
                 {
                     continue;
                 }
 
                 closestDistance = distance;
-                closestSquare = square;
+                closestTile = tile;
             }
 
-            return closestSquare;
+            return closestTile;
         }
 
         private void Awake()
@@ -104,12 +125,13 @@ namespace Windy.Srpg.Game.Grid
 
             RefreshVisual();
 
-            if (cell == null)
+            Cell resolvedCell = ResolveRegistryCell();
+            if (resolvedCell == null)
             {
                 return;
             }
 
-            Vector3 targetPosition = cell.transform.position;
+            Vector3 targetPosition = resolvedCell.transform.position;
             targetPosition.z += zOffset;
             transform.position = targetPosition;
         }

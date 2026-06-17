@@ -2,36 +2,40 @@ using System;
 using TbsFramework.Cells;
 using TbsFramework.Grid;
 using UnityEngine;
+using Windy.Srpg.Runtime.Board;
+using Windy.Srpg.Runtime.Rendering;
 
 namespace Windy.Srpg.Game.Grid
 {
     /// <summary>
-    /// Thin framework <see cref="Square"/> token on the same GameObject as <see cref="CustomSquare"/>
-    /// so legacy <see cref="CellGrid"/> registries and pathfinding still work.
+    /// Thin framework <see cref="Square"/> token on the same GameObject as <see cref="BattleSquareCell"/>.
+    /// Keeps legacy cell registries and pathfinding while the runtime cell owns gameplay state.
     /// </summary>
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(CustomSquare))]
+    [RequireComponent(typeof(BattleSquareCell))]
     [ExecuteInEditMode]
     public sealed class FrameworkSquareAnchor : Square
     {
-        private CustomSquare Owner => GetComponent<CustomSquare>();
+        private BattleSquareCell Owner => GetComponent<BattleSquareCell>();
+
+        private BoardCell BoardCell => Owner;
 
         public override Vector3 GetCellDimensions()
         {
-            return Owner != null ? Owner.GetCellDimensions() : Vector3.one;
+            return BoardCell != null ? BoardCell.GetCellDimensions() : Vector3.one;
         }
 
-        public override void MarkAsHighlighted() => Owner?.MarkAsHighlighted();
+        public override void MarkAsHighlighted() => ApplyRuntimeHighlight(CellHighlightKind.Selected);
 
-        public override void MarkAsPath() => Owner?.MarkAsPath();
+        public override void MarkAsPath() => ApplyRuntimeHighlight(CellHighlightKind.Path);
 
-        public override void MarkAsReachable() => Owner?.MarkAsReachable();
+        public override void MarkAsReachable() => ApplyRuntimeHighlight(CellHighlightKind.Reachable);
 
-        public override void UnMark() => Owner?.UnMark();
+        public override void UnMark() => BoardCell?.ClearHighlight();
 
         public override void Initialize(CellGrid cellGrid)
         {
-            Owner?.SyncRegistryAnchorFromCustomSquare(this);
+            Owner?.SyncRegistryAnchorFromBoardCell(this);
         }
 
         internal void RaiseCellClicked() => base.RaiseCellClicked();
@@ -54,6 +58,11 @@ namespace Windy.Srpg.Game.Grid
 
         private new void Reset()
         {
+        }
+
+        private void ApplyRuntimeHighlight(CellHighlightKind highlightKind)
+        {
+            BoardCell?.ApplyHighlight(highlightKind);
         }
     }
 }

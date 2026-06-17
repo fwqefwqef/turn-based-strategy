@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Windy.Srpg.Game.Grid
 {
-    public abstract partial class CustomSquare
+    public sealed partial class BattleSquareCell
     {
         private FrameworkSquareAnchor cachedFrameworkSquareAnchor;
 
@@ -21,11 +21,11 @@ namespace Windy.Srpg.Game.Grid
                 cachedFrameworkSquareAnchor = gameObject.AddComponent<FrameworkSquareAnchor>();
             }
 
-            SyncRegistryAnchorFromCustomSquare(cachedFrameworkSquareAnchor);
+            SyncRegistryAnchorFromBoardCell(cachedFrameworkSquareAnchor);
             return cachedFrameworkSquareAnchor;
         }
 
-        internal void SyncRegistryAnchorFromCustomSquare(FrameworkSquareAnchor anchor = null)
+        internal void SyncRegistryAnchorFromBoardCell(FrameworkSquareAnchor anchor = null)
         {
             anchor ??= cachedFrameworkSquareAnchor;
             if (anchor == null)
@@ -33,9 +33,10 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            anchor.OffsetCoord = OffsetCoord;
-            anchor.IsTaken = IsTaken;
-            anchor.MovementCost = MovementCost;
+            Vector2Int coordinates = Coordinates;
+            anchor.OffsetCoord = new Vector2(coordinates.x, coordinates.y);
+            anchor.MovementCost = TraversalCost;
+            anchor.IsTaken = !IsTraversable || IsOccupied;
         }
     }
 }
