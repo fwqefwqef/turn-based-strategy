@@ -45,26 +45,6 @@ namespace Windy.Srpg.Runtime.Units
         public BattleBoard Board { get; private set; }
         public bool BlocksOtherUnits => blocksOtherUnits;
 
-        internal readonly struct RuntimeSnapshot
-        {
-            public RuntimeSnapshot(
-                BoardCell currentCell,
-                float movementPointsRemaining,
-                UnitTurnStateKind turnStateKind,
-                PendingMove? pendingMove)
-            {
-                CurrentCell = currentCell;
-                MovementPointsRemaining = movementPointsRemaining;
-                TurnStateKind = turnStateKind;
-                PendingMove = pendingMove;
-            }
-
-            public BoardCell CurrentCell { get; }
-            public float MovementPointsRemaining { get; }
-            public UnitTurnStateKind TurnStateKind { get; }
-            public PendingMove? PendingMove { get; }
-        }
-
         internal struct PendingMove
         {
             public BoardCell FromCell;
@@ -280,22 +260,12 @@ namespace Windy.Srpg.Runtime.Units
 
         public virtual void Select()
         {
-            if (Board != null && Board.ShadowMode)
-            {
-                return;
-            }
-
             SetState(new UnitTurnStateSelected(this));
             UnitSelected?.Invoke(this);
         }
 
         public virtual void Deselect()
         {
-            if (Board != null && Board.ShadowMode)
-            {
-                return;
-            }
-
             if (IsFinishedForTurn)
             {
                 SetState(new UnitTurnStateFinished(this));
@@ -312,30 +282,6 @@ namespace Windy.Srpg.Runtime.Units
         {
             CurrentCell?.RemoveOccupant(this);
             CurrentCell = null;
-        }
-
-        internal virtual RuntimeSnapshot CaptureRuntimeSnapshot()
-        {
-            return new RuntimeSnapshot(CurrentCell, MovementPointsRemaining, CurrentTurnStateKind, pendingMove);
-        }
-
-        internal virtual void RestoreRuntimeSnapshot(RuntimeSnapshot snapshot)
-        {
-            pendingMove = null;
-            SetMovementPointsRemaining(snapshot.MovementPointsRemaining);
-            RestoreTurnState(snapshot.TurnStateKind);
-
-            if (snapshot.CurrentCell == null)
-            {
-                ClearCurrentCell();
-            }
-            else
-            {
-                AssignCellImmediate(snapshot.CurrentCell, syncTransform: false);
-            }
-
-            pendingMove = snapshot.PendingMove;
-            cachedPaths = null;
         }
 
         public virtual bool BeginPendingMove(BoardCell destinationCell, IList<BoardCell> path)

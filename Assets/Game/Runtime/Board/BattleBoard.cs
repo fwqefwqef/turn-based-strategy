@@ -29,44 +29,6 @@ namespace Windy.Srpg.Runtime.Board
         public event Action<BattleUnit> UnitRegistered;
         public event Action<BattleUnit> UnitUnregistered;
 
-        public readonly struct ShadowTransitionSnapshot
-        {
-            public ShadowTransitionSnapshot(
-                string stateLabel,
-                BattleUnit selectedUnit,
-                BoardCell pendingDestination,
-                BoardCell observedUnitCell,
-                float observedUnitMovementPoints,
-                bool observedUnitFinished)
-            {
-                StateLabel = stateLabel;
-                SelectedUnit = selectedUnit;
-                PendingDestination = pendingDestination;
-                ObservedUnitCell = observedUnitCell;
-                ObservedUnitMovementPoints = observedUnitMovementPoints;
-                ObservedUnitFinished = observedUnitFinished;
-            }
-
-            public string StateLabel { get; }
-            public BattleUnit SelectedUnit { get; }
-            public BoardCell PendingDestination { get; }
-            public BoardCell ObservedUnitCell { get; }
-            public float ObservedUnitMovementPoints { get; }
-            public bool ObservedUnitFinished { get; }
-        }
-
-        public readonly struct EndTurnShadowSnapshot
-        {
-            public EndTurnShadowSnapshot(int nextPlayerId, string postTurnStateLabel)
-            {
-                NextPlayerId = nextPlayerId;
-                PostTurnStateLabel = postTurnStateLabel;
-            }
-
-            public int NextPlayerId { get; }
-            public string PostTurnStateLabel { get; }
-        }
-
         public IReadOnlyList<BoardCell> Cells => cells;
         public IReadOnlyList<BattleUnit> Units => units;
         public IReadOnlyList<IBattlePlayer> Players => players;
@@ -83,13 +45,6 @@ namespace Windy.Srpg.Runtime.Board
         /// instead of the board state's native handlers or legacy Func bridges.
         /// </summary>
         public IBattleBoardSceneInputCoordinator SceneInputCoordinator { get; set; }
-
-        /// <summary>
-        /// When true the board is being driven by the non-authoritative shadow harness:
-        /// state transitions still run (so decisions can be read), but visible side effects
-        /// (unit Select/Deselect visuals + events, StateChanged subscribers) are suppressed.
-        /// </summary>
-        public bool ShadowMode { get; private set; }
 
         protected virtual void Awake()
         {
@@ -147,150 +102,7 @@ namespace Windy.Srpg.Runtime.Board
             currentState?.OnStateExit();
             currentState = nextState;
             currentState.OnStateEnter();
-            if (!ShadowMode)
-            {
-                StateChanged?.Invoke(currentState);
-            }
-        }
-
-        /// <summary>
-        /// Non-authoritative: evaluates what the runtime's waiting-for-input state would select
-        /// given a clicked unit, using the real runtime state classes but suppressing all visible
-        /// side effects and leaving the authoritative current state untouched. Returns the unit the
-        /// runtime would select, or null if it would not select anything. Used by the shadow harness
-        /// to prove decision parity with the framework before authority is flipped.
-        /// </summary>
-        public BattleUnit ShadowEvaluateUnitClickFromWaiting(BattleUnit clickedUnit)
-        {
-            BoardState savedState = currentState;
-            bool savedShadow = ShadowMode;
-            ShadowMode = true;
-            try
-            {
-                currentState = new BoardStateWaitingForInput(this);
-                currentState.OnUnitClicked(clickedUnit);
-                return currentState.SelectedUnit;
-            }
-            finally
-            {
-                currentState = savedState;
-                ShadowMode = savedShadow;
-            }
-        }
-
-        /// <summary>
-        /// Non-authoritative: evaluates what the runtime selected-unit state would do on
-        /// right-click, suppressing all visible side effects and leaving the authoritative state
-        /// untouched. Returns the selected unit after the simulated right-click, or null if the
-        /// runtime would deselect.
-        /// </summary>
-        public BattleUnit ShadowEvaluateRightClickFromSelected(BattleUnit selectedUnit)
-        {
-            BoardState savedState = currentState;
-            bool savedShadow = ShadowMode;
-            ShadowMode = true;
-            try
-            {
-                currentState = new BoardStateUnitSelected(this, selectedUnit);
-                currentState.OnRightClick();
-                return currentState.SelectedUnit;
-            }
-            finally
-            {
-                currentState = savedState;
-                ShadowMode = savedShadow;
-            }
-        }
-
-        public BoardState ShadowEvaluateUnitClickFromSelected(BattleUnit selectedUnit, BattleUnit clickedUnit)
-        {
-            BoardState savedState = currentState;
-            bool savedShadow = ShadowMode;
-            ShadowMode = true;
-            try
-            {
-                currentState = new BoardStateUnitSelected(this, selectedUnit);
-                currentState.OnUnitClicked(clickedUnit);
-                return currentState;
-            }
-            finally
-            {
-                currentState = savedState;
-                ShadowMode = savedShadow;
-            }
-        }
-
-        public BoardState ShadowEvaluateCellClickFromSelected(BattleUnit selectedUnit, BoardCell clickedCell)
-        {
-            BoardState savedState = currentState;
-            bool savedShadow = ShadowMode;
-            ShadowMode = true;
-            try
-            {
-                currentState = new BoardStateUnitSelected(this, selectedUnit);
-                currentState.OnCellClicked(clickedCell);
-                return currentState;
-            }
-            finally
-            {
-                currentState = savedState;
-                ShadowMode = savedShadow;
-            }
-        }
-
-        public ShadowTransitionSnapshot ShadowEvaluatePendingMoveRightClick(BattleUnit selectedUnit, BoardCell pendingDestination)
-        {
-            BoardState savedState = currentState;
-            bool savedShadow = ShadowMode;
-            BattleUnit.RuntimeSnapshot savedUnitSnapshot = selectedUnit != null
-                ? selectedUnit.CaptureRuntimeSnapshot()
-                : default;
-            ShadowMode = true;
-            try
-            {
-                currentState = new BoardStateUnitMovePendingConfirm(this, selectedUnit, pendingDestination);
-                currentState.OnStateEnter();
-                currentState.OnRightClick();
-                return CaptureShadowSnapshot(currentState, selectedUnit);
-            }
-            finally
-            {
-                if (selectedUnit != null)
-                {
-                    selectedUnit.RestoreRuntimeSnapshot(savedUnitSnapshot);
-                }
-
-                currentState = savedState;
-                ShadowMode = savedShadow;
-            }
-        }
-
-        public ShadowTransitionSnapshot ShadowEvaluatePendingMoveWait(BattleUnit selectedUnit, BoardCell pendingDestination)
-        {
-            BoardState savedState = currentState;
-            bool savedShadow = ShadowMode;
-            BattleUnit.RuntimeSnapshot savedUnitSnapshot = selectedUnit != null
-                ? selectedUnit.CaptureRuntimeSnapshot()
-                : default;
-            ShadowMode = true;
-            try
-            {
-                var pendingState = new BoardStateUnitMovePendingConfirm(this, selectedUnit, pendingDestination);
-                currentState = pendingState;
-                currentState.OnStateEnter();
-                pendingState.ConfirmWait();
-                return CaptureShadowSnapshot(currentState, selectedUnit);
-            }
-            finally
-            {
-                if (selectedUnit != null)
-                {
-                    selectedUnit.RestoreRuntimeSnapshot(savedUnitSnapshot);
-                }
-
-                currentState = savedState;
-                ShadowMode = savedShadow;
-            }
+            StateChanged?.Invoke(currentState);
         }
 
         public virtual IEnumerable<BattleUnit> GetUnitsOwnedBy(int playerId)
@@ -362,42 +174,6 @@ namespace Windy.Srpg.Runtime.Board
             BeginCurrentTurn(kickTurnPlayerPlay);
         }
 
-        public EndTurnShadowSnapshot ShadowEvaluateEndCurrentTurn(bool kickTurnPlayerPlay = true)
-        {
-            BoardState savedState = currentState;
-            int savedPlayerIndex = currentPlayerIndex;
-            bool savedShadow = ShadowMode;
-            var savedUnitSnapshots = new List<(BattleUnit unit, BattleUnit.RuntimeSnapshot snapshot)>();
-            for (int i = 0; i < units.Count; i++)
-            {
-                BattleUnit unit = units[i];
-                if (unit != null)
-                {
-                    savedUnitSnapshots.Add((unit, unit.CaptureRuntimeSnapshot()));
-                }
-            }
-
-            ShadowMode = true;
-            try
-            {
-                EndCurrentTurn(kickTurnPlayerPlay);
-                return new EndTurnShadowSnapshot(
-                    CurrentPlayerId,
-                    currentState?.DiagnosticStateLabel ?? "<null>");
-            }
-            finally
-            {
-                ShadowMode = savedShadow;
-                currentPlayerIndex = savedPlayerIndex;
-                currentState = savedState;
-                for (int i = 0; i < savedUnitSnapshots.Count; i++)
-                {
-                    (BattleUnit unit, BattleUnit.RuntimeSnapshot snapshot) = savedUnitSnapshots[i];
-                    unit?.RestoreRuntimeSnapshot(snapshot);
-                }
-            }
-        }
-
         public virtual BattleOutcome EvaluateBattleOutcome()
         {
             return RoundRobinBattleFlow.EvaluateLastSideStanding(this);
@@ -443,6 +219,14 @@ namespace Windy.Srpg.Runtime.Board
             if (currentState is BoardStateUnitMovePendingConfirm pendingState)
             {
                 pendingState.ConfirmWait();
+            }
+        }
+
+        public virtual void ConfirmPendingMoveAfterCombat(bool consumeAllRemainingMovement = false)
+        {
+            if (currentState is BoardStateUnitMovePendingConfirm pendingState)
+            {
+                pendingState.ConfirmPendingMoveAfterCombat(consumeAllRemainingMovement);
             }
         }
 
@@ -731,17 +515,6 @@ namespace Windy.Srpg.Runtime.Board
             }
 
             currentState?.OnUnitUnhovered(unit);
-        }
-
-        private static ShadowTransitionSnapshot CaptureShadowSnapshot(BoardState state, BattleUnit observedUnit)
-        {
-            return new ShadowTransitionSnapshot(
-                state?.DiagnosticStateLabel ?? "<null>",
-                state?.SelectedUnit,
-                state?.PendingDestination,
-                observedUnit?.CurrentCell,
-                observedUnit?.MovementPointsRemaining ?? 0f,
-                observedUnit?.IsFinishedForTurn ?? false);
         }
     }
 

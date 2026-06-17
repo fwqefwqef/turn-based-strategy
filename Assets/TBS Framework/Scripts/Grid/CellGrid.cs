@@ -391,7 +391,7 @@ namespace TbsFramework.Grid
             }
         }
 
-        protected void CommitTurnTransition(RoundRobinTurnPlan plan, bool isNetworkInvoked = false)
+        protected void CommitTurnTransition(RoundRobinTurnPlan plan, bool isNetworkInvoked = false, bool kickPlayerPlay = true)
         {
             PlayableUnits = CreatePlayableUnitsAccessor(plan);
 
@@ -421,6 +421,11 @@ namespace TbsFramework.Grid
 
                 NotifyTurnStarted(unit);
                 unit.OnTurnStart();
+            }
+
+            if (!kickPlayerPlay)
+            {
+                return;
             }
 
             if (CurrentRuntimePlayer != null && this is IBattleBoard battleBoard)

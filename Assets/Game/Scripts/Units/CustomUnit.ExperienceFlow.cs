@@ -175,22 +175,45 @@ namespace Windy.Srpg.Game.Units
                 levelUpSteps);
         }
 
-        private IEnumerator PlayDeferredExperienceAward(ExperienceAwardResult award)
+        private ExperienceAwardResult _queuedDeferredExperienceAward;
+
+        internal void QueueDeferredExperienceAward(ExperienceAwardResult award)
         {
             if (award == null)
+            {
+                return;
+            }
+
+            _queuedDeferredExperienceAward = award;
+        }
+
+        internal ExperienceAwardResult TakeQueuedDeferredExperienceAward()
+        {
+            ExperienceAwardResult award = _queuedDeferredExperienceAward;
+            _queuedDeferredExperienceAward = null;
+            return award;
+        }
+
+        private IEnumerator PlayPostCombatExperienceAwards(
+            CustomUnit defender,
+            ExperienceAwardResult primaryAward,
+            ExperienceAwardResult counterAward)
+        {
+            if (primaryAward == null && counterAward == null)
             {
                 yield break;
             }
 
-            BeginCombatPresentation();
-            try
+            yield return WaitForCombatHudToClose();
+
+            if (primaryAward != null)
             {
-                yield return WaitForCombatHudToClose();
-                yield return PlayExperienceAwardSequence(this, award);
+                yield return PlayExperienceAwardSequence(this, primaryAward);
             }
-            finally
+
+            if (counterAward != null && defender != null)
             {
-                EndCombatPresentation();
+                yield return PlayExperienceAwardSequence(defender, counterAward);
             }
         }
 

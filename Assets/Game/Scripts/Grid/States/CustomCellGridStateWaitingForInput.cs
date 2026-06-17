@@ -19,8 +19,6 @@ namespace Windy.Srpg.Game.Grid.States
             bool willSelect = _cellGrid.GetCurrentPlayerCustomUnits().Contains(customUnit)
                 && !customUnit.IsFinishedForTurn;
 
-            _cellGrid.ShadowCompareSelection(customUnit, willSelect ? customUnit : null);
-
             if (willSelect)
             {
                 _cellGrid.EnterSelectedState(customUnit);

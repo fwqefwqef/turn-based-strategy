@@ -90,14 +90,17 @@ namespace Windy.Srpg.Game.Units
             return true;
         }
 
+        /// <summary>
+        /// Path queries and move commits use <see cref="BattleUnit"/> for both human and AI turns.
+        /// Human-only preview/input routing remains gated separately via
+        /// <see cref="CustomCellGrid.ShouldRouteHumanMovementThroughRuntime"/>.
+        /// </summary>
         private bool TryUseRuntimeMovementAuthority(out CustomCellGrid cellGrid, out BattleUnit runtimeUnit)
         {
             cellGrid = FindSceneCellGrid();
             runtimeUnit = ResolveRuntimeUnit();
             return Application.isPlaying
                 && cellGrid != null
-                && cellGrid.UseRuntimeMovementExecution
-                && cellGrid.IsHumanTurn
                 && runtimeUnit != null;
         }
 

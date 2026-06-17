@@ -146,5 +146,18 @@ namespace Windy.Srpg.Runtime.Board.States
             selectedUnit.EndTurn();
             Board.SetState(new BoardStateWaitingForInput(Board));
         }
+
+        public void ConfirmPendingMoveAfterCombat(bool consumeAllRemainingMovement = false)
+        {
+            if (selectedUnit == null)
+            {
+                return;
+            }
+
+            if (selectedUnit.HasPendingMove)
+            {
+                selectedUnit.ConfirmPendingMove(consumeAllRemainingMovement, syncTransform: false);
+            }
+        }
     }
 }

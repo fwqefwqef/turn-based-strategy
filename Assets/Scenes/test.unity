@@ -17997,7 +17997,6 @@ MonoBehaviour:
   overwriteOwnedUnitSaveOnGameStarted: 0
   enablePreBattleUi: 1
   startBattleImmediatelyWithCurrentRoster: 0
-  useRuntimeMovementExecution: 1
   starterOwnedUnitPresets:
   - {fileID: 11400000, guid: 11c3c2cca3a3469495317fe78c8927ab, type: 2}
   - {fileID: 11400000, guid: 1d9072877b8740ccb7d8fc3a76413f88, type: 2}

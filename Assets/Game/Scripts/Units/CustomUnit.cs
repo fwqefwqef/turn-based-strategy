@@ -2368,6 +2368,8 @@ namespace Windy.Srpg.Game.Units
                     yield return StartCoroutine(unitToAttack.CounterAttack(this, attackProfile.PreventsCounterattack));
                 }
 
+                ExperienceAwardResult counterExperienceAward = unitToAttack?.TakeQueuedDeferredExperienceAward();
+
                 bool pursuitAttack = unitToAttack != null
                     && attackProfile.CanPursuitAttack
                     && Speed >= unitToAttack.Speed + PursuitAttackSpeedThreshold;
@@ -2426,10 +2428,12 @@ namespace Windy.Srpg.Game.Units
                     sequenceStarted = false;
                 }
 
-                if (experienceAward != null)
+                if (experienceAward != null || counterExperienceAward != null)
                 {
-                    yield return StartCoroutine(WaitForCombatHudToClose());
-                    yield return StartCoroutine(PlayExperienceAwardSequence(this, experienceAward));
+                    yield return StartCoroutine(PlayPostCombatExperienceAwards(
+                        unitToAttack,
+                        experienceAward,
+                        counterExperienceAward));
                 }
 
                 Debug.Log($"[Combat] {name}'s attack sequence is complete. (attackerId={UnitID}, finishedAfter={IsFinishedForTurn})");
@@ -2804,7 +2808,7 @@ namespace Windy.Srpg.Game.Units
                     targetWasDefeated);
                 if (experienceAward != null)
                 {
-                    yield return StartCoroutine(PlayDeferredExperienceAward(experienceAward));
+                    QueueDeferredExperienceAward(experienceAward);
                 }
             }
             finally
@@ -3473,6 +3477,7 @@ namespace Windy.Srpg.Game.Units
                         RefreshLegacyCellOccupancy(resolvedDestinationCell);
                         SyncMirroredRuntimeCell(resolvedDestinationCell);
                         RefreshSceneOccupancyFromLiveUnits();
+                        OnMoveFinished();
                         cellGrid?.RequestBattleOutcomeEvaluation();
                         yield break;
                     }
@@ -3682,6 +3687,41 @@ namespace Windy.Srpg.Game.Units
             return true;
         }
 
+        internal void ApplyLegacySyncAfterRuntimePendingMoveCommit(CustomCellGrid cellGrid)
+        {
+            if (!_pendingMove.HasValue)
+            {
+                return;
+            }
+
+            BattleUnit runtimeUnit = ResolveRuntimeUnit();
+            if (runtimeUnit == null)
+            {
+                return;
+            }
+
+            PendingMove pendingMove = _pendingMove.Value;
+            Cell fromCell = pendingMove.FromCell;
+            fromCell?.CurrentUnits.Remove(this);
+            RefreshLegacyCellOccupancy(fromCell);
+
+            Cell resolvedDestinationCell = pendingMove.ToCell
+                ?? ResolveLinkedLegacyCell(runtimeUnit.CurrentCell);
+            Cell = resolvedDestinationCell;
+            if (resolvedDestinationCell != null && !resolvedDestinationCell.CurrentUnits.Contains(this))
+            {
+                resolvedDestinationCell.CurrentUnits.Add(this);
+            }
+
+            MovementPoints = runtimeUnit.MovementPointsRemaining;
+            cachedPaths = null;
+            RefreshLegacyCellOccupancy(resolvedDestinationCell);
+            RefreshSceneOccupancyFromLiveUnits();
+            OnMoveFinished();
+            cellGrid?.RequestBattleOutcomeEvaluation();
+            _pendingMove = null;
+        }
+
         public virtual bool CancelPendingMove()
         {
             if (!_pendingMove.HasValue)
@@ -3734,8 +3774,7 @@ namespace Windy.Srpg.Game.Units
         {
             Windy.Srpg.Game.Grid.CustomCellGrid runtimeMovementGrid = FindSceneCellGrid();
             BattleUnit runtimeMovementUnit = (runtimeMovementGrid != null
-                && runtimeMovementGrid.UseRuntimeMovementExecution
-                && runtimeMovementGrid.IsHumanTurn)
+                && runtimeMovementGrid.ShouldRouteHumanMovementThroughRuntime)
                 ? GetComponent<BattleUnit>()
                 : null;
 

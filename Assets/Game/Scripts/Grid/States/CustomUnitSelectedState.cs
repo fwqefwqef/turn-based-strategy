@@ -98,7 +98,11 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnRightClick()
         {
-            _cellGrid.ShadowCompareRightClick(selectedUnit, null);
+            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
+            {
+                return;
+            }
+
             _cellGrid.EnterWaitingState();
         }
 
@@ -109,36 +113,13 @@ namespace Windy.Srpg.Game.Grid.States
                 var customMoveAbility = abilities.OfType<CustomMoveAbility>().FirstOrDefault();
                 if (customMoveAbility != null)
                 {
-                    _cellGrid.ShadowCompareSelectedStateUnitClick(
-                        selectedUnit,
-                        unit,
-                        frameworkStateLabel: "PendingMoveConfirm",
-                        frameworkSelectedUnitAfterClick: selectedUnit,
-                        frameworkPendingDestination: selectedUnit.Cell);
                     customMoveAbility.OnSelectedUnitClicked(_cellGrid);
                     return;
                 }
             }
 
-            bool willSelectAnotherFriendly =
-                unit != null
-                && _cellGrid.GetCurrentPlayerCustomUnits().Contains(unit)
-                && !unit.IsFinishedForTurn;
-
-            _cellGrid.ShadowCompareSelectedStateUnitClick(
-                selectedUnit,
-                unit,
-                frameworkStateLabel: willSelectAnotherFriendly ? "Selected" : "Waiting",
-                frameworkSelectedUnitAfterClick: willSelectAnotherFriendly ? unit : null,
-                frameworkPendingDestination: null);
-
             IBattleUnit battleUnit = unit;
             abilities.ForEach(action => action.OnUnitClicked(battleUnit, _cellGrid));
-        }
-
-        private static string Describe(Cell cell)
-        {
-            return cell == null ? "<none>" : cell.OffsetCoord.ToString();
         }
     }
 }

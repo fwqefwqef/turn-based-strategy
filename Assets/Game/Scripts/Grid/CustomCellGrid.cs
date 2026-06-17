@@ -41,8 +41,6 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private bool overwriteOwnedUnitSaveOnGameStarted;
         [SerializeField] private bool enablePreBattleUi = true;
         [SerializeField] private bool startBattleImmediatelyWithCurrentRoster;
-        [Tooltip("When enabled, human input, turn loop, battle outcome, and movement execution are routed through the runtime BattleBoard/BattleUnit. Default on.")]
-        [SerializeField] private bool useRuntimeMovementExecution = true;
         [SerializeField] private List<UnitPreset> starterOwnedUnitPresets = new List<UnitPreset>();
         private bool battleStarted;
         private bool isPreBattleDeploymentSwapMode;
@@ -69,10 +67,10 @@ namespace Windy.Srpg.Game.Grid
         public int CurrentCustomPlayerNumber => CurrentCustomPlayer?.PlayerNumber ?? -1;
         public bool IsHumanTurn => CurrentCustomPlayer is CustomHumanPlayer;
         public bool CanRequestEndTurn => CurrentCustomState?.BlocksEndTurn != true;
-        public bool UseRuntimeMovementExecution => useRuntimeMovementExecution;
-        public bool ShouldRouteHumanMovementThroughRuntime => useRuntimeMovementExecution && IsHumanTurn;
-        public bool ShouldRouteTurnLoopThroughRuntime => useRuntimeMovementExecution;
-        public bool ShouldRouteBattleOutcomeThroughRuntime => useRuntimeMovementExecution;
+        public bool ShouldRouteHumanMovementThroughRuntime => IsHumanTurn;
+        public bool ShouldRouteAiMovementThroughRuntime => !IsHumanTurn;
+        public bool ShouldRouteTurnLoopThroughRuntime => true;
+        public bool ShouldRouteBattleOutcomeThroughRuntime => true;
         public bool ShouldSuppressFrameworkSceneInput => UsesRuntimeDirectSceneInput;
         public bool UsesRuntimeDirectSceneInput =>
             ShouldRouteHumanMovementThroughRuntime
@@ -216,6 +214,15 @@ namespace Windy.Srpg.Game.Grid
                 () => SetState(new CustomCellGridStateBlockInput(this)));
         }
 
+        /// <summary>
+        /// Blocks framework input without replacing the runtime board state. Used during pending-move
+        /// combat presentation so <see cref="BattleBoard.ConfirmPendingMoveAfterCombat"/> can still run.
+        /// </summary>
+        internal void EnterLegacyBlockedInputState()
+        {
+            ApplyLegacyStateFromRuntime(() => SetState(new CustomCellGridStateBlockInput(this)));
+        }
+
         public void EnterRemotePlayerTurnState()
         {
             if (suppressLegacyToRuntimeStateMirror)
@@ -307,14 +314,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (ShouldRouteTurnLoopThroughRuntime)
-            {
-                ProcessRuntimeRoutedEndTurn();
-                return;
-            }
-
-            ShadowCompareEndTurn();
-            EndTurn();
+            ProcessRuntimeRoutedEndTurn();
         }
 
         public bool RequestBattleOutcomeEvaluation()
@@ -325,13 +325,91 @@ namespace Windy.Srpg.Game.Grid
             }
 
             bool finished = CheckGameFinished();
-            ShadowCompareBattleOutcome(finished ? "Battle ended" : "Battle outcome");
             if (finished)
             {
                 SyncCustomStateToGameOver();
             }
 
             return finished;
+        }
+
+        /// <summary>
+        /// Syncs runtime mirror and blocked input before pending-move combat presentation (attack/skill/heal).
+        /// </summary>
+        internal void PrepareRuntimeRoutedPendingAttackCommit()
+        {
+            if (!ShouldRouteHumanMovementThroughRuntime || GameFinished)
+            {
+                return;
+            }
+
+            ProcessRuntimeRoutedCombatPresentationBegan();
+        }
+
+        /// <summary>
+        /// Commits the pending move on the runtime board after combat presentation, then syncs legacy unit state.
+        /// </summary>
+        internal void ProcessRuntimeRoutedPendingAttackMoveCommit(CustomUnit unit)
+        {
+            ProcessRuntimeRoutedPendingMoveCommit(unit, consumeAllRemainingMovement: false);
+        }
+
+        /// <summary>
+        /// Commits a pending move through runtime board authority, then syncs legacy unit/cell state.
+        /// </summary>
+        internal void ProcessRuntimeRoutedPendingMoveCommit(CustomUnit unit, bool consumeAllRemainingMovement = false)
+        {
+            if (!ShouldRouteHumanMovementThroughRuntime || unit == null || !unit.HasPendingMove)
+            {
+                return;
+            }
+
+            ResolveRuntimeBoard();
+            if (runtimeBoard == null)
+            {
+                return;
+            }
+
+            SyncRuntimeMirrorNow();
+            runtimeBoard.ConfirmPendingMoveAfterCombat(consumeAllRemainingMovement);
+
+            BattleUnit runtimeUnit = unit.GetComponent<BattleUnit>();
+            if (unit.HasPendingMove
+                && runtimeUnit != null
+                && runtimeUnit.HasPendingMove)
+            {
+                runtimeUnit.ConfirmPendingMove(consumeAllRemainingMovement, syncTransform: false);
+            }
+
+            unit.ApplyLegacySyncAfterRuntimePendingMoveCommit(this);
+        }
+
+        /// <summary>
+        /// Commits a pending move after combat presentation when runtime routing is active; otherwise
+        /// falls back to legacy <see cref="CustomUnit.ConfirmPendingMove"/>.
+        /// </summary>
+        internal void TryCommitPendingMoveAfterCombatPresentation(CustomUnit unit)
+        {
+            TryCommitPendingMoveFromPendingAction(unit, consumeAllRemainingMovement: false);
+        }
+
+        /// <summary>
+        /// Commits a pending move from a pending-action menu (trade close, item use, skill prep, etc.).
+        /// </summary>
+        internal void TryCommitPendingMoveFromPendingAction(CustomUnit unit, bool consumeAllRemainingMovement = false)
+        {
+            if (unit == null || !unit.HasPendingMove)
+            {
+                return;
+            }
+
+            if (ShouldRouteHumanMovementThroughRuntime)
+            {
+                ProcessRuntimeRoutedPendingMoveCommit(unit, consumeAllRemainingMovement);
+                return;
+            }
+
+            unit.ConfirmPendingMove(consumeAllRemainingMovement);
         }
 
         /// <summary>

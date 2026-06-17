@@ -128,7 +128,6 @@ namespace Windy.Srpg.Game.Grid
 
             MarkRuntimeBoardDirty();
             SyncRuntimeMirrorNow();
-            ShadowCompareCurrentPlayerSync();
             BattleTurnEnded?.Invoke(this, EventArgs.Empty);
             TurnStarted?.Invoke(this, EventArgs.Empty);
         }

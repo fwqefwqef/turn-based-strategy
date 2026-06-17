@@ -32,13 +32,7 @@ namespace Windy.Srpg.Game.Players
         public override void Play(CustomCellGrid cellGrid)
         {
             cellGrid.EnterAiTurnState(this);
-            if (cellGrid.UseRuntimeMovementExecution)
-            {
-                StartCoroutine(ExecuteRuntimeRoutedTurn(cellGrid));
-                return;
-            }
-
-            StartCoroutine(ExecuteTurn(cellGrid));
+            StartCoroutine(ExecuteRuntimeRoutedTurn(cellGrid));
         }
 
         private IEnumerator ExecuteRuntimeRoutedTurn(CustomCellGrid cellGrid)
@@ -50,9 +44,8 @@ namespace Windy.Srpg.Game.Players
                 yield break;
             }
 
-            IReadOnlyList<CustomUnit> frameworkOrder = SelectUnits(cellGrid);
             IReadOnlyList<BattleUnit> runtimeOrder = SelectRuntimeUnits(board, cellGrid);
-            cellGrid.PrepareRuntimeRoutedAiTurn(frameworkOrder, runtimeOrder);
+            cellGrid.PrepareRuntimeRoutedAiTurn();
 
             if (!DebugMode)
             {

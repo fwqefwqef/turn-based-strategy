@@ -1,6 +1,6 @@
 # Cursor Handoff — Framework Rewrite Work Log
 
-Last updated: 2026-06-17  
+Last updated: 2026-06-17 (toggle removed)  
 Workspace: `C:\Users\sjkim\Turn Based Strategy`  
 Prior chat transcript: `C:\Users\sjkim\.cursor\projects\c-Users-sjkim-Turn-Based-Strategy\agent-transcripts\235f9eff-6e30-49c4-8ef9-729c8c24e36a\235f9eff-6e30-49c4-8ef9-729c8c24e36a.jsonl`
 
@@ -312,8 +312,8 @@ These were already present and are relied on by the work above:
 
 | Flag | Location | Default | Purpose |
 |------|----------|---------|---------|
-| `useRuntimeMovementExecution` | `CustomCellGrid` (Inspector) | off | Human turn: runtime routes selection/move, commits pending moves, end turn, animates walks |
-| `ShouldRouteHumanMovementThroughRuntime` | `CustomCellGrid` (code) | derived | `useRuntimeMovementExecution && IsHumanTurn` |
+| ~~`useRuntimeMovementExecution`~~ | ~~`CustomCellGrid` (Inspector)~~ | **removed** | Runtime routing is now always on |
+| `ShouldRouteHumanMovementThroughRuntime` | `CustomCellGrid` (code) | derived | `IsHumanTurn` |
 | `LogReachableParity` | `RuntimeParityDiagnostics` | true | `[RuntimeParity]` reachable logs |
 | `LogSelectionParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` selection logs (toggle off path) |
 | `LogRightClickParity` | `RuntimeParityDiagnostics` | true | `[RuntimeShadow]` right-click logs (toggle off path) |
@@ -500,4 +500,39 @@ Both framework `Unit.OnMouseDown` and runtime `BattleUnit` click handlers exist 
 | Input/turn-loop flip | **Human scene input authority on runtime board** (framework states legacy-only when toggle ON) |
 | Cell collapse | **Explicitly deferred** |
 
-**Next action:** Smoke test human movement loop with toggle ON (parity should remain MATCH). Then AI runtime turn authority beyond shadow.
+**Next action:** Runtime turn loop now kicks player execution via `BattleBoard` first. Continue framework detachment per roadmap below.
+
+---
+
+## Framework Detachment Roadmap (priority order)
+
+Goal: remove `Assets/TBS Framework` from the publishable project. The private workspace keeps it until each slice is proven.
+
+### Remaining framework anchors (today)
+
+| Anchor | Game type | Runtime replacement | Status |
+|--------|-----------|---------------------|--------|
+| Turn loop / end turn | `CellGrid.EndTurn`, `CommitTurnTransition` | `BattleBoard.EndCurrentTurn` | **In progress** — runtime now kicks AI/human `PlayTurn`; legacy sync skips duplicate kick |
+| Grid board | `CustomCellGrid : CellGrid` | `BattleBoard` + thin scene host | Bridge |
+| Units | `CustomUnit : Unit` | `BattleUnit` mirror on same GO | Bridge |
+| Cells | `CustomSquare : Square` | `RuntimeSampleSquareCell : BoardCell` | Dual prefab mirror |
+| Abilities | `CustomAbility : Ability` | `BattleAction` | Partial |
+| Grid states | `LegacyCustomCellGridStateAdapter : CellGridState` | `BoardState*` | Dual (runtime authoritative for human input) |
+| Lifecycle | `Initialize`, `StartGame` | Game-owned bootstrap | Still framework |
+
+### Recommended slice order
+
+1. **Turn loop** — runtime `EndCurrentTurn` owns player kick; game-owned sync for player index + unit hooks (current slice).
+2. **Battle start** — replace `RequestFrameworkInitializeAndStart` / `StartGame` with game-owned bootstrap on `BattleBoard`.
+3. **Grid states** — stop assigning `LegacyCustomCellGridStateAdapter`; manage `CustomCellGridState` directly; route cell clicks through runtime cells only.
+4. **Units** — stop inheriting `Unit`; move turn-state/MP/cell assignment fully to `BattleUnit` with legacy sync one-way.
+5. **Cells** — drop `SampleSquare`/`CustomSquare` from prefabs; use `BoardCell` only (Phase 10 scene rewire).
+6. **Abilities** — drop `Ability` base; actions implement `BattleAction` only.
+7. **Delete `CustomCellGrid : CellGrid`** — scene host is `BattleBoard` + small `BattleSceneController` MonoBehaviour.
+8. **Phase 10–13** — scene/prefab rewire, namespace cleanup, publication audit.
+
+### Do not do yet
+
+- Delete `Assets/TBS Framework` folder (still needed for `Unit`, `Cell`, `Ability` bases and `Initialize`).
+- Collapse cell identity on prefabs without smoke test.
+- Big-bang remove `LegacyCustomCellGridStateAdapter` before battle-start path is game-owned.
