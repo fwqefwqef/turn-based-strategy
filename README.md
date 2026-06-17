@@ -10,8 +10,7 @@ Unity SRPG project.
 ## Project Layout
 
 - Main gameplay code lives under `Assets/Game/Code`
-- Game data lives under `Assets/StreamingAssets/Game`
-- Publication and audit notes live under `Assets/Docs/Publication`
+- Game data lives under `Assets/StreamingAssets`
 
 ## Opening The Project
 
