@@ -106,6 +106,16 @@ namespace Windy.Srpg.Game.CameraControl
             activeInstance.SetFocusTarget(worldPosition);
         }
 
+        public static Cell GetFocusedCell()
+        {
+            if (activeInstance == null || !activeInstance.TryInitialize())
+            {
+                return null;
+            }
+
+            return activeInstance.FindNearestCell(activeInstance.focusTargetPosition);
+        }
+
         public static IEnumerator WaitForFocusSettled(float timeoutSeconds = 2f)
         {
             if (activeInstance == null)
@@ -330,26 +340,6 @@ namespace Windy.Srpg.Game.CameraControl
             Vector3 planarRight = Vector3.ProjectOnPlane(controlledCamera.transform.right, Vector3.forward).normalized;
             Vector3 planarUp = Vector3.ProjectOnPlane(controlledCamera.transform.up, Vector3.forward).normalized;
             Vector3 direction = Vector3.zero;
-
-            if (Input.GetKey(KeyCode.A))
-            {
-                direction -= planarRight;
-            }
-
-            if (Input.GetKey(KeyCode.D))
-            {
-                direction += planarRight;
-            }
-
-            if (Input.GetKey(KeyCode.W))
-            {
-                direction += planarUp;
-            }
-
-            if (Input.GetKey(KeyCode.S))
-            {
-                direction -= planarUp;
-            }
 
             if (edgeScrollEnabled && !IsPointerOverUi() && TryGetEdgeScrollMousePosition(out Vector3 mousePosition))
             {

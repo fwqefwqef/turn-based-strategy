@@ -8,7 +8,7 @@ using System.Collections.Generic;
 
 namespace Windy.Srpg.Game.UI
 {
-    public class AreaConfirmUI : MonoBehaviour, MoveAbility.IAreaConfirmUI
+    public class AreaConfirmUI : GameplayModalUI, MoveAbility.IAreaConfirmUI
     {
         public static event System.Action<bool> VisibilityChanged;
 
@@ -32,12 +32,13 @@ namespace Windy.Srpg.Game.UI
         private readonly List<TMP_Text> spawnedPreviewRows = new List<TMP_Text>();
         private Vector3 currentWorldPosition;
 
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
+
             if (rootPanel != null)
             {
                 panelRectTransform = rootPanel.GetComponent<RectTransform>();
-                rootPanel.SetActive(false);
             }
 
             if (positionTarget == null)
@@ -72,6 +73,9 @@ namespace Windy.Srpg.Game.UI
             {
                 cancelButton.onClick.AddListener(() => onCancel?.Invoke());
             }
+
+            ConfigureModal(rootPanel, confirmButton, cancelButton);
+            SetModalVisible(false);
         }
 
         private void LateUpdate()
@@ -112,15 +116,10 @@ namespace Windy.Srpg.Game.UI
 
             RebuildTargetPreviewRows(targetPreviews);
 
-            if (rootPanel != null)
-            {
-                rootPanel.SetActive(true);
-            }
-
+            SetDefaultFocusButton(confirmButton);
+            SetModalVisible(true);
             Canvas.ForceUpdateCanvases();
             PositionPanel(worldPosition);
-
-            VisibilityChanged?.Invoke(true);
         }
 
         public void Hide()
@@ -128,20 +127,9 @@ namespace Windy.Srpg.Game.UI
             onConfirm = null;
             onCancel = null;
 
-            if (rootPanel != null)
-            {
-                rootPanel.SetActive(false);
-            }
-
+            SetModalVisible(false);
             ClearTargetPreviewRows();
             GameplayCameraController.ClearPreviewUiContainment();
-            VisibilityChanged?.Invoke(false);
-        }
-
-        private void OnDisable()
-        {
-            GameplayCameraController.ClearPreviewUiContainment();
-            VisibilityChanged?.Invoke(false);
         }
 
         private void PositionPanel(Vector3 worldPosition)
@@ -241,6 +229,15 @@ namespace Windy.Srpg.Game.UI
             }
         }
 
+        protected override void OnModalVisibilityChanged(bool isVisible)
+        {
+            if (!isVisible)
+            {
+                GameplayCameraController.ClearPreviewUiContainment();
+            }
+
+            VisibilityChanged?.Invoke(isVisible);
+        }
     }
 }
 

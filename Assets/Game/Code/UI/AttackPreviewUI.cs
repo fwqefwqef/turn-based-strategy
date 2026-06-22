@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 namespace Windy.Srpg.Game.UI
 {
-    public class AttackPreviewUI : MonoBehaviour, MoveAbility.IAttackPreviewUI
+    public class AttackPreviewUI : GameplayModalUI, MoveAbility.IAttackPreviewUI
     {
         public static event System.Action<bool> VisibilityChanged;
 
@@ -45,8 +45,10 @@ namespace Windy.Srpg.Game.UI
         private Unit _attackerUnit;
         private Unit _defenderUnit;
 
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
+
             if (root != null)
             {
                 _rootRectTransform = root.GetComponent<RectTransform>();
@@ -88,6 +90,7 @@ namespace Windy.Srpg.Game.UI
                 cancelButton.onClick.AddListener(() => _onCancel?.Invoke());
             }
 
+            ConfigureModal(root, confirmButton, cancelButton);
             Hide();
         }
 
@@ -106,8 +109,9 @@ namespace Windy.Srpg.Game.UI
             Unit.CombatSequenceStarted += OnCombatSequenceStarted;
         }
 
-        private void OnDisable()
+        protected override void OnDisable()
         {
+            base.OnDisable();
             Unit.CombatSequenceStarted -= OnCombatSequenceStarted;
             GameplayCameraController.ClearPreviewUiContainment();
             GameplayCameraController.ClearPreviewUnitVisibility();
@@ -175,14 +179,9 @@ namespace Windy.Srpg.Game.UI
                 cancelButton.interactable = true;
             }
 
-            if (root != null)
-            {
-                root.SetActive(true);
-            }
-
+            SetDefaultFocusButton(confirmButton);
+            SetModalVisible(true);
             RefreshPresentation();
-
-            VisibilityChanged?.Invoke(true);
         }
 
         public void ShowConfirmOnly(Vector3 worldPosition, System.Action onConfirm, System.Action onCancel)
@@ -215,14 +214,9 @@ namespace Windy.Srpg.Game.UI
                 cancelButton.interactable = true;
             }
 
-            if (root != null)
-            {
-                root.SetActive(true);
-            }
-
+            SetDefaultFocusButton(confirmButton);
+            SetModalVisible(true);
             RefreshPresentation();
-
-            VisibilityChanged?.Invoke(true);
         }
 
         public void Hide()
@@ -233,14 +227,9 @@ namespace Windy.Srpg.Game.UI
             _attackerUnit = null;
             _defenderUnit = null;
 
-            if (root != null)
-            {
-                root.SetActive(false);
-            }
-
+            SetModalVisible(false);
             GameplayCameraController.ClearPreviewUiContainment();
             GameplayCameraController.ClearPreviewUnitVisibility();
-            VisibilityChanged?.Invoke(false);
         }
 
         private void OnCombatSequenceStarted(object sender, CombatSequenceEventArgs e)
@@ -468,6 +457,11 @@ namespace Windy.Srpg.Game.UI
             {
                 panel.CritText.text = GameTextCatalog.Format("ui.common.crit_label", "Crit: {0}", data.Crit);
             }
+        }
+
+        protected override void OnModalVisibilityChanged(bool isVisible)
+        {
+            VisibilityChanged?.Invoke(isVisible);
         }
     }
 }

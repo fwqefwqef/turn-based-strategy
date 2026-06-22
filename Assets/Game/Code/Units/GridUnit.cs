@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Windy.Srpg.Game.UI;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Pathfinding;
@@ -487,16 +488,31 @@ namespace Windy.Srpg.Runtime.Units
 
         protected virtual void OnMouseDown()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             Clicked?.Invoke(this);
         }
 
         protected virtual void OnMouseEnter()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             Hovered?.Invoke(this);
         }
 
         protected virtual void OnMouseExit()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             Unhovered?.Invoke(this);
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using Windy.Srpg.Game.Localization;
 using Windy.Srpg.Game.Units;
@@ -14,6 +15,7 @@ namespace Windy.Srpg.Game.UI
     public class LevelUpUI : MonoBehaviour
     {
         public static event Action<bool> VisibilityChanged;
+        private static LevelUpUI activeInstance;
 
         [Serializable]
         public class StatRowBindings
@@ -49,9 +51,11 @@ namespace Windy.Srpg.Game.UI
         private LevelableStatKind? pendingSelection;
         private LevelableStatKind? resolvedSelection;
         private Action<LevelableStatKind> onResolved;
+        private LevelableStatKind? hoveredStat;
 
         private void Awake()
         {
+            activeInstance = this;
             if (confirmButton != null)
             {
                 confirmButton.onClick.RemoveListener(OnConfirmClicked);
@@ -67,9 +71,37 @@ namespace Windy.Srpg.Game.UI
             HideImmediate();
         }
 
+        private void Update()
+        {
+            RefreshRowHighlightStates();
+        }
+
         private void OnDisable()
         {
+            if (activeInstance == this && root != null && !root.activeSelf)
+            {
+                pendingSelection = null;
+            }
+
             VisibilityChanged?.Invoke(false);
+        }
+
+        private void OnDestroy()
+        {
+            if (activeInstance == this)
+            {
+                activeInstance = null;
+            }
+        }
+
+        public static Button GetPreferredFocusButton(IReadOnlyList<Button> activeButtons)
+        {
+            if (activeInstance == null || activeButtons == null || activeButtons.Count == 0)
+            {
+                return null;
+            }
+
+            return activeInstance.ResolvePreferredFocusButton(activeButtons);
         }
 
         public IEnumerator ShowAndWait(Unit unit, LevelUpPresentation presentation, Action<LevelableStatKind> resolvedCallback)
@@ -84,6 +116,7 @@ namespace Windy.Srpg.Game.UI
             onResolved = resolvedCallback;
             pendingSelection = null;
             resolvedSelection = null;
+            hoveredStat = null;
 
             if (levelText != null)
             {
@@ -145,17 +178,23 @@ namespace Windy.Srpg.Game.UI
                 if (row.HighlightImage != null)
                 {
                     row.HighlightImage.color = highlightColor;
-                    row.HighlightImage.enabled = pendingSelection.HasValue && pendingSelection.Value == row.Stat;
                 }
 
                 RefreshBarSlice(row, baseValue, totalGain);
                 ConfigureRowButton(row);
             }
 
+            if (confirmButton != null)
+            {
+                confirmButton.interactable = pendingSelection.HasValue;
+            }
+
             if (summaryText != null)
             {
                 summaryText.text = BuildSummaryText();
             }
+
+            RefreshRowHighlightStates();
         }
 
         private void RefreshBarSlice(StatRowBindings row, int baseValue, int totalGain)
@@ -210,18 +249,17 @@ namespace Windy.Srpg.Game.UI
             hoverForwarder.Configure(
                 () =>
                 {
-                    if (row.HighlightImage != null && !pendingSelection.HasValue)
-                    {
-                        row.HighlightImage.color = highlightColor;
-                        row.HighlightImage.enabled = true;
-                    }
+                    hoveredStat = row.Stat;
+                    RefreshRowHighlightStates();
                 },
                 () =>
                 {
-                    if (row.HighlightImage != null && (!pendingSelection.HasValue || pendingSelection.Value != row.Stat))
+                    if (hoveredStat.HasValue && hoveredStat.Value == row.Stat)
                     {
-                        row.HighlightImage.enabled = false;
+                        hoveredStat = null;
                     }
+
+                    RefreshRowHighlightStates();
                 });
         }
 
@@ -296,6 +334,8 @@ namespace Windy.Srpg.Game.UI
                 root.SetActive(false);
             }
 
+            hoveredStat = null;
+
             VisibilityChanged?.Invoke(false);
 
             if (confirmRoot != null)
@@ -316,6 +356,79 @@ namespace Windy.Srpg.Game.UI
                 LevelableStatKind.Luck => GameTextCatalog.Get("ui.level_up.stat.luck", "Luck"),
                 _ => stat.ToString()
             };
+        }
+
+        private Button ResolvePreferredFocusButton(IReadOnlyList<Button> activeButtons)
+        {
+            if (root == null || !root.activeInHierarchy || activeButtons == null || activeButtons.Count == 0)
+            {
+                return null;
+            }
+
+            if (confirmRoot != null && confirmRoot.activeInHierarchy)
+            {
+                if (confirmButton != null && confirmButton.interactable && activeButtons.Contains(confirmButton))
+                {
+                    return confirmButton;
+                }
+
+                if (cancelButton != null && activeButtons.Contains(cancelButton))
+                {
+                    return cancelButton;
+                }
+            }
+
+            foreach (StatRowBindings row in statRows)
+            {
+                if (row?.SelectButton == null)
+                {
+                    continue;
+                }
+
+                if (activeButtons.Contains(row.SelectButton) && row.SelectButton.isActiveAndEnabled && row.SelectButton.interactable)
+                {
+                    return row.SelectButton;
+                }
+            }
+
+            if (cancelButton != null && activeButtons.Contains(cancelButton))
+            {
+                return cancelButton;
+            }
+
+            return null;
+        }
+
+        private void RefreshRowHighlightStates()
+        {
+            if (statRows == null || statRows.Count == 0)
+            {
+                return;
+            }
+
+            GameObject selectedObject = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+            foreach (StatRowBindings row in statRows)
+            {
+                if (row?.HighlightImage == null)
+                {
+                    continue;
+                }
+
+                bool shouldHighlight = pendingSelection.HasValue && pendingSelection.Value == row.Stat;
+                if (!shouldHighlight && hoveredStat.HasValue && hoveredStat.Value == row.Stat)
+                {
+                    shouldHighlight = true;
+                }
+
+                if (!shouldHighlight && selectedObject != null && row.SelectButton != null)
+                {
+                    shouldHighlight = selectedObject == row.SelectButton.gameObject
+                        || selectedObject.transform.IsChildOf(row.SelectButton.transform);
+                }
+
+                row.HighlightImage.color = highlightColor;
+                row.HighlightImage.enabled = shouldHighlight;
+            }
         }
     }
 

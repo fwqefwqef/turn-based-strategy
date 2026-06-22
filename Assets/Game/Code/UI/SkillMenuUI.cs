@@ -12,8 +12,10 @@ using UnityEngine.UI;
 
 namespace Windy.Srpg.Game.UI
 {
-    public class SkillMenuUI : MonoBehaviour, MoveAbility.ISkillMenuUI
+    public class SkillMenuUI : GameplayModalUI, MoveAbility.ISkillMenuUI
     {
+        public static event Action<bool> VisibilityChanged;
+        private static SkillMenuUI activeInstance;
         private sealed class SkillRowView
         {
             public Skill Entry;
@@ -103,8 +105,11 @@ namespace Windy.Srpg.Game.UI
             }
         }
 
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
+            activeInstance = this;
+
             if (rootPanel != null)
             {
                 panelRectTransform = rootPanel.GetComponent<RectTransform>();
@@ -188,11 +193,14 @@ namespace Windy.Srpg.Game.UI
             {
                 closeButton.onClick.AddListener(() => onCancel?.Invoke());
             }
+
+            ConfigureModal(rootPanel, closeButton, closeButton);
+            SetModalVisible(false);
         }
 
         private void Update()
         {
-            if (rootPanel == null || !rootPanel.activeSelf || !Input.GetMouseButtonDown(1))
+            if (!IsVisible || !Input.GetMouseButtonDown(1))
             {
                 return;
             }
@@ -220,11 +228,9 @@ namespace Windy.Srpg.Game.UI
                     : GameTextCatalog.Format("ui.skill_menu.title_with_name", "{0} Skills", currentUnit.unitName);
             }
 
-            if (rootPanel != null)
-            {
-                rootPanel.SetActive(true);
-                PositionPanel(worldPosition);
-            }
+            SetDefaultFocusButton(ResolvePreferredFocusButton());
+            SetModalVisible(true);
+            PositionPanel(worldPosition);
 
             Canvas.ForceUpdateCanvases();
             RebuildEntries(skills);
@@ -248,10 +254,17 @@ namespace Windy.Srpg.Game.UI
                 skillDisplayPanel.SetActive(false);
             }
 
-            if (rootPanel != null)
+            SetModalVisible(false);
+        }
+
+        public static bool RequestCancelFromInput()
+        {
+            if (activeInstance == null)
             {
-                rootPanel.SetActive(false);
+                return false;
             }
+
+            return activeInstance.TryCancelFromInput();
         }
 
         private void RebuildEntries(IReadOnlyList<Skill> skills)
@@ -677,6 +690,44 @@ namespace Windy.Srpg.Game.UI
             skillDisplayPanelRectTransform.anchoredPosition = positionTarget.anchoredPosition + skillDisplayPanelOffset;
         }
 
+        private Button ResolvePreferredFocusButton()
+        {
+            foreach (SkillRowView row in skillRows)
+            {
+                if (row?.Button != null && row.Button.interactable && row.Button.gameObject.activeInHierarchy)
+                {
+                    return row.Button;
+                }
+            }
+
+            return closeButton;
+        }
+
+        protected override bool HandleCancelFromInput()
+        {
+            if (!IsVisible)
+            {
+                return false;
+            }
+
+            onCancel?.Invoke();
+            return true;
+        }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+
+            if (activeInstance == this)
+            {
+                activeInstance = null;
+            }
+        }
+
+        protected override void OnModalVisibilityChanged(bool isVisible)
+        {
+            VisibilityChanged?.Invoke(isVisible);
+        }
     }
 }
 

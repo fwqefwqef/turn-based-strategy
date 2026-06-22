@@ -4,7 +4,7 @@ using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.UI;
 using static Windy.Srpg.Game.Abilities.MoveAbility;
 
-public class ActionMenuUI : MonoBehaviour, IActionMenuUI
+public class ActionMenuUI : Windy.Srpg.Game.UI.GameplayModalUI, IActionMenuUI
 {
     public static event System.Action<bool> VisibilityChanged;
 
@@ -34,8 +34,10 @@ public class ActionMenuUI : MonoBehaviour, IActionMenuUI
     private RectTransform _panelRectTransform;
     private RectTransform _canvasRectTransform;
 
-    void Awake()
+    protected override void Awake()
     {
+        base.Awake();
+
         if (panel == null)
         {
             return;
@@ -65,8 +67,8 @@ public class ActionMenuUI : MonoBehaviour, IActionMenuUI
             _canvasRectTransform = canvas.GetComponent<RectTransform>();
         }
 
-        panel.SetActive(false);
-        VisibilityChanged?.Invoke(false);
+        ConfigureModal(panel, attackButton, cancelButton);
+        SetModalVisible(false);
         if (attackButton != null)
         {
             attackButton.onClick.AddListener(() => _onAttack?.Invoke());
@@ -129,8 +131,8 @@ public class ActionMenuUI : MonoBehaviour, IActionMenuUI
         }
 
         RepositionVisibleButtons();
-        panel.SetActive(true);
-        VisibilityChanged?.Invoke(true);
+        SetDefaultFocusButton(ResolvePreferredFocusButton());
+        SetModalVisible(true);
         PositionPanel(worldPosition);
     }
 
@@ -143,13 +145,7 @@ public class ActionMenuUI : MonoBehaviour, IActionMenuUI
         _onTrade = null;
         _onWait = null;
         _onCancel = null;
-        panel.SetActive(false);
-        VisibilityChanged?.Invoke(false);
-    }
-
-    private void OnDisable()
-    {
-        VisibilityChanged?.Invoke(false);
+        SetModalVisible(false);
     }
 
     private void RepositionVisibleButtons()
@@ -194,6 +190,35 @@ public class ActionMenuUI : MonoBehaviour, IActionMenuUI
             worldPosition,
             screenOffset,
             screenPadding);
+    }
+
+    protected override void OnModalVisibilityChanged(bool isVisible)
+    {
+        VisibilityChanged?.Invoke(isVisible);
+    }
+
+    private Button ResolvePreferredFocusButton()
+    {
+        Button[] buttons =
+        {
+            tradeButton,
+            attackButton,
+            healButton,
+            skillButton,
+            itemButton,
+            waitButton,
+            cancelButton
+        };
+
+        foreach (Button button in buttons)
+        {
+            if (button != null && button.isActiveAndEnabled && button.interactable && button.gameObject.activeInHierarchy)
+            {
+                return button;
+            }
+        }
+
+        return null;
     }
 }
 

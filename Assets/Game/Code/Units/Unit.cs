@@ -458,6 +458,11 @@ namespace Windy.Srpg.Game.Units
 
         public void OnMouseDown()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
                 return;
@@ -474,6 +479,11 @@ namespace Windy.Srpg.Game.Units
         }
         public void OnMouseEnter()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             CellGrid grid = FindSceneCellGrid();
             if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
             {
@@ -486,6 +496,11 @@ namespace Windy.Srpg.Game.Units
 
         public void OnMouseExit()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             CellGrid grid = FindSceneCellGrid();
             if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
             {

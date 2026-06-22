@@ -65,6 +65,16 @@ namespace Windy.Srpg.Game.Grid
             SetOverlayColor(HiddenOverlayColor);
         }
 
+        public override void ShowCursorBorder(Cell cell, Color color)
+        {
+            ShowPreviewBorder(true, true, true, true, color);
+        }
+
+        public override void ClearCursorBorder(Cell cell)
+        {
+            ClearPreviewBorder();
+        }
+
         public void ShowPreviewBorder(bool top, bool right, bool bottom, bool left, Color color)
         {
             EnsureBorderRenderers();

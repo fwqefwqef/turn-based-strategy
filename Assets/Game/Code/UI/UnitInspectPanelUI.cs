@@ -20,9 +20,13 @@ namespace Windy.Srpg.Game.UI
 {
     public class UnitInspectPanelUI : MonoBehaviour
     {
+        private static readonly Color InspectFocusColor = new Color(0.63f, 0.84f, 1f, 1f);
+
         public static event Action<Unit> SelectionTargetChanged;
         public static event Action<Unit> InspectTargetChanged;
         private static UnitInspectPanelUI activeInstance;
+        public static bool HasOpenInspect => activeInstance != null && activeInstance.inspectedUnit != null;
+        public static Unit CurrentInspectedUnit => activeInstance != null ? activeInstance.inspectedUnit : null;
 
         [Header("References")]
         [SerializeField] private CellGrid cellGrid;
@@ -81,11 +85,10 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private Vector2 buffsPanelOffset = new Vector2(0f, -24f);
 
         [Header("Behavior")]
-        [SerializeField] private bool rightClickClearsSelection = true;
         [SerializeField] private bool emptyCellClickClearsSelection = true;
-        [SerializeField] private KeyCode inspectToggleKey = KeyCode.X;
 
         private readonly HashSet<Unit> subscribedUnits = new HashSet<Unit>();
+        private readonly Dictionary<TMP_Text, Color> clickableFieldBaseColors = new Dictionary<TMP_Text, Color>();
         private Unit selectedUnit;
         private Unit inspectedUnit;
         private RectTransform rootRectTransform;
@@ -96,6 +99,7 @@ namespace Windy.Srpg.Game.UI
         private bool areaConfirmVisible;
         private bool lastSelectedUnitHadPendingMove;
         private string selectedDetailId;
+        private TMP_Text hoveredClickableField;
 
         private void OnValidate()
         {
@@ -184,33 +188,7 @@ namespace Windy.Srpg.Game.UI
         private void Update()
         {
             UpdatePendingMoveAutoHideState();
-
-            if (rightClickClearsSelection && selectedUnit != null && Input.GetMouseButtonDown(1) && !IsGameplaySelectedUnit(selectedUnit))
-            {
-                ClearSelectionAndInspect();
-                return;
-            }
-
-            bool inspectChanged = false;
-
-            bool clickedInspectPanel = Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)
-                ? IsPointerInsideInspectUi()
-                : false;
-
-            if (!clickedInspectPanel && (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) && TryClearInspect())
-            {
-                inspectChanged = true;
-            }
-
-            if (Input.GetKeyDown(inspectToggleKey))
-            {
-                inspectChanged = HandleInspectKeyPressed() || inspectChanged;
-            }
-
-            if (inspectChanged)
-            {
-                Refresh();
-            }
+            RefreshClickableFieldHighlights();
         }
 
         private void OnLevelLoadingDone(object sender, EventArgs e)
@@ -596,22 +574,6 @@ namespace Windy.Srpg.Game.UI
             Refresh();
         }
 
-        private bool HandleInspectKeyPressed()
-        {
-            if (actionMenuVisible || attackPreviewVisible || areaConfirmVisible)
-            {
-                return TryClearInspect();
-            }
-
-            if (TryGetUnitUnderPointer(out Unit hoveredUnit))
-            {
-                OpenInspect(hoveredUnit);
-                return true;
-            }
-
-            return TryClearInspect();
-        }
-
         private void OpenInspect(Unit unit)
         {
             if (unit == null)
@@ -667,6 +629,44 @@ namespace Windy.Srpg.Game.UI
 
             CloseInspect(clearRememberedTarget: true);
             Refresh();
+        }
+
+        public static bool TryOpenInspectForUnit(Unit unit)
+        {
+            if (activeInstance == null || unit == null)
+            {
+                return false;
+            }
+
+            if (activeInstance.actionMenuVisible || activeInstance.attackPreviewVisible || activeInstance.areaConfirmVisible)
+            {
+                return false;
+            }
+
+            activeInstance.OpenInspect(unit);
+            activeInstance.Refresh();
+            return true;
+        }
+
+        public static bool TryClearInspectFromInput()
+        {
+            if (activeInstance == null)
+            {
+                return false;
+            }
+
+            bool changed = activeInstance.TryClearInspect();
+            if (changed)
+            {
+                activeInstance.Refresh();
+            }
+
+            return changed;
+        }
+
+        public static bool IsPointerInsideActiveInspectUi()
+        {
+            return activeInstance != null && activeInstance.IsPointerInsideInspectUi();
         }
 
         private bool IsPointerInsideInspectUi()
@@ -996,6 +996,8 @@ namespace Windy.Srpg.Game.UI
                 return;
             }
 
+            clickableFieldBaseColors[text] = text.color;
+
             Button button = text.GetComponent<Button>();
             if (button == null)
             {
@@ -1004,8 +1006,93 @@ namespace Windy.Srpg.Game.UI
 
             button.transition = Selectable.Transition.None;
             button.targetGraphic = text;
+            ColorBlock colors = button.colors;
+            colors.normalColor = text.color;
+            colors.highlightedColor = InspectFocusColor;
+            colors.selectedColor = InspectFocusColor;
+            colors.pressedColor = InspectFocusColor;
+            button.colors = colors;
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() => ToggleDetail(detailId, titleProvider?.Invoke() ?? string.Empty, bodyProvider?.Invoke() ?? string.Empty));
+
+            RegisterClickableFieldHover(text);
+        }
+
+        private void RegisterClickableFieldHover(TMP_Text text)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            EventTrigger trigger = text.GetComponent<EventTrigger>();
+            if (trigger == null)
+            {
+                trigger = text.gameObject.AddComponent<EventTrigger>();
+            }
+
+            trigger.triggers ??= new List<EventTrigger.Entry>();
+            trigger.triggers.RemoveAll(entry =>
+                entry != null &&
+                (entry.eventID == EventTriggerType.PointerEnter || entry.eventID == EventTriggerType.PointerExit));
+
+            EventTrigger.Entry pointerEnter = new EventTrigger.Entry
+            {
+                eventID = EventTriggerType.PointerEnter
+            };
+            pointerEnter.callback.AddListener(_ =>
+            {
+                hoveredClickableField = text;
+                RefreshClickableFieldHighlights();
+            });
+            trigger.triggers.Add(pointerEnter);
+
+            EventTrigger.Entry pointerExit = new EventTrigger.Entry
+            {
+                eventID = EventTriggerType.PointerExit
+            };
+            pointerExit.callback.AddListener(_ =>
+            {
+                if (hoveredClickableField == text)
+                {
+                    hoveredClickableField = null;
+                }
+
+                RefreshClickableFieldHighlights();
+            });
+            trigger.triggers.Add(pointerExit);
+        }
+
+        private void RefreshClickableFieldHighlights()
+        {
+            if (clickableFieldBaseColors.Count == 0)
+            {
+                return;
+            }
+
+            GameObject selectedObject = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+            foreach (var pair in clickableFieldBaseColors)
+            {
+                TMP_Text text = pair.Key;
+                if (text == null)
+                {
+                    continue;
+                }
+
+                bool isHighlighted = false;
+                if (selectedObject != null)
+                {
+                    isHighlighted = selectedObject == text.gameObject || selectedObject.transform.IsChildOf(text.transform);
+                }
+
+                if (!isHighlighted && hoveredClickableField == text)
+                {
+                    isHighlighted = true;
+                }
+
+                text.color = isHighlighted ? InspectFocusColor : pair.Value;
+                text.fontStyle = isHighlighted ? FontStyles.Bold : FontStyles.Normal;
+            }
         }
 
         private void OnEntryClicked(UnitInspectEntryListUI.EntryData entry)

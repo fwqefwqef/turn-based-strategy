@@ -256,6 +256,35 @@ namespace Windy.Srpg.Game.Grid
             return GetDeploymentSlots().Length;
         }
 
+        public IReadOnlyList<Cell> GetPreBattleDeploymentSlotCells()
+        {
+            return GetDeploymentSlots()
+                .Where(slot => slot != null && slot.Cell != null)
+                .OrderBy(slot => slot.SlotIndex)
+                .Select(slot => slot.Cell)
+                .ToArray();
+        }
+
+        public Cell GetPreferredPreBattleDeploymentCell()
+        {
+            DeploymentSlot[] deploymentSlots = GetDeploymentSlots();
+            if (deploymentSlots.Length == 0)
+            {
+                return null;
+            }
+
+            if (selectedPreBattleDeploymentSlotIndex >= 0 && selectedPreBattleDeploymentSlotIndex < deploymentSlots.Length)
+            {
+                return deploymentSlots[selectedPreBattleDeploymentSlotIndex]?.Cell;
+            }
+
+            return deploymentSlots
+                .Where(slot => slot != null && slot.Cell != null)
+                .OrderBy(slot => slot.SlotIndex)
+                .Select(slot => slot.Cell)
+                .FirstOrDefault();
+        }
+
         public IReadOnlyList<string> GetDeploymentRosterForPreBattle()
         {
             CampaignSaveData save = LoadSeededCampaignSave();

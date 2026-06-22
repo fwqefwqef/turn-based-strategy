@@ -10,8 +10,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Serialization;
 
-public class InventoryMenuUI : MonoBehaviour, MoveAbility.IInventoryMenuUI
+public class InventoryMenuUI : GameplayModalUI, MoveAbility.IInventoryMenuUI
 {
+    public static event Action<bool> VisibilityChanged;
+    private static InventoryMenuUI activeInstance;
     private static readonly Color EmptySlotRowColor = new Color(1f, 1f, 1f, 0.45f);
 
     private sealed class ItemRowView
@@ -55,8 +57,11 @@ public class InventoryMenuUI : MonoBehaviour, MoveAbility.IInventoryMenuUI
     private Unit currentUnit;
     private Item selectedEntry;
 
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake();
+        activeInstance = this;
+
         if (rootPanel != null)
         {
             panelRectTransform = rootPanel.GetComponent<RectTransform>();
@@ -115,11 +120,14 @@ public class InventoryMenuUI : MonoBehaviour, MoveAbility.IInventoryMenuUI
         {
             itemActionCancelButton.onClick.AddListener(HandleCancelSelectionClicked);
         }
+
+        ConfigureModal(rootPanel, closeButton, closeButton);
+        SetModalVisible(false);
     }
 
     private void Update()
     {
-        if (rootPanel == null || !rootPanel.activeSelf)
+        if (!IsVisible)
         {
             return;
         }
@@ -151,7 +159,8 @@ public class InventoryMenuUI : MonoBehaviour, MoveAbility.IInventoryMenuUI
 
         if (rootPanel != null)
         {
-            rootPanel.SetActive(true);
+            SetDefaultFocusButton(ResolvePreferredFocusButton());
+            SetModalVisible(true);
             PositionPanel(worldPosition);
         }
     }
@@ -174,10 +183,17 @@ public class InventoryMenuUI : MonoBehaviour, MoveAbility.IInventoryMenuUI
             itemDisplayPanel.SetActive(false);
         }
 
-        if (rootPanel != null)
+        SetModalVisible(false);
+    }
+
+    public static bool RequestCancelFromInput()
+    {
+        if (activeInstance == null)
         {
-            rootPanel.SetActive(false);
+            return false;
         }
+
+        return activeInstance.TryCancelFromInput();
     }
 
     private void RebuildEntries()
@@ -505,6 +521,51 @@ public class InventoryMenuUI : MonoBehaviour, MoveAbility.IInventoryMenuUI
             worldPosition,
             screenOffset,
             screenPadding);
+    }
+
+    private Button ResolvePreferredFocusButton()
+    {
+        foreach (ItemRowView row in itemRows)
+        {
+            if (row?.Button != null && row.Button.interactable && row.Button.gameObject.activeInHierarchy)
+            {
+                return row.Button;
+            }
+        }
+
+        return closeButton;
+    }
+
+    protected override bool HandleCancelFromInput()
+    {
+        if (!IsVisible)
+        {
+            return false;
+        }
+
+        if (selectedEntry != null)
+        {
+            HandleCancelSelectionClicked();
+            return true;
+        }
+
+        HandleCloseClicked();
+        return true;
+    }
+
+    protected override void OnDisable()
+    {
+        base.OnDisable();
+
+        if (activeInstance == this)
+        {
+            activeInstance = null;
+        }
+    }
+
+    protected override void OnModalVisibilityChanged(bool isVisible)
+    {
+        VisibilityChanged?.Invoke(isVisible);
     }
 }
 

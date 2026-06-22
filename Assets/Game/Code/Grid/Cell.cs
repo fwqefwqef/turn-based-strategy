@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Game.UI;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Rendering;
 using Windy.Srpg.Runtime.Units;
@@ -72,6 +73,11 @@ namespace Windy.Srpg.Runtime.Grid
 
         protected virtual void OnMouseDown()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
                 return;
@@ -89,6 +95,11 @@ namespace Windy.Srpg.Runtime.Grid
 
         protected virtual void OnMouseEnter()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             CellGrid grid = FindAnyObjectByType<CellGrid>();
             if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
             {
@@ -101,6 +112,11 @@ namespace Windy.Srpg.Runtime.Grid
 
         protected virtual void OnMouseExit()
         {
+            if (GameplayInputController.IsCentralizedSceneInputActive)
+            {
+                return;
+            }
+
             CellGrid grid = FindAnyObjectByType<CellGrid>();
             if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
             {
@@ -227,6 +243,24 @@ namespace Windy.Srpg.Runtime.Grid
             foreach (var highlighter in highlighters)
             {
                 highlighter?.Clear(this);
+            }
+        }
+
+        public virtual void ShowCursorBorder(Color color)
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ShowCursorBorder(this, color);
+            }
+        }
+
+        public virtual void ClearCursorBorder()
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ClearCursorBorder(this);
             }
         }
 

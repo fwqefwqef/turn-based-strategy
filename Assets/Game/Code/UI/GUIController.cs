@@ -12,6 +12,7 @@ namespace Windy.Srpg.Game.UI
         public CellGrid CellGrid;
         public Button EndTurnButton;
         [SerializeField] private PreBattleUIController preBattleUiController;
+        [SerializeField] private GameplayInputController gameplayInputController;
 
         private void Awake()
         {
@@ -41,7 +42,19 @@ namespace Windy.Srpg.Game.UI
                 preBattleUiController = gameObject.AddComponent<PreBattleUIController>();
             }
 
-            preBattleUiController.Initialize(CellGrid, EndTurnButton);
+            preBattleUiController.Initialize(CellGrid);
+
+            if (gameplayInputController == null)
+            {
+                gameplayInputController = GetComponent<GameplayInputController>();
+            }
+
+            if (gameplayInputController == null)
+            {
+                gameplayInputController = gameObject.AddComponent<GameplayInputController>();
+            }
+
+            gameplayInputController.Initialize(CellGrid);
 
             CellGrid.LevelLoading += OnLevelLoading;
             CellGrid.LevelInitialized += OnLevelLoadingDone;
@@ -101,11 +114,6 @@ namespace Windy.Srpg.Game.UI
             if (Input.GetKeyDown(KeyCode.M) && CellGrid.CurrentState is not CellGridStateAiTurn)
             {
                 EndTurn();
-            }
-
-            if (Input.GetMouseButtonDown(1) && CellGrid.CurrentState is IRightClickHandler)
-            {
-                CellGrid.ProcessSceneRightClick();
             }
         }
 

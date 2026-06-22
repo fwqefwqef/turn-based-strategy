@@ -10,8 +10,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Serialization;
 
-public class TradeMenuUI : MonoBehaviour, MoveAbility.ITradeMenuUI
+public class TradeMenuUI : GameplayModalUI, MoveAbility.ITradeMenuUI
 {
+    public static event Action<bool> VisibilityChanged;
+    private static TradeMenuUI activeInstance;
     private static readonly Color EmptySlotRowColor = new Color(1f, 1f, 1f, 0.45f);
 
     private enum SwapSelectionMode
@@ -66,8 +68,11 @@ public class TradeMenuUI : MonoBehaviour, MoveAbility.ITradeMenuUI
     private SwapSelectionMode swapSelectionMode;
     private bool didTrade;
 
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake();
+        activeInstance = this;
+
         if (rootPanel != null)
         {
             panelRectTransform = rootPanel.GetComponent<RectTransform>();
@@ -126,11 +131,14 @@ public class TradeMenuUI : MonoBehaviour, MoveAbility.ITradeMenuUI
         {
             closeButton.onClick.AddListener(HandleCloseClicked);
         }
+
+        ConfigureModal(rootPanel, closeButton, closeButton);
+        SetModalVisible(false);
     }
 
     private void Update()
     {
-        if (rootPanel == null || !rootPanel.activeSelf || !Input.GetMouseButtonDown(1))
+        if (!IsVisible || !Input.GetMouseButtonDown(1))
         {
             return;
         }
@@ -157,7 +165,8 @@ public class TradeMenuUI : MonoBehaviour, MoveAbility.ITradeMenuUI
 
         if (rootPanel != null)
         {
-            rootPanel.SetActive(true);
+            SetDefaultFocusButton(ResolvePreferredFocusButton());
+            SetModalVisible(true);
             PositionPanel(worldPosition);
         }
     }
@@ -178,10 +187,17 @@ public class TradeMenuUI : MonoBehaviour, MoveAbility.ITradeMenuUI
             itemActionPanel.SetActive(false);
         }
 
-        if (rootPanel != null)
+        SetModalVisible(false);
+    }
+
+    public static bool RequestCancelFromInput()
+    {
+        if (activeInstance == null)
         {
-            rootPanel.SetActive(false);
+            return false;
         }
+
+        return activeInstance.TryCancelFromInput();
     }
 
     private void RebuildEntries()
@@ -585,6 +601,59 @@ public class TradeMenuUI : MonoBehaviour, MoveAbility.ITradeMenuUI
             worldPosition,
             screenOffset,
             screenPadding);
+    }
+
+    private Button ResolvePreferredFocusButton()
+    {
+        foreach (TradeItemRowView row in selfRows)
+        {
+            if (row?.Button != null && row.Button.interactable && row.Button.gameObject.activeInHierarchy)
+            {
+                return row.Button;
+            }
+        }
+
+        foreach (TradeItemRowView row in friendlyRows)
+        {
+            if (row?.Button != null && row.Button.interactable && row.Button.gameObject.activeInHierarchy)
+            {
+                return row.Button;
+            }
+        }
+
+        return closeButton;
+    }
+
+    protected override bool HandleCancelFromInput()
+    {
+        if (!IsVisible)
+        {
+            return false;
+        }
+
+        if (HasAnySelection())
+        {
+            ClearSelection();
+            return true;
+        }
+
+        HandleCloseClicked();
+        return true;
+    }
+
+    protected override void OnDisable()
+    {
+        base.OnDisable();
+
+        if (activeInstance == this)
+        {
+            activeInstance = null;
+        }
+    }
+
+    protected override void OnModalVisibilityChanged(bool isVisible)
+    {
+        VisibilityChanged?.Invoke(isVisible);
     }
 }
 

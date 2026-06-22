@@ -2,12 +2,25 @@ using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Windy.Srpg.Game.UI
 {
     public class UnitInspectEntryListUI : MonoBehaviour
     {
+        private static readonly Color TextNormalColor = Color.black;
+        private static readonly Color TextHighlightColor = new Color(0.08f, 0.33f, 0.62f, 1f);
+        private static readonly Color BackgroundHighlightColor = new Color(0.78f, 0.87f, 1f, 1f);
+
+        private sealed class RowVisualState
+        {
+            public Button Button;
+            public Image Background;
+            public TMP_Text Label;
+            public string BaseLabel;
+        }
+
         public readonly struct EntryData
         {
             public readonly string Id;
@@ -35,10 +48,12 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private Color disabledRowColor = Color.white;
 
         private readonly List<Button> spawnedRows = new List<Button>();
+        private readonly List<RowVisualState> rowStates = new List<RowVisualState>();
         private VerticalLayoutGroup layoutGroup;
         private bool isSynchronizingScroll;
         private int lastRowCount;
         private System.Action<EntryData> onEntryClicked;
+        private Button hoveredButton;
 
         private void OnValidate()
         {
@@ -141,6 +156,12 @@ namespace Windy.Srpg.Game.UI
         private void OnDisable()
         {
             UnregisterScrollCallbacks();
+            hoveredButton = null;
+        }
+
+        private void Update()
+        {
+            RefreshRowVisualStates();
         }
 
         public void SetEntries(IEnumerable<EntryData> entries, System.Action<EntryData> onEntryClicked = null)
@@ -176,8 +197,8 @@ namespace Windy.Srpg.Game.UI
                     ColorBlock colors = rowButton.colors;
                     colors.normalColor = rowColor;
                     colors.highlightedColor = rowColor;
-                    colors.pressedColor = rowColor;
                     colors.selectedColor = rowColor;
+                    colors.pressedColor = rowColor;
                     colors.disabledColor = disabledRowColor;
                     rowButton.colors = colors;
 
@@ -185,9 +206,20 @@ namespace Windy.Srpg.Game.UI
                     if (label != null)
                     {
                         label.text = entry.DisplayName;
+                        label.color = TextNormalColor;
+                        label.fontStyle = FontStyles.Normal;
                     }
 
+                    RegisterRowVisualCallbacks(rowButton, label);
+
                     spawnedRows.Add(rowButton);
+                    rowStates.Add(new RowVisualState
+                    {
+                        Button = rowButton,
+                        Background = background,
+                        Label = label,
+                        BaseLabel = entry.DisplayName
+                    });
                 }
             }
 
@@ -200,6 +232,94 @@ namespace Windy.Srpg.Game.UI
 
             ConfigureScrollableList(resolvedEntries.Count);
             ResetScrollPosition();
+        }
+
+        public bool ContainsButton(Button button)
+        {
+            return button != null && spawnedRows.Contains(button);
+        }
+
+        public bool TryGetAdjacentButton(Button currentButton, int direction, out Button nextButton)
+        {
+            nextButton = null;
+            if (currentButton == null || direction == 0)
+            {
+                return false;
+            }
+
+            int currentIndex = spawnedRows.IndexOf(currentButton);
+            if (currentIndex < 0)
+            {
+                return false;
+            }
+
+            int targetIndex = Mathf.Clamp(currentIndex + direction, 0, spawnedRows.Count - 1);
+            if (targetIndex == currentIndex)
+            {
+                return false;
+            }
+
+            nextButton = spawnedRows[targetIndex];
+            return nextButton != null;
+        }
+
+        public void ScrollButtonIntoView(Button button)
+        {
+            if (button == null || scrollRect == null || content == null || viewport == null)
+            {
+                return;
+            }
+
+            Canvas.ForceUpdateCanvases();
+            int rowIndex = spawnedRows.IndexOf(button);
+            if (rowIndex < 0)
+            {
+                return;
+            }
+
+            float rowHeight = GetRowHeight();
+            float spacing = layoutGroup != null ? layoutGroup.spacing : 0f;
+            float step = rowHeight + spacing;
+            if (step <= 0f)
+            {
+                return;
+            }
+
+            RectOffset padding = layoutGroup != null ? layoutGroup.padding : new RectOffset();
+            int maxTopIndex = Mathf.Max(0, spawnedRows.Count - visibleRows);
+            int currentTopIndex = Mathf.Clamp(Mathf.RoundToInt(Mathf.Max(0f, content.anchoredPosition.y - padding.top) / step), 0, maxTopIndex);
+            int newTopIndex = currentTopIndex;
+
+            if (rowIndex < currentTopIndex)
+            {
+                newTopIndex = rowIndex;
+            }
+            else if (rowIndex > currentTopIndex + visibleRows - 1)
+            {
+                newTopIndex = rowIndex - visibleRows + 1;
+            }
+
+            if (newTopIndex == currentTopIndex)
+            {
+                return;
+            }
+
+            Vector2 anchoredPosition = content.anchoredPosition;
+            anchoredPosition.y = padding.top + (newTopIndex * step);
+            float maxScroll = Mathf.Max(0f, content.rect.height - viewport.rect.height);
+            anchoredPosition.y = Mathf.Clamp(anchoredPosition.y, 0f, maxScroll);
+            content.anchoredPosition = anchoredPosition;
+            Canvas.ForceUpdateCanvases();
+
+            if (maxScroll > 0.001f)
+            {
+                float normalized = 1f - Mathf.Clamp01(anchoredPosition.y / maxScroll);
+                scrollRect.verticalNormalizedPosition = normalized;
+                if (verticalScrollbar != null)
+                {
+                    verticalScrollbar.SetValueWithoutNotify(normalized);
+                }
+            }
         }
 
         public void ClearEntries()
@@ -227,6 +347,143 @@ namespace Windy.Srpg.Game.UI
             }
 
             spawnedRows.Clear();
+            rowStates.Clear();
+            hoveredButton = null;
+        }
+
+        private void RegisterRowVisualCallbacks(Button rowButton, TMP_Text label)
+        {
+            if (rowButton == null)
+            {
+                return;
+            }
+
+            RegisterHoverCallbacks(rowButton.gameObject, rowButton);
+            if (label != null)
+            {
+                RegisterHoverCallbacks(label.gameObject, rowButton);
+            }
+
+            EventTrigger trigger = GetOrCreateEventTrigger(rowButton.gameObject);
+            RemoveEventTriggerEntries(trigger, EventTriggerType.Select, EventTriggerType.Deselect);
+
+            AddEventTriggerEntry(trigger, EventTriggerType.Select, () =>
+            {
+                RefreshRowVisualStates();
+            });
+            AddEventTriggerEntry(trigger, EventTriggerType.Deselect, RefreshRowVisualStates);
+        }
+
+        private void RegisterHoverCallbacks(GameObject target, Button owningButton)
+        {
+            if (target == null || owningButton == null)
+            {
+                return;
+            }
+
+            EventTrigger trigger = GetOrCreateEventTrigger(target);
+            RemoveEventTriggerEntries(trigger, EventTriggerType.PointerEnter, EventTriggerType.PointerExit);
+
+            AddEventTriggerEntry(trigger, EventTriggerType.PointerEnter, () =>
+            {
+                hoveredButton = owningButton;
+                RefreshRowVisualStates();
+            });
+            AddEventTriggerEntry(trigger, EventTriggerType.PointerExit, () =>
+            {
+                if (hoveredButton == owningButton)
+                {
+                    hoveredButton = null;
+                }
+
+                RefreshRowVisualStates();
+            });
+        }
+
+        private static EventTrigger GetOrCreateEventTrigger(GameObject target)
+        {
+            EventTrigger trigger = target.GetComponent<EventTrigger>();
+            if (trigger == null)
+            {
+                trigger = target.AddComponent<EventTrigger>();
+            }
+
+            trigger.triggers ??= new List<EventTrigger.Entry>();
+            return trigger;
+        }
+
+        private static void RemoveEventTriggerEntries(EventTrigger trigger, params EventTriggerType[] eventTypes)
+        {
+            if (trigger?.triggers == null || eventTypes == null || eventTypes.Length == 0)
+            {
+                return;
+            }
+
+            trigger.triggers.RemoveAll(entry => entry != null && eventTypes.Contains(entry.eventID));
+        }
+
+        private static void AddEventTriggerEntry(EventTrigger trigger, EventTriggerType eventType, System.Action action)
+        {
+            if (trigger == null || action == null)
+            {
+                return;
+            }
+
+            EventTrigger.Entry entry = new EventTrigger.Entry
+            {
+                eventID = eventType
+            };
+            entry.callback.AddListener(_ => action.Invoke());
+            trigger.triggers.Add(entry);
+        }
+
+        private void ApplyRowVisualState(RowVisualState rowState, bool highlighted)
+        {
+            if (rowState == null || rowState.Button == null)
+            {
+                return;
+            }
+
+            if (rowState.Background != null)
+            {
+                rowState.Background.color = highlighted ? BackgroundHighlightColor : rowColor;
+            }
+
+            if (rowState.Label == null)
+            {
+                return;
+            }
+
+            rowState.Label.text = rowState.BaseLabel;
+            rowState.Label.color = highlighted ? TextHighlightColor : TextNormalColor;
+            rowState.Label.fontStyle = highlighted ? FontStyles.Bold : FontStyles.Normal;
+        }
+
+        private static bool IsRowSelected(Button rowButton)
+        {
+            if (rowButton == null || EventSystem.current == null)
+            {
+                return false;
+            }
+
+            GameObject currentSelected = EventSystem.current.currentSelectedGameObject;
+            return currentSelected != null
+                && (currentSelected == rowButton.gameObject
+                    || currentSelected.transform.IsChildOf(rowButton.transform));
+        }
+
+        private void RefreshRowVisualStates()
+        {
+            foreach (RowVisualState rowState in rowStates)
+            {
+                if (rowState?.Button == null)
+                {
+                    continue;
+                }
+
+                bool highlighted = rowState.Button == hoveredButton || IsRowSelected(rowState.Button);
+                ApplyRowVisualState(rowState, highlighted);
+            }
         }
 
         private void ConfigureScrollableList(int rowCount)

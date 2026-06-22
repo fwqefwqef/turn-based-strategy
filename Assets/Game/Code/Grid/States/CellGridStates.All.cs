@@ -77,7 +77,8 @@ namespace Windy.Srpg.Game.Grid.States
 
         public virtual void OnCellSelected(Cell cell)
         {
-            cell?.ApplyHighlight(CellHighlightKind.Selected);
+            // Hover selection is represented by the shared cursor border now.
+            // Tile fills should only come from explicit gameplay overlays.
         }
 
         public virtual void OnCellClicked(Cell cell)

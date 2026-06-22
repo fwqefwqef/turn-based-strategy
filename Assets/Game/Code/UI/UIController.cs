@@ -8,7 +8,6 @@ public class UIController : MonoBehaviour
 {
     [Header("References")]
     public TextMeshProUGUI turnCountText;     // For displaying the turn number
-    public Button endTurnButton;         // For the "End Turn" button
     public CellGrid cellGrid;            // Reference to your grid controller
 
     private void Start()
@@ -18,10 +17,6 @@ public class UIController : MonoBehaviour
 
         if (cellGrid != null)
             cellGrid.TurnStarted += OnTurnStarted;
-
-        // Hook the button click
-        if (endTurnButton != null)
-            endTurnButton.onClick.AddListener(OnEndTurnClicked);
     }
 
     private void OnTurnStarted(object sender, System.EventArgs e)
@@ -35,15 +30,6 @@ public class UIController : MonoBehaviour
         // Unsubscribe to prevent memory leaks
         if (cellGrid != null)
             cellGrid.TurnStarted -= OnTurnStarted;
-
-        if (endTurnButton != null)
-            endTurnButton.onClick.RemoveListener(OnEndTurnClicked);
-    }
-
-    private void OnEndTurnClicked()
-    {
-        if (cellGrid != null)
-            cellGrid.RequestEndTurn();
     }
 }
 
