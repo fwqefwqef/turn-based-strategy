@@ -11,6 +11,11 @@ using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.UI
 {
+    /// <summary>
+    /// Pre-battle roster/deployment UI host.
+    /// The select-units panel is button-list driven, while switch-deployment now delegates slot
+    /// interaction to the board deployment tiles themselves.
+    /// </summary>
     public sealed class PreBattleUIController : MonoBehaviour
     {
         private static PreBattleUIController activeInstance;
@@ -44,12 +49,12 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private RectTransform switchDeploymentPanel;
         [SerializeField] private Button switchDeploymentBackButton;
         [SerializeField] private TMP_Text switchDeploymentInstructionText;
+        // Retained as a scene-compatibility anchor for older authored UI setups.
+        // Runtime switch deployment now uses the board slots directly instead of generating a button list here.
         [SerializeField] private RectTransform switchSlotContainer;
 
         private TMP_FontAsset fontAsset;
-        private int pendingSwapSlotIndex = -1;
         private string preferredSelectUnitId;
-        private int preferredSwitchSlotIndex = -1;
         private bool initialized;
         private bool generatedFallbackUi;
 
@@ -191,11 +196,6 @@ namespace Windy.Srpg.Game.UI
             {
                 saveButton = CreateSceneAuthoredSaveButton();
             }
-
-            if (switchDeploymentPanel != null && switchSlotContainer == null)
-            {
-                switchSlotContainer = CreateSceneAuthoredSwitchSlotContainer();
-            }
         }
 
         private void HookButtonEvents()
@@ -276,10 +276,6 @@ namespace Windy.Srpg.Game.UI
 
             IReadOnlyList<string> roster = cellGrid.GetDeploymentRosterForPreBattle();
             int deploymentSlotLimit = GetDeploymentSlotLimit();
-            if (pendingSwapSlotIndex >= roster.Count)
-            {
-                pendingSwapSlotIndex = -1;
-            }
 
             if (statusText != null)
             {
@@ -329,7 +325,6 @@ namespace Windy.Srpg.Game.UI
             }
 
             selectUnitsPanel.gameObject.SetActive(true);
-            preferredSwitchSlotIndex = -1;
         }
 
         private void OpenSwitchDeploymentPanel()
@@ -352,7 +347,6 @@ namespace Windy.Srpg.Game.UI
         private void ReturnToMainPanel()
         {
             cellGrid?.ExitPreBattleDeploymentSwapMode();
-            preferredSwitchSlotIndex = -1;
             CloseSubPanels();
             if (cellGrid != null && cellGrid.IsPreBattlePhase)
             {
@@ -395,7 +389,6 @@ namespace Windy.Srpg.Game.UI
         private void CloseSubPanels()
         {
             preferredSelectUnitId = null;
-            preferredSwitchSlotIndex = -1;
             if (selectUnitsPanel != null)
             {
                 selectUnitsPanel.gameObject.SetActive(false);
@@ -447,12 +440,12 @@ namespace Windy.Srpg.Game.UI
             }
 
             string[] roster = cellGrid.GetDeploymentRosterForPreBattle().ToArray();
-            pendingSwapSlotIndex = cellGrid.SelectedPreBattleDeploymentSlotIndex;
+            int selectedSlotIndex = cellGrid.SelectedPreBattleDeploymentSlotIndex;
             if (switchDeploymentInstructionText != null)
             {
-                switchDeploymentInstructionText.text = pendingSwapSlotIndex < 0
+                switchDeploymentInstructionText.text = selectedSlotIndex < 0
                     ? GameTextCatalog.Get("ui.pre_battle.switch_instruction", "Pick 2 units to swap.")
-                    : GameTextCatalog.Format("ui.pre_battle.switch_selected_instruction", "Selected: {0}", BuildRosterDisplayName(roster, pendingSwapSlotIndex));
+                    : GameTextCatalog.Format("ui.pre_battle.switch_selected_instruction", "Selected: {0}", BuildRosterDisplayName(roster, selectedSlotIndex));
             }
 
             if (autoResizeGeneratedLists || generatedFallbackUi)
@@ -462,7 +455,6 @@ namespace Windy.Srpg.Game.UI
 
             if (switchSlotContainer != null)
             {
-                ClearDynamicChildren(switchSlotContainer);
                 switchSlotContainer.gameObject.SetActive(false);
             }
         }
@@ -617,59 +609,6 @@ namespace Windy.Srpg.Game.UI
             cellGrid.ReplaceDeploymentSlotUnit(emptySlotIndex, unitId);
         }
 
-        private void RebuildSwitchDeploymentButtons(RectTransform container, IReadOnlyList<string> roster)
-        {
-            if (container == null)
-            {
-                return;
-            }
-
-            if (roster == null || roster.Count == 0)
-            {
-                CreateRuntimeText(container, GameTextCatalog.Get("ui.pre_battle.no_roster_units", "No deployed units."), new Vector2(12f, -12f), GetTextSize(container), 16, FontStyles.Italic, TextAlignmentOptions.Left);
-                return;
-            }
-
-            int buttonIndex = 0;
-            for (int i = 0; i < roster.Count; i++)
-            {
-                if (string.IsNullOrWhiteSpace(roster[i]))
-                {
-                    continue;
-                }
-
-                string label = BuildRosterDisplayName(roster, i);
-                int slotIndex = i;
-                Button button = CreateRuntimeButton(
-                    container,
-                    label,
-                    GetButtonPosition(buttonIndex),
-                    GetButtonSize(container),
-                    () =>
-                    {
-                        preferredSwitchSlotIndex = slotIndex;
-                        cellGrid?.HandlePreBattleDeploymentSlotClicked(slotIndex);
-                        RefreshAll();
-                    });
-                button.name = $"PreBattleSwitchSlot:{slotIndex}";
-
-                Image image = button.GetComponent<Image>();
-                if (image != null)
-                {
-                    image.color = pendingSwapSlotIndex == i
-                        ? new Color(1f, 0.9f, 0.2f, 0.95f)
-                        : new Color(0.88f, 0.88f, 0.9f, 0.95f);
-                }
-
-                buttonIndex++;
-            }
-
-            if (buttonIndex == 0)
-            {
-                CreateRuntimeText(container, GameTextCatalog.Get("ui.pre_battle.no_roster_units", "No deployed units."), new Vector2(12f, -12f), GetTextSize(container), 16, FontStyles.Italic, TextAlignmentOptions.Left);
-            }
-        }
-
         private int GetDeploymentSlotLimit()
         {
             return cellGrid != null ? Mathf.Max(0, cellGrid.GetDeploymentSlotCount()) : 0;
@@ -719,7 +658,7 @@ namespace Windy.Srpg.Game.UI
 
         private void ResizeSwitchDeploymentPanel(int rosterCount)
         {
-            if (switchDeploymentPanel == null || switchSlotContainer == null)
+            if (switchDeploymentPanel == null)
             {
                 return;
             }
@@ -763,18 +702,6 @@ namespace Windy.Srpg.Game.UI
             if (selectUnitsPanel != null && selectUnitsPanel.gameObject.activeSelf && !string.IsNullOrWhiteSpace(preferredSelectUnitId))
             {
                 string expectedName = $"PreBattleSelectUnit:{preferredSelectUnitId}";
-                Button preferred = activeButtons.FirstOrDefault(button =>
-                    button != null
-                    && string.Equals(button.name, expectedName, StringComparison.OrdinalIgnoreCase));
-                if (preferred != null)
-                {
-                    return preferred;
-                }
-            }
-
-            if (switchDeploymentPanel != null && switchDeploymentPanel.gameObject.activeSelf && preferredSwitchSlotIndex >= 0)
-            {
-                string expectedName = $"PreBattleSwitchSlot:{preferredSwitchSlotIndex}";
                 Button preferred = activeButtons.FirstOrDefault(button =>
                     button != null
                     && string.Equals(button.name, expectedName, StringComparison.OrdinalIgnoreCase));
@@ -903,7 +830,6 @@ namespace Windy.Srpg.Game.UI
             CreateRuntimeText(switchDeploymentPanel, GameTextCatalog.Get("ui.pre_battle.button_switch_deployment", "Switch Deployment"), new Vector2(16f, -12f), new Vector2(280f, 28f), 24, FontStyles.Bold, TextAlignmentOptions.Left);
             switchDeploymentBackButton = CreateRuntimeButton(switchDeploymentPanel, GameTextCatalog.Get("ui.pre_battle.button_back", "Back"), new Vector2(320f, -12f), new Vector2(84f, 30f), null);
             switchDeploymentInstructionText = CreateRuntimeText(switchDeploymentPanel, string.Empty, new Vector2(16f, -48f), new Vector2(388f, 40f), 16, FontStyles.Normal, TextAlignmentOptions.Left);
-            switchSlotContainer = CreateRuntimePanel("Switch Slot Container", switchDeploymentPanel, new Vector2(16f, -100f), new Vector2(388f, 154f), new Color(0f, 0f, 0f, 0f));
             switchDeploymentPanel.gameObject.SetActive(false);
         }
 
@@ -947,30 +873,6 @@ namespace Windy.Srpg.Game.UI
                 null);
             button.name = "Save Button";
             return button;
-        }
-
-        private RectTransform CreateSceneAuthoredSwitchSlotContainer()
-        {
-            if (switchDeploymentPanel == null)
-            {
-                return null;
-            }
-
-            Vector2 position = new Vector2(0f, -100f);
-            Vector2 size = new Vector2(260f, 150f);
-            if (selectSlotContainer != null)
-            {
-                position = selectSlotContainer.anchoredPosition;
-                size = selectSlotContainer.sizeDelta;
-            }
-
-            RectTransform container = CreateRuntimePanel(
-                "Switch Slot Container",
-                switchDeploymentPanel,
-                position,
-                size,
-                new Color(0f, 0f, 0f, 0f));
-            return container;
         }
 
         private TMP_FontAsset ResolveFontAsset()

@@ -8,7 +8,11 @@ using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Runtime.Grid
 {
-    /// <summary>Runtime turn orchestrator paired with <see cref="CellGrid"/>; mirrors units/cells and owns runtime input states.</summary>
+    /// <summary>
+    /// Pure battle runtime host.
+    /// Tracks the mirrored cells/units/players collection, owns the runtime turn/state machine,
+    /// and exposes the authoritative runtime-side input hooks used by the scene host.
+    /// </summary>
     public class RuntimeGrid : MonoBehaviour, IGridContext
     {
         [SerializeField] private List<Cell> cells = new List<Cell>();
@@ -42,8 +46,8 @@ namespace Windy.Srpg.Runtime.Grid
         public bool SceneInputEnabled => sceneInputEnabled;
 
         /// <summary>
-        /// When set, scene input is handled by the coordinator (direct runtime authority path)
-        /// instead of the grid state's native handlers or legacy Func bridges.
+        /// Optional scene-input coordinator. When present, scene clicks/hover are routed here
+        /// first so the scene host can translate Unity objects into runtime-state transitions.
         /// </summary>
         public IRuntimeGridSceneInputCoordinator SceneInputCoordinator { get; set; }
 
@@ -82,9 +86,8 @@ namespace Windy.Srpg.Runtime.Grid
         }
 
         /// <summary>
-        /// Host-driven battle start: init players, set first player, kick first turn.
-        /// When refreshSceneCollections is false the host must already have mirrored units/players
-        /// (e.g. via SetMirroredCollections) because scene units may live outside this transform.
+        /// Host-driven battle start. <see cref="CellGrid"/> typically prepares the mirrored
+        /// collections first, then calls here to let runtime own round-robin flow.
         /// </summary>
         public virtual void BeginBattleFromHost(
             RoundRobinTurnPlan startPlan,

@@ -15,7 +15,7 @@ namespace Windy.Srpg.Game.UI
 
         private GameObject modalRoot;
         private Button defaultFocusButton;
-        private Button cancelButton;
+        private Button cancelInputButton;
         private bool isVisible;
 
         public static IReadOnlyList<GameplayModalUI> ActiveModalStack => activeModalStack;
@@ -43,7 +43,7 @@ namespace Windy.Srpg.Game.UI
         {
             modalRoot = root;
             defaultFocusButton = initialFocusButton;
-            cancelButton = cancelInputButton;
+            this.cancelInputButton = cancelInputButton;
         }
 
         protected void SetDefaultFocusButton(Button button)
@@ -53,7 +53,7 @@ namespace Windy.Srpg.Game.UI
 
         protected void SetCancelButton(Button button)
         {
-            cancelButton = button;
+            cancelInputButton = button;
         }
 
         protected void SetModalVisible(bool visible)
@@ -176,9 +176,9 @@ namespace Windy.Srpg.Game.UI
 
         protected virtual bool HandleCancelFromInput()
         {
-            if (IsButtonUsable(cancelButton))
+            if (IsButtonUsable(cancelInputButton))
             {
-                cancelButton.onClick.Invoke();
+                cancelInputButton.onClick.Invoke();
                 return true;
             }
 

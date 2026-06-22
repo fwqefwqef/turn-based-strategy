@@ -11,6 +11,12 @@ using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Abilities
 {
+    /// <summary>
+    /// Scene-facing ability shell.
+    /// Converts the generic runtime <see cref="BattleAction"/> callbacks into strongly typed
+    /// scene <see cref="Unit"/> and <see cref="CellGrid"/> hooks, while keeping execution flow
+    /// shared across human, AI, and remote invocation paths.
+    /// </summary>
     public abstract class Ability : BattleAction
     {
         protected Unit UnitRef

@@ -41,7 +41,7 @@ namespace Windy.Srpg.Game.Grid
         private void OnValidate()
         {
             CacheRenderers();
-            EnsureOverlayRenderer();
+            BindExistingOverlayRenderer();
             SetOverlayColor(HiddenOverlayColor);
         }
 
@@ -112,11 +112,8 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            Transform existingOverlay = transform.Find(OverlayObjectName);
-            if (existingOverlay != null)
+            if (BindExistingOverlayRenderer())
             {
-                overlayRenderer = existingOverlay.GetComponent<Renderer>();
-                overlaySpriteRenderer = overlayRenderer as SpriteRenderer;
                 return;
             }
 
@@ -136,6 +133,21 @@ namespace Windy.Srpg.Game.Grid
             overlaySpriteRenderer.sortingOrder = baseSpriteRenderer.sortingOrder + 1;
             overlaySpriteRenderer.spriteSortPoint = baseSpriteRenderer.spriteSortPoint;
             overlayRenderer = overlaySpriteRenderer;
+        }
+
+        private bool BindExistingOverlayRenderer()
+        {
+            Transform existingOverlay = transform.Find(OverlayObjectName);
+            if (existingOverlay == null)
+            {
+                overlayRenderer = null;
+                overlaySpriteRenderer = null;
+                return false;
+            }
+
+            overlayRenderer = existingOverlay.GetComponent<Renderer>();
+            overlaySpriteRenderer = overlayRenderer as SpriteRenderer;
+            return overlayRenderer != null;
         }
 
         private void EnsureBorderRenderers()

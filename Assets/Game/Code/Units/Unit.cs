@@ -25,6 +25,11 @@ using RuntimeBuff = Windy.Srpg.Game.Buffs.Buff;
 namespace Windy.Srpg.Game.Units
 {
     [ExecuteInEditMode]
+    /// <summary>
+    /// Main scene-side unit aggregate.
+    /// Stores authored/base data, computed combat stats, inventory/skills/passives, save identity,
+    /// and delegates movement/combat/runtime mirroring into the other Unit partials.
+    /// </summary>
     public partial class Unit : MonoBehaviour, IGridUnit
     {
         // Search for "CTRL+F:" to jump between major gameplay systems in this file.

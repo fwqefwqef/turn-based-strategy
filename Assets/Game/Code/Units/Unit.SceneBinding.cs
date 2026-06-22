@@ -11,7 +11,10 @@ namespace Windy.Srpg.Game.Units
 {
     public partial class Unit
     {
-        // --- Scene-facing surface (events, cell binding) ---
+        // --- Scene/runtime binding layer ---
+        // This partial owns Unity-facing events plus the mirror sync between the scene Unit and
+        // its runtime counterpart (GridUnit). Movement, occupancy, turn state, and pending-move
+        // previews all cross the scene/runtime boundary through this file.
         public event EventHandler UnitClicked;
         public event EventHandler UnitHighlighted;
         public event EventHandler UnitDehighlighted;

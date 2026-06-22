@@ -11,6 +11,12 @@ using Windy.Srpg.Runtime.Grid;
 
 namespace Windy.Srpg.Game.UI
 {
+    /// <summary>
+    /// Central gameplay input coordinator.
+    /// Owns the active control scheme, hover/focus tile, keyboard UI navigation, and the mapping
+    /// from raw input into scene-grid actions. Modal gameplay UI blocks hover-tile input here
+    /// instead of scattering the checks across each individual panel.
+    /// </summary>
     public sealed class GameplayInputController : MonoBehaviour
     {
         private enum ControlScheme
@@ -562,7 +568,11 @@ namespace Windy.Srpg.Game.UI
             }
 
             Vector2 direction = DirectionDelta(pressedDirectionKey);
-            Button nextButton = FindNextButtonInDirection(currentButton, activeButtons, direction);
+            Button nextButton = FindNextButtonInDirection(
+                currentButton,
+                activeButtons,
+                direction,
+                useStrictInspectAlignment: UnitInspectPanelUI.HasOpenInspect && currentButton.GetComponentInParent<UnitInspectPanelUI>() != null);
             if (nextButton == null || nextButton == currentButton)
             {
                 return true;
@@ -624,7 +634,7 @@ namespace Windy.Srpg.Game.UI
             return KeyCode.None;
         }
 
-        private Button FindNextButtonInDirection(Button currentButton, IReadOnlyList<Button> activeButtons, Vector2 direction)
+        private Button FindNextButtonInDirection(Button currentButton, IReadOnlyList<Button> activeButtons, Vector2 direction, bool useStrictInspectAlignment = false)
         {
             Camera eventCamera = ResolveUiEventCamera();
             Vector2 currentPosition = GetButtonScreenCenter(currentButton, eventCamera);
@@ -667,6 +677,13 @@ namespace Windy.Srpg.Game.UI
                     ? Mathf.Max(12f, (currentSize.y + candidateSize.y) * 0.5f)
                     : Mathf.Clamp(Mathf.Min(currentSize.x, candidateSize.x) * 0.2f, 12f, 48f);
 
+                if (useStrictInspectAlignment)
+                {
+                    alignmentTolerance = horizontalMove
+                        ? Mathf.Min(alignmentTolerance, 28f)
+                        : Mathf.Min(alignmentTolerance, 20f);
+                }
+
                 if (secondaryDistance <= alignmentTolerance)
                 {
                     bool betterAligned = primaryDistance < bestAlignedPrimary - 0.01f
@@ -679,7 +696,7 @@ namespace Windy.Srpg.Game.UI
                     }
                 }
 
-                float fallbackScore = secondaryDistance * 3f + primaryDistance;
+                float fallbackScore = secondaryDistance * (useStrictInspectAlignment ? 8f : 3f) + primaryDistance;
                 if (fallbackScore < bestFallbackScore)
                 {
                     bestFallbackScore = fallbackScore;

@@ -14,7 +14,12 @@ using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Grid
 {
-    /// <summary>Scene gameplay grid: tiles, units, deployment, battle lifecycle, and scene input states.</summary>
+    /// <summary>
+    /// Scene-facing battle host.
+    /// Owns authored scene objects, deployment/save integration, Unity event wiring, and the
+    /// scene state machine. It mirrors that scene state into <see cref="RuntimeGrid"/> for turn
+    /// order, runtime selection/move authority, and battle outcome evaluation.
+    /// </summary>
     public partial class CellGrid : MonoBehaviour, IGridContext, IRuntimeGridSceneInputCoordinator
     {
         [HideInInspector] public bool Is2D;
@@ -59,6 +64,7 @@ namespace Windy.Srpg.Game.Grid
         private string[] stagedDeploymentRosterUnitIds = Array.Empty<string>();
         private bool hasUnsavedDeploymentRosterChanges;
         private int occupancyRevision;
+        // Prevents feedback loops while runtime-driven state changes are applied back onto the scene state machine.
         private bool suppressSceneToRuntimeStateMirror;
         public bool IsPreBattleDeploymentSwapModeActive => IsPreBattlePhase && isPreBattleDeploymentSwapMode;
         public bool HasUnsavedDeploymentRosterChanges => hasUnsavedDeploymentRosterChanges;
@@ -76,6 +82,8 @@ namespace Windy.Srpg.Game.Grid
         public bool ShouldRouteTurnLoopThroughRuntime => true;
         public bool ShouldRouteBattleOutcomeThroughRuntime => true;
         public bool ShouldSuppressFrameworkSceneInput => UsesRuntimeDirectSceneInput;
+        // Runtime input ownership is only active during an actual human battle turn. Pre-battle,
+        // AI turns, and game-over flow still bypass this path.
         public bool UsesRuntimeDirectSceneInput =>
             ShouldRouteHumanMovementThroughRuntime
             && !GameFinished
