@@ -7,7 +7,6 @@ using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.UI;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Rendering;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Runtime.Grid
 {
@@ -24,7 +23,6 @@ namespace Windy.Srpg.Runtime.Grid
         [SerializeField] private List<Cell> explicitNeighbours = new List<Cell>();
         [SerializeField] private List<CellHighlighterBehaviour> highlighters = new List<CellHighlighterBehaviour>();
 
-        private readonly List<GridUnit> occupants = new List<GridUnit>();
         private readonly List<Unit> currentUnits = new List<Unit>();
         private bool isTaken;
         private SpriteRenderer debugTintRenderer;
@@ -37,8 +35,6 @@ namespace Windy.Srpg.Runtime.Grid
         public Vector2Int Coordinates => GetResolvedCoordinates();
         public float TraversalCost => Mathf.Max(0f, traversalCost);
         public bool IsTraversable => isTraversable;
-        public IReadOnlyList<GridUnit> Occupants => occupants;
-        public bool IsOccupied => occupants.Count > 0;
         public CellHighlightKind ActiveHighlight { get; private set; }
 
         public bool IsTaken
@@ -83,8 +79,7 @@ namespace Windy.Srpg.Runtime.Grid
                 return;
             }
 
-            CellGrid grid = FindAnyObjectByType<CellGrid>();
-            grid?.HandleSceneCellClicked(this);
+            Clicked?.Invoke(this);
         }
 
         protected virtual void OnMouseEnter()
@@ -94,8 +89,7 @@ namespace Windy.Srpg.Runtime.Grid
                 return;
             }
 
-            CellGrid grid = FindAnyObjectByType<CellGrid>();
-            grid?.HandleSceneCellSelected(this);
+            Hovered?.Invoke(this);
         }
 
         protected virtual void OnMouseExit()
@@ -105,18 +99,17 @@ namespace Windy.Srpg.Runtime.Grid
                 return;
             }
 
-            CellGrid grid = FindAnyObjectByType<CellGrid>();
-            grid?.HandleSceneCellDeselected(this);
+            Unhovered?.Invoke(this);
         }
 
         internal void RaiseSceneHighlightEvent()
         {
-            FindAnyObjectByType<CellGrid>()?.HandleSceneCellSelected(this);
+            Hovered?.Invoke(this);
         }
 
         internal void RaiseSceneDehighlightEvent()
         {
-            FindAnyObjectByType<CellGrid>()?.HandleSceneCellDeselected(this);
+            Unhovered?.Invoke(this);
         }
 
         public virtual IEnumerable<Cell> GetNeighbours(IReadOnlyCollection<Cell> candidateCells)
@@ -168,44 +161,9 @@ namespace Windy.Srpg.Runtime.Grid
             return Vector3.one;
         }
 
-        public virtual bool CanOccupy(GridUnit unit)
+        internal void ClearCurrentUnits()
         {
-            if (!isTraversable)
-            {
-                return false;
-            }
-
-            return !IsOccupied || occupants.Contains(unit);
-        }
-
-        public virtual bool TryAddOccupant(GridUnit unit)
-        {
-            if (unit == null || !CanOccupy(unit))
-            {
-                return false;
-            }
-
-            if (!occupants.Contains(unit))
-            {
-                occupants.Add(unit);
-            }
-
-            return true;
-        }
-
-        public virtual void RemoveOccupant(GridUnit unit)
-        {
-            if (unit == null)
-            {
-                return;
-            }
-
-            occupants.Remove(unit);
-        }
-
-        public virtual void ClearOccupants()
-        {
-            occupants.Clear();
+            currentUnits.Clear();
         }
 
         public virtual void ApplyHighlight(CellHighlightKind highlightKind)

@@ -55,8 +55,7 @@ MonoBehaviour:
   - SkillId: fireball
   - SkillId: thunder
   - SkillId: meteor
-  StartingUniquePassives:
-  - PassiveId: 
+  StartingUniquePassives: []
   StartingEquipPassives:
   - PassiveId: arcana_knowledge
   LegacyBaseMovementPoints: 5

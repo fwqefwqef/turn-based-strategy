@@ -735,7 +735,7 @@ namespace Windy.Srpg.Game.Grid
 
             Cell previousCell = unit.Cell;
             Cell nextCell = slot.Cell;
-            bool shouldSyncOccupancy = ShouldSyncRuntimeCellOccupancy(unit);
+            bool shouldSyncOccupancy = ShouldSyncCellOccupancy(unit);
 
             if (shouldSyncOccupancy && previousCell != null && previousCell != nextCell)
             {
@@ -926,7 +926,7 @@ namespace Windy.Srpg.Game.Grid
                 .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
         }
 
-        private static bool ShouldSyncRuntimeCellOccupancy(Unit unit)
+        private static bool ShouldSyncCellOccupancy(Unit unit)
         {
             return Application.isPlaying && unit != null;
         }

@@ -1032,7 +1032,7 @@ namespace Windy.Srpg.Game.Abilities
             bool affectsEnemies = skill.Data.AreaProfile.AffectsEnemies;
             bool isAnyTargetArea = affectsAllies && affectsEnemies;
 
-            foreach (var unit in ResolveGridUnits(cellGrid))
+            foreach (var unit in GetAllBattleUnits(cellGrid))
             {
                 if (unit == null || unit.HitPoints <= 0)
                 {
@@ -2140,7 +2140,7 @@ namespace Windy.Srpg.Game.Abilities
                 return Enumerable.Empty<Unit>();
             }
 
-            return ResolveGridUnits(cellGrid)
+            return GetAllBattleUnits(cellGrid)
                 .Where(unit => unit != null && unit.HitPoints > 0 && unit.PlayerNumber != UnitReference.PlayerNumber);
         }
 
@@ -2151,7 +2151,7 @@ namespace Windy.Srpg.Game.Abilities
                 return Enumerable.Empty<Unit>();
             }
 
-            return ResolveGridUnits(cellGrid)
+            return GetAllBattleUnits(cellGrid)
                 .Where(unit => unit != null && unit != UnitReference && unit.HitPoints > 0 && unit.PlayerNumber == UnitReference.PlayerNumber);
         }
 
@@ -2162,7 +2162,7 @@ namespace Windy.Srpg.Game.Abilities
                 return Enumerable.Empty<Unit>();
             }
 
-            return ResolveGridUnits(cellGrid)
+            return GetAllBattleUnits(cellGrid)
                 .Where(unit => unit != null && unit != UnitReference && unit.HitPoints > 0);
         }
 

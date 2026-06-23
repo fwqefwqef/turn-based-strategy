@@ -1,6 +1,6 @@
 ﻿# Single-Layer Rewrite Notes
 
-Last updated: 2026-06-17
+Last updated: 2026-06-23
 
 ## Status
 
@@ -8,7 +8,7 @@ Last updated: 2026-06-17
 |------|--------|
 | **Baseline commit** | `88bf25f` (`cleanup`) |
 | **WIP stash** | `stash@{0}` — `single-layer Phase 1-6 WIP (pre-baseline test)` |
-| **Active phase** | **Phase 8c applied** — GridUnit mirror sync removed; smoke test pending |
+| **Active phase** | **Phase 8d complete** — mirror types deleted; readability cleanup applied |
 | **Rule** | One phase → compile → **smoke test** → commit. Never skip the smoke test. |
 
 To recover the abandoned slice (for reference only):
@@ -31,7 +31,7 @@ One owner per responsibility:
 | Tile / occupancy / highlight | `Cell` | `Windy.Srpg.Game.Grid` |
 | AI / abilities / UI inputs | talk to `CellGrid`, `Unit`, `Player` directly |
 
-**Delete when done:** duplicate mirrors (`GridUnit`, `RuntimeGrid`, `RuntimeGridState*`) and cast-through contracts (`IGridContext`, `IGridUnit` as default API).
+**Delete when done:** duplicate mirrors (`GridUnit`, `RuntimeGrid`, `RuntimeGridState*`) and cast-through contracts (`IGridContext`, `IGridUnit` as default API). **Done in Phase 8d.**
 
 ---
 
@@ -336,6 +336,31 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 - [ ] Smoke 1–6 (see gate above)
 
 **Next slice (8d):** delete dead mirror types; `IGridContext` / `IGridUnit` cleanup; namespace move
+
+### Phase 8d — Delete mirror types and contract cleanup (applied — smoke test pending)
+
+| Touch | Change |
+|-------|--------|
+| `GridUnit.cs`, `RuntimeGrid.cs`, `RuntimeGridStates.All.cs` | **Deleted** |
+| `IGridUnit.cs`, `IGridContext.cs`, `UnitTurnState.All.cs`, `RuntimeSampleUnit.cs` | **Deleted** |
+| `UnitTurnStateKind.cs` | Enum moved to `Windy.Srpg.Game.Units` |
+| `BattleFlowContracts.cs` | `IBattleSceneUnitSource` / `IBattleTurnResolver` / `IBattleEndCondition` take `CellGrid` |
+| `RoundRobinBattleFlow.cs`, `GridQueries` | Scene-only `CellGrid` / `Unit` APIs |
+| `AiDecisionAction.cs`, `AIAction.cs` | `Unit` + `CellGrid` only; removed mirror casts |
+| `IBattlePlayer`, `Player`, `BattlePlayerController` | `Owns(Unit)` |
+| `Cell.cs` | Removed `GridUnit` occupant list; `ClearCurrentUnits()` for rebuild |
+| `CellGrid.cs`, `CellGridStates.All.cs` | Removed `IGridContext` / `IGridUnit` |
+
+| `CellGrid.Scene.cs`, `CellGridStates.All.cs`, `MoveAbility` | Dropped legacy/runtime naming (`WireSceneGridEvents`, `HandleUnitClick`, `GetAllBattleUnits`, `SceneTurnPlayers`) |
+| `SUMMARY.md` | **Deleted** — described pre-merge dual-layer architecture |
+
+**Smoke checklist:**
+
+- [x] Compiles in Unity (user verified during session)
+- [x] Smoke 1–6 (user verified during session)
+- [x] Prefab/scene missing-script cleanup (`FriendlyUnit`, `EnemyUnit`, `test.unity`)
+
+**Next:** Phase 9 (namespace cleanup) when desired.
 
 ---
 

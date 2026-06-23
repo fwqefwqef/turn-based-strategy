@@ -162,6 +162,11 @@ namespace Windy.Srpg.Game.Passives
 
         public Passive AddPassiveById(string passiveId, PassiveListKind listKind, bool notifyOwner = true)
         {
+            if (string.IsNullOrWhiteSpace(passiveId))
+            {
+                return null;
+            }
+
             if (!PassiveRegistry.TryGet(passiveId, out PassiveData data))
             {
                 Debug.LogWarning($"UnitPassiveList: Passive id '{passiveId}' is not registered.");

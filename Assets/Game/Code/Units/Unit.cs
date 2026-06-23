@@ -17,7 +17,6 @@ using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
-using Windy.Srpg.Runtime.Units;
 using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 using RuntimeBuff = Windy.Srpg.Game.Buffs.Buff;
@@ -28,9 +27,9 @@ namespace Windy.Srpg.Game.Units
     /// <summary>
     /// Main scene-side unit aggregate.
     /// Stores authored/base data, computed combat stats, inventory/skills/passives, save identity,
-    /// and delegates movement/combat/runtime mirroring into the other Unit partials.
+    /// and delegates movement/combat into the other Unit partials.
     /// </summary>
-    public partial class Unit : MonoBehaviour, IGridUnit
+    public partial class Unit : MonoBehaviour
     {
         // Search for "CTRL+F:" to jump between major gameplay systems in this file.
         #region CTRL+F: Events / Runtime State / Serialized Fields

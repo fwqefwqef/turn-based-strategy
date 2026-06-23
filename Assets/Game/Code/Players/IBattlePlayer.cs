@@ -1,4 +1,4 @@
-using Windy.Srpg.Runtime.Units;
+using Windy.Srpg.Game.Units;
 
 namespace Windy.Srpg.Runtime.Players
 {
@@ -7,7 +7,6 @@ namespace Windy.Srpg.Runtime.Players
         int PlayerId { get; }
         bool IsHumanControlled { get; }
 
-        bool Owns(IGridUnit unit);
+        bool Owns(Unit unit);
     }
 }
-

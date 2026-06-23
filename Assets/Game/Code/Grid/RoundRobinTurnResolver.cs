@@ -5,12 +5,12 @@ namespace Windy.Srpg.Game.Grid
 {
     public sealed class RoundRobinTurnResolver : MonoBehaviour, IBattleTurnResolver
     {
-        public RoundRobinTurnPlan ResolveStart(IGridContext grid)
+        public RoundRobinTurnPlan ResolveStart(CellGrid grid)
         {
             return RoundRobinBattleFlow.ResolveStart(grid);
         }
 
-        public RoundRobinTurnPlan ResolveTurn(IGridContext grid)
+        public RoundRobinTurnPlan ResolveTurn(CellGrid grid)
         {
             return RoundRobinBattleFlow.ResolveTurn(grid);
         }

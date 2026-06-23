@@ -53,8 +53,7 @@ MonoBehaviour:
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: wrath_strike
-  StartingUniquePassives:
-  - PassiveId: 
+  StartingUniquePassives: []
   StartingEquipPassives:
   - PassiveId: deep_breath
   LegacyBaseMovementPoints: 5

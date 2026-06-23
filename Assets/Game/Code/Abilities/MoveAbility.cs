@@ -278,7 +278,7 @@ namespace Windy.Srpg.Game.Abilities
             return cellGrid?.GetAllCells() ?? new List<Cell>();
         }
 
-        private static List<Unit> ResolveGridUnits(CellGrid cellGrid)
+        private static List<Unit> GetAllBattleUnits(CellGrid cellGrid)
         {
             return cellGrid?.GetAllUnits() ?? new List<Unit>();
         }
@@ -311,13 +311,15 @@ namespace Windy.Srpg.Game.Abilities
                 else
                 {
                     // AI / remote (or old path): immediate move
-                    if (Destination == null || !UnitReference.IsCellMovableTo(Destination))
+                    Cell canonicalDestination = cellGrid.ResolveCanonicalCell(Destination);
+                    if (canonicalDestination == null || !UnitReference.IsCellMovableTo(canonicalDestination))
                     {
                         yield break;
                     }
 
-                    var path = UnitReference.FindPath(ResolveCells(cellGrid), Destination);
-                    yield return UnitReference.Move(Destination, path);
+                    Destination = canonicalDestination;
+                    var path = UnitReference.FindPath(ResolveCells(cellGrid), canonicalDestination);
+                    yield return UnitReference.Move(canonicalDestination, path);
                 }
 
                 yield return base.Act(cellGrid, isNetworkInvoked);

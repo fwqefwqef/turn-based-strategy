@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Players;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Runtime.Grid
 {
@@ -34,11 +33,13 @@ namespace Windy.Srpg.Runtime.Grid
 
     public static class RoundRobinBattleFlow
     {
-        public static RoundRobinTurnPlan ResolveStart(IGridContext grid)
+        public static RoundRobinTurnPlan ResolveStart(Game.Grid.CellGrid grid)
         {
             return grid == null
                 ? new RoundRobinTurnPlan(null, System.Array.Empty<Unit>())
-                : ResolveStart(grid.Players, ResolveSceneUnits(grid));
+                : ResolveStart(
+                    grid.GetOrderedPlayers().Cast<IBattlePlayer>(),
+                    grid.GetAllUnits());
         }
 
         public static RoundRobinTurnPlan ResolveStart(IEnumerable<IBattlePlayer> players, IEnumerable<Unit> units)
@@ -53,11 +54,14 @@ namespace Windy.Srpg.Runtime.Grid
             return new RoundRobinTurnPlan(firstActivePlayer, GetUnitsForPlayer(units, firstActivePlayer.PlayerId));
         }
 
-        public static RoundRobinTurnPlan ResolveTurn(IGridContext grid)
+        public static RoundRobinTurnPlan ResolveTurn(Game.Grid.CellGrid grid)
         {
             return grid == null
                 ? new RoundRobinTurnPlan(null, System.Array.Empty<Unit>())
-                : ResolveTurn(grid.Players, ResolveSceneUnits(grid), grid.CurrentPlayerId);
+                : ResolveTurn(
+                    grid.GetOrderedPlayers().Cast<IBattlePlayer>(),
+                    grid.GetAllUnits(),
+                    grid.CurrentPlayerId);
         }
 
         public static RoundRobinTurnPlan ResolveTurn(IEnumerable<IBattlePlayer> players, IEnumerable<Unit> units, int currentPlayerId)
@@ -83,19 +87,21 @@ namespace Windy.Srpg.Runtime.Grid
             return new RoundRobinTurnPlan(fallbackPlayer, GetUnitsForPlayer(units, fallbackPlayer.PlayerId));
         }
 
-        public static BattleOutcome EvaluateLastSideStanding(IGridContext grid)
+        public static BattleOutcome EvaluateLastSideStanding(Game.Grid.CellGrid grid)
         {
             return grid == null
                 ? new BattleOutcome(false, null, null)
-                : EvaluateLastSideStanding(grid.Players, grid.Units);
+                : EvaluateLastSideStanding(
+                    grid.GetOrderedPlayers().Cast<IBattlePlayer>(),
+                    grid.GetAllUnits());
         }
 
-        public static BattleOutcome EvaluateLastSideStanding(IEnumerable<IBattlePlayer> players, IEnumerable<IGridUnit> units)
+        public static BattleOutcome EvaluateLastSideStanding(IEnumerable<IBattlePlayer> players, IEnumerable<Unit> units)
         {
-            List<IGridUnit> survivingUnits = units?
+            List<Unit> survivingUnits = units?
                 .Where(unit => unit != null)
                 .ToList()
-                ?? new List<IGridUnit>();
+                ?? new List<Unit>();
 
             List<IBattlePlayer> orderedPlayers = GridQueries.OrderPlayers(players);
             if (survivingUnits.Count == 0 || orderedPlayers.Count == 0)
@@ -142,40 +148,9 @@ namespace Windy.Srpg.Runtime.Grid
             return 0;
         }
 
-        private static List<IGridUnit> GetUnitsForPlayer(IEnumerable<IGridUnit> units, int playerId)
-        {
-            return GridQueries.GetUnitsForPlayer(units, playerId);
-        }
-
         private static List<Unit> GetUnitsForPlayer(IEnumerable<Unit> units, int playerId)
         {
             return GridQueries.GetUnitsForPlayer(units, playerId);
-        }
-
-        private static IReadOnlyList<Unit> ResolveSceneUnits(IGridContext grid)
-        {
-            if (grid is Game.Grid.CellGrid cellGrid)
-            {
-                return cellGrid.GetAllUnits();
-            }
-
-            return grid.Units?
-                .Select(ResolveSceneUnit)
-                .Where(unit => unit != null)
-                .ToList()
-                ?? new List<Unit>();
-        }
-
-        private static Unit ResolveSceneUnit(IGridUnit unit)
-        {
-            if (unit is Unit sceneUnit)
-            {
-                return sceneUnit;
-            }
-
-            return unit is UnityEngine.Component component
-                ? component.GetComponent<Unit>()
-                : null;
         }
     }
 
@@ -198,15 +173,6 @@ namespace Windy.Srpg.Runtime.Grid
                 .FirstOrDefault(player => player.PlayerId == playerId);
         }
 
-        public static List<TUnit> GetUnitsForPlayer<TUnit>(IEnumerable<TUnit> units, int playerId)
-            where TUnit : class, IGridUnit
-        {
-            return units?
-                .Where(unit => unit != null && unit.PlayerId == playerId)
-                .ToList()
-                ?? new List<TUnit>();
-        }
-
         public static List<Unit> GetUnitsForPlayer(IEnumerable<Unit> units, int playerId)
         {
             return units?
@@ -215,20 +181,17 @@ namespace Windy.Srpg.Runtime.Grid
                 ?? new List<Unit>();
         }
 
-        public static List<TUnit> GetEnemyUnits<TUnit>(IEnumerable<TUnit> units, int playerId)
-            where TUnit : class, IGridUnit
+        public static List<Unit> GetEnemyUnits(IEnumerable<Unit> units, int playerId)
         {
             return units?
                 .Where(unit => unit != null && unit.PlayerId != playerId)
                 .ToList()
-                ?? new List<TUnit>();
+                ?? new List<Unit>();
         }
 
-        public static List<TUnit> GetCurrentPlayerUnits<TUnit>(IEnumerable<TUnit> units, int currentPlayerId)
-            where TUnit : class, IGridUnit
+        public static List<Unit> GetCurrentPlayerUnits(IEnumerable<Unit> units, int currentPlayerId)
         {
             return GetUnitsForPlayer(units, currentPlayerId);
         }
     }
 }
-

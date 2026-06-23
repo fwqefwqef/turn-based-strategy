@@ -18,7 +18,6 @@ using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Pathfinding;
-using Windy.Srpg.Runtime.Units;
 using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 using RuntimeBuff = Windy.Srpg.Game.Buffs.Buff;
@@ -1170,25 +1169,25 @@ namespace Windy.Srpg.Game.Units
             }
 
             Windy.Srpg.Game.Grid.CellGrid cellGrid = FindSceneCellGrid();
-            Cell fromCell = Cell;
+            Cell canonicalDestination = ResolveOccupancyCell(destinationCell);
+            Cell fromCell = ResolveOccupancyCell(Cell);
             Cell resolvedStartCell = ResolveTransformStartCell(cellGrid, fromCell);
+            resolvedStartCell = ResolveOccupancyCell(resolvedStartCell);
             if (resolvedStartCell != null && resolvedStartCell != fromCell)
             {
-                UnregisterCellOccupancyList(fromCell);
-                RefreshCellOccupancy(fromCell);
-
+                UnregisterCellOccupancyList(fromCell, notifyGrid: false);
+                RegisterCellOccupancyList(resolvedStartCell, notifyGrid: false);
                 Cell = resolvedStartCell;
-                RegisterCellOccupancyList(resolvedStartCell);
-
-                RefreshCellOccupancy(resolvedStartCell);
+                cellGrid?.NotifyOccupancyChanged();
                 cachedPaths = null;
+                InvalidateCachedPaths();
                 fromCell = resolvedStartCell;
 
                 if (cellGrid != null)
                 {
-                    List<Cell> allCells = cellGrid?.GetAllCells() ?? new List<Cell>();
+                    List<Cell> allCells = cellGrid.GetAllCells() ?? new List<Cell>();
                     CachePaths(allCells);
-                    path = FindPath(allCells, destinationCell);
+                    path = FindPath(allCells, canonicalDestination);
                     if (path == null || path.Count == 0)
                     {
                         yield break;
@@ -1201,8 +1200,18 @@ namespace Windy.Srpg.Game.Units
                 SnapToCellLocalPosition(fromCell);
             }
 
-            // Phase 5: the scene Unit executes the move directly. The runtime mirror is
-            // Scene Unit owns movement; occupancy is updated on commit.
+            if (!CanOccupyCell(canonicalDestination))
+            {
+                yield break;
+            }
+
+            UnregisterCellOccupancyList(fromCell, notifyGrid: false);
+            RegisterCellOccupancyList(canonicalDestination, notifyGrid: false);
+            Cell = canonicalDestination;
+            cellGrid?.NotifyOccupancyChanged();
+            cachedPaths = null;
+            InvalidateCachedPaths();
+
             var totalMovementCost = path.Sum(h => h.MovementCost);
             MovementPoints -= totalMovementCost;
 
@@ -1212,19 +1221,10 @@ namespace Windy.Srpg.Game.Units
             }
             else
             {
-                SnapToCellLocalPosition(destinationCell);
+                SnapToCellLocalPosition(canonicalDestination);
                 OnMoveFinished();
             }
 
-            UnregisterCellOccupancyList(fromCell);
-            RefreshCellOccupancy(fromCell);
-
-            Cell = destinationCell;
-            RegisterCellOccupancyList(destinationCell);
-
-            cachedPaths = null;
-            RefreshCellOccupancy(destinationCell);
-            FindSceneCellGrid()?.RefreshSceneCellOccupancyNow();
             cellGrid?.RequestBattleOutcomeEvaluation();
         }
 
@@ -1307,15 +1307,12 @@ namespace Windy.Srpg.Game.Units
                 ? 0f
                 : Mathf.Max(0f, p.MovementPointsBefore - p.MovementCost);
 
-            UnregisterCellOccupancyList(p.FromCell);
-            RefreshCellOccupancy(p.FromCell);
-
-            Cell = p.ToCell;
-            RegisterCellOccupancyList(p.ToCell);
-
-            RefreshCellOccupancy(p.ToCell);
+            UnregisterCellOccupancyList(p.FromCell, notifyGrid: false);
+            RegisterCellOccupancyList(p.ToCell, notifyGrid: false);
+            Cell = ResolveOccupancyCell(p.ToCell);
             cachedPaths = null;
-            FindSceneCellGrid()?.RefreshSceneCellOccupancyNow();
+            InvalidateCachedPaths();
+            FindSceneCellGrid()?.NotifyOccupancyChanged();
 
             OnMoveFinished();
             FindSceneCellGrid()?.RequestBattleOutcomeEvaluation();
@@ -1481,7 +1478,6 @@ namespace Windy.Srpg.Game.Units
 
         public HashSet<Cell> GetAvailableDestinations(List<Cell> cells)
         {
-            // Phase 5: scene Unit owns pathfinding. The runtime mirror is push-only.
             return ComputeAvailableDestinationsSceneOnly(cells);
         }
 
@@ -1673,12 +1669,13 @@ namespace Windy.Srpg.Game.Units
 
         private bool HasBlockingOccupant(Cell cell)
         {
-            if (cell?.CurrentUnits == null)
+            Cell canonicalCell = FindSceneCellGrid()?.ResolveCanonicalCell(cell) ?? cell;
+            if (canonicalCell?.CurrentUnits == null)
             {
                 return false;
             }
 
-            foreach (Unit occupant in cell.CurrentUnits)
+            foreach (Unit occupant in canonicalCell.CurrentUnits)
             {
                 if (occupant == null || occupant == this)
                 {

@@ -8,7 +8,6 @@ using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Rendering;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Grid.States
 {
@@ -32,30 +31,6 @@ namespace Windy.Srpg.Game.Grid.States
         public virtual CellGridState MakeTransition(CellGridState nextState)
         {
             return nextState;
-        }
-
-        public virtual void OnUnitClicked(IGridUnit unit)
-        {
-            if (unit is Unit customUnit)
-            {
-                OnUnitClicked(customUnit);
-            }
-        }
-
-        public virtual void OnUnitHighlighted(IGridUnit unit)
-        {
-            if (unit is Unit customUnit)
-            {
-                OnUnitHighlighted(customUnit);
-            }
-        }
-
-        public virtual void OnUnitDehighlighted(IGridUnit unit)
-        {
-            if (unit is Unit customUnit)
-            {
-                OnUnitDehighlighted(customUnit);
-            }
         }
 
         public virtual void OnUnitClicked(Unit unit)
@@ -325,7 +300,7 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnUnitClicked(Unit unit)
         {
-            HandleLegacyUnitClick(unit);
+            HandleUnitClick(unit);
         }
 
         public override void OnUnitHighlighted(Unit unit)
@@ -360,7 +335,7 @@ namespace Windy.Srpg.Game.Grid.States
             _cellGrid.EnterWaitingState();
         }
 
-        private void HandleLegacyUnitClick(Unit unit)
+        private void HandleUnitClick(Unit unit)
         {
             if (unit == selectedUnit)
             {

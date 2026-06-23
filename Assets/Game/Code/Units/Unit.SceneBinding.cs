@@ -58,27 +58,49 @@ namespace Windy.Srpg.Game.Units
 
         internal void RaiseUnitDestroyed(AttackEventArgs args) => UnitDestroyed?.Invoke(this, args);
 
-        internal void EnsureSceneCellBinding()
+        internal Cell ResolveOccupancyCell(Cell targetCell = null)
         {
-            if (!Application.isPlaying || Cell != null)
+            Cell sourceCell = targetCell ?? Cell;
+            if (sourceCell == null)
             {
-                return;
+                return null;
             }
 
             CellGrid cellGrid = FindSceneCellGrid();
-            Cell resolved = ResolveTransformStartCell(cellGrid, null);
-            if (resolved == null)
+            Cell canonicalCell = cellGrid?.ResolveCanonicalCell(sourceCell) ?? sourceCell;
+            if (targetCell == null || ReferenceEquals(targetCell, Cell))
+            {
+                cell = canonicalCell;
+            }
+
+            return canonicalCell;
+        }
+
+        internal void EnsureSceneCellBinding(bool notifyGrid = true)
+        {
+            if (!Application.isPlaying)
             {
                 return;
             }
 
-            Cell = resolved;
-            RegisterCellOccupancyList(resolved);
+            if (Cell == null)
+            {
+                CellGrid cellGrid = FindSceneCellGrid();
+                Cell resolved = ResolveTransformStartCell(cellGrid, null);
+                if (resolved == null)
+                {
+                    return;
+                }
+
+                Cell = resolved;
+            }
+
+            RegisterCellOccupancyList(Cell, notifyGrid);
         }
 
-        internal void RegisterCellOccupancyList(Cell targetCell = null)
+        internal void RegisterCellOccupancyList(Cell targetCell = null, bool notifyGrid = true)
         {
-            Cell resolvedCell = targetCell ?? Cell;
+            Cell resolvedCell = ResolveOccupancyCell(targetCell);
             if (resolvedCell == null)
             {
                 return;
@@ -90,11 +112,16 @@ namespace Windy.Srpg.Game.Units
             }
 
             RefreshCellOccupancy(resolvedCell);
+            if (notifyGrid)
+            {
+                FindSceneCellGrid()?.NotifyOccupancyChanged();
+            }
         }
 
-        internal void UnregisterCellOccupancyList(Cell targetCell = null)
+        internal void UnregisterCellOccupancyList(Cell targetCell = null, bool notifyGrid = true)
         {
-            Cell resolvedCell = targetCell ?? Cell;
+            Cell sourceCell = targetCell ?? Cell;
+            Cell resolvedCell = FindSceneCellGrid()?.ResolveCanonicalCell(sourceCell) ?? sourceCell;
             if (resolvedCell == null)
             {
                 return;
@@ -102,6 +129,10 @@ namespace Windy.Srpg.Game.Units
 
             resolvedCell.CurrentUnits.Remove(this);
             RefreshCellOccupancy(resolvedCell);
+            if (notifyGrid)
+            {
+                FindSceneCellGrid()?.NotifyOccupancyChanged();
+            }
         }
 
         internal static void RefreshCellOccupancy(Cell cell)
@@ -111,29 +142,19 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            bool hasBlockingUnit = cell.CurrentUnits != null
-                && cell.CurrentUnits.Any(occupant =>
+            CellGrid cellGrid = FindAnyObjectByType<CellGrid>();
+            Cell canonicalCell = cellGrid?.ResolveCanonicalCell(cell) ?? cell;
+
+            bool hasBlockingUnit = canonicalCell.CurrentUnits != null
+                && canonicalCell.CurrentUnits.Any(occupant =>
                     occupant != null && occupant.Obstructable && !occupant.ExcludedFromBattle);
 
-            cell.IsTaken = !cell.IsTraversable || hasBlockingUnit;
-
-            InvalidateAllCachedPaths();
+            canonicalCell.IsTaken = !canonicalCell.IsTraversable || hasBlockingUnit;
         }
 
         internal void InvalidateCachedPaths()
         {
             cachedPaths = null;
-        }
-
-        internal static void InvalidateAllCachedPaths()
-        {
-            foreach (Unit unit in FindObjectsByType<Unit>())
-            {
-                if (unit != null)
-                {
-                    unit.cachedPaths = null;
-                }
-            }
         }
 
         private static CellGrid FindSceneCellGrid()

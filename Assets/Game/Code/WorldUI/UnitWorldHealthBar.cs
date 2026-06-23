@@ -624,7 +624,13 @@ namespace Windy.Srpg.Game.UI
             texture.Apply();
             texture.hideFlags = HideFlags.HideAndDontSave;
 
-            _whiteSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
+            _whiteSprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, 1f, 1f),
+                new Vector2(0.5f, 0.5f),
+                1f,
+                0,
+                SpriteMeshType.FullRect);
             _whiteSprite.name = "UnitWorldHealthBar_WhiteSprite";
             return _whiteSprite;
         }

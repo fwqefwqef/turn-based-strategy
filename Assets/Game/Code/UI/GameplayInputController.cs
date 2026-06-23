@@ -1202,11 +1202,11 @@ namespace Windy.Srpg.Game.UI
 
             if (hoveredUnit != null)
             {
-                cellGrid?.HandleSceneUnitHighlighted(hoveredUnit);
+                hoveredUnit.RaiseSceneHighlightEvent();
             }
             else if (hoveredCell != null)
             {
-                cellGrid?.HandleSceneCellSelected(hoveredCell);
+                hoveredCell.RaiseSceneHighlightEvent();
             }
         }
 
@@ -1221,11 +1221,11 @@ namespace Windy.Srpg.Game.UI
         {
             if (hoveredUnit != null)
             {
-                cellGrid?.HandleSceneUnitDehighlighted(hoveredUnit);
+                hoveredUnit.RaiseSceneDehighlightEvent();
             }
             else if (hoveredCell != null)
             {
-                cellGrid?.HandleSceneCellDeselected(hoveredCell);
+                hoveredCell.RaiseSceneDehighlightEvent();
             }
 
             hoveredCell?.ClearCursorBorder();

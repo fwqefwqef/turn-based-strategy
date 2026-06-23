@@ -9,7 +9,6 @@ using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -38,7 +37,7 @@ namespace Windy.Srpg.Game.Grid
         {
             EnsureSceneCellAnchors();
             PrepareFriendlyDeploymentFromSave();
-            WireLegacyGridEvents();
+            WireSceneGridEvents();
             SubscribeToExistingCells();
         }
 
@@ -67,7 +66,7 @@ namespace Windy.Srpg.Game.Grid
         private void OnDestroy()
         {
             FlushCampaignSaveImmediate();
-            UnwireLegacyGridEvents();
+            UnwireSceneGridEvents();
 
             foreach (var unit in subscribedUnits)
             {
@@ -269,11 +268,6 @@ namespace Windy.Srpg.Game.Grid
             return unit as Unit;
         }
 
-        internal static IGridUnit ResolveGridUnit(object unit)
-        {
-            return ResolveUnitFromRegistryUnit(unit);
-        }
-
         public void RefreshSceneCellOccupancyNow()
         {
             RebuildSceneCellOccupancy();
@@ -293,6 +287,7 @@ namespace Windy.Srpg.Game.Grid
 
             if (IsUnitRegistered(customUnit))
             {
+                customUnit.EnsureSceneCellBinding();
                 return;
             }
 
@@ -374,6 +369,44 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
+        internal Cell ResolveCanonicalCell(Cell cell)
+        {
+            if (cell == null)
+            {
+                return null;
+            }
+
+            Cell match = FindCellByOffset(cell.OffsetCoord);
+            return match ?? cell;
+        }
+
+        internal void NotifyOccupancyChanged()
+        {
+            occupancyRevision++;
+        }
+
+        internal IEnumerable<Unit> GetOccupancyTrackedUnits()
+        {
+            HashSet<Unit> trackedUnits = new HashSet<Unit>();
+            foreach (Unit unit in GetAllUnits())
+            {
+                if (unit != null && !unit.ExcludedFromBattle)
+                {
+                    trackedUnits.Add(unit);
+                }
+            }
+
+            foreach (Unit unit in GetAllSceneUnitsFromHierarchy())
+            {
+                if (unit != null && !unit.ExcludedFromBattle)
+                {
+                    trackedUnits.Add(unit);
+                }
+            }
+
+            return trackedUnits;
+        }
+
         private void RebuildSceneCellOccupancy()
         {
             List<Cell> allCells = GetAllCells();
@@ -389,21 +422,15 @@ namespace Windy.Srpg.Game.Grid
                     continue;
                 }
 
-                cell.ClearOccupants();
+                cell.ClearCurrentUnits();
             }
 
-            foreach (Unit unit in GetAllSceneUnitsFromHierarchy())
+            foreach (Unit unit in GetOccupancyTrackedUnits())
             {
-                if (unit == null || unit.ExcludedFromBattle)
-                {
-                    continue;
-                }
-
-                unit.EnsureSceneCellBinding();
+                unit.EnsureSceneCellBinding(notifyGrid: false);
             }
 
-            occupancyRevision++;
-            Unit.InvalidateAllCachedPaths();
+            NotifyOccupancyChanged();
         }
 
         private static bool IsCellBlockedByTerrain(Cell cell)
@@ -414,7 +441,7 @@ namespace Windy.Srpg.Game.Grid
         private readonly List<Cell> sceneCells = new List<Cell>();
         private readonly List<Unit> registeredUnits = new List<Unit>();
         private readonly List<Player> scenePlayers = new List<Player>();
-        private readonly List<IBattleTurnPlayer> runtimeTurnPlayers = new List<IBattleTurnPlayer>();
+        private readonly List<IBattleTurnPlayer> sceneTurnPlayers = new List<IBattleTurnPlayer>();
         private readonly HashSet<Cell> wiredSceneCells = new HashSet<Cell>();
 
         private int allocatedUnitId;
@@ -442,14 +469,12 @@ namespace Windy.Srpg.Game.Grid
         private List<Cell> Cells => SceneCells;
         private List<Unit> Units => SceneRegisteredUnits;
         private List<Player> Players => ScenePlayers;
-        private List<IBattleTurnPlayer> RuntimePlayers => SceneRuntimeTurnPlayers;
         private List<Cell> SceneCells => sceneCells;
         private List<Unit> SceneRegisteredUnits => registeredUnits;
         private List<Player> ScenePlayers => scenePlayers;
-        private List<IBattleTurnPlayer> SceneRuntimeTurnPlayers => runtimeTurnPlayers;
+        private List<IBattleTurnPlayer> SceneTurnPlayers => sceneTurnPlayers;
 
-
-        private void WireLegacyGridEvents()
+        private void WireSceneGridEvents()
         {
             SceneGameStarted += OnGameStarted;
             SceneGameEnded += OnSceneGameEnded;
@@ -458,7 +483,7 @@ namespace Windy.Srpg.Game.Grid
             SceneUnitAdded += OnUnitAdded;
         }
 
-        private void UnwireLegacyGridEvents()
+        private void UnwireSceneGridEvents()
         {
             SceneGameStarted -= OnGameStarted;
             SceneGameEnded -= OnSceneGameEnded;
@@ -474,12 +499,6 @@ namespace Windy.Srpg.Game.Grid
             InitializeSceneRegistry();
         }
 
-        public void StartLegacyBattle()
-        {
-            RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(this);
-            SyncBattleStartFromPlan(plan, kickPlayerPlay: true);
-        }
-
         public void EndTurn(bool isNetworkInvoked = false) => ExecuteSceneEndTurn(isNetworkInvoked);
 
         internal void InitializeSceneRegistry()
@@ -489,7 +508,7 @@ namespace Windy.Srpg.Game.Grid
             gameFinished = false;
             allocatedUnitId = 0;
             scenePlayers.Clear();
-            runtimeTurnPlayers.Clear();
+            sceneTurnPlayers.Clear();
             sceneCells.Clear();
             registeredUnits.Clear();
 
@@ -510,7 +529,7 @@ namespace Windy.Srpg.Game.Grid
                     if (runtimePlayer != null)
                     {
                         runtimePlayer.BindToGrid(this);
-                        runtimeTurnPlayers.Add(runtimePlayer);
+                        sceneTurnPlayers.Add(runtimePlayer);
                     }
 
                     Player customPlayer = playerTransform.GetComponent<Player>();
@@ -882,10 +901,10 @@ namespace Windy.Srpg.Game.Grid
 
         private void KickCurrentScenePlayer()
         {
-            IBattleTurnPlayer runtimePlayer = SceneRuntimeTurnPlayers.Find(player => player != null && player.PlayerId == currentPlayerNumber);
-            if (runtimePlayer != null)
+            IBattleTurnPlayer turnPlayer = SceneTurnPlayers.Find(player => player != null && player.PlayerId == currentPlayerNumber);
+            if (turnPlayer != null)
             {
-                runtimePlayer.PlayTurn(this);
+                turnPlayer.PlayTurn(this);
                 return;
             }
 

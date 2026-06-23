@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Runtime.Units;
+using Windy.Srpg.Game.Units;
 
 namespace Windy.Srpg.Runtime.Players
 {
@@ -14,7 +14,7 @@ namespace Windy.Srpg.Runtime.Players
         public int PlayerNumber => playerId;
         public abstract bool IsHumanControlled { get; }
 
-        public virtual bool Owns(IGridUnit unit)
+        public virtual bool Owns(Unit unit)
         {
             return unit != null && unit.PlayerId == playerId;
         }

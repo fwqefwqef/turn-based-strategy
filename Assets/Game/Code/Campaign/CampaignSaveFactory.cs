@@ -36,10 +36,26 @@ namespace Windy.Srpg.Game.Campaign
                 .ToArray()
                 ?? Array.Empty<UnitPreset>();
 
+            HashSet<string> existingUnitIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (OwnedUnitSaveData existingUnit in existingSave?.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (TryNormalizeIdentity(existingUnit, out string unitId))
+                {
+                    existingUnitIds.Add(unitId);
+                }
+            }
+
             OwnedUnitSaveData[] starterUnits = presets
+                .Where(preset => !string.IsNullOrWhiteSpace(preset.PresetId)
+                    && !existingUnitIds.Contains(preset.PresetId.Trim()))
                 .Select(CreateOwnedUnitFromPreset)
                 .Where(data => data != null)
                 .ToArray();
+
+            if (starterUnits.Length == 0)
+            {
+                return existingSave ?? new CampaignSaveData();
+            }
 
             return MergeOwnedUnits(existingSave, starterUnits, existingSave?.DeploymentRosterUnitIds);
         }
@@ -77,7 +93,6 @@ namespace Windy.Srpg.Game.Campaign
                 if (indexByUnitId.TryGetValue(unitId, out int existingIndex))
                 {
                     savedUnits[existingIndex] = clonedUnit;
-                    Debug.LogWarning($"CampaignSaveFactory: Duplicate owned unit id '{unitId}' was captured. The later unit entry overwrote the earlier one.");
                     continue;
                 }
 

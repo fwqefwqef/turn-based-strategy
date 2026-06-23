@@ -6,20 +6,18 @@ using UnityEngine;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Runtime.AI
 {
     public abstract class AiDecisionAction : MonoBehaviour
     {
-        public abstract void InitializeDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid);
-        public abstract bool ShouldExecute(IBattlePlayer player, IGridUnit unit, IGridContext grid);
-        public abstract void Precalculate(IBattlePlayer player, IGridUnit unit, IGridContext grid);
-        public abstract IEnumerator ExecuteDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid);
-        public abstract void CleanUpDecision(IBattlePlayer player, IGridUnit unit, IGridContext grid);
-        public abstract void ShowDebugDecisionInfo(IBattlePlayer player, IGridUnit unit, IGridContext grid);
+        public abstract void InitializeDecision(IBattlePlayer player, Unit unit, CellGrid grid);
+        public abstract bool ShouldExecute(IBattlePlayer player, Unit unit, CellGrid grid);
+        public abstract void Precalculate(IBattlePlayer player, Unit unit, CellGrid grid);
+        public abstract IEnumerator ExecuteDecision(IBattlePlayer player, Unit unit, CellGrid grid);
+        public abstract void CleanUpDecision(IBattlePlayer player, Unit unit, CellGrid grid);
+        public abstract void ShowDebugDecisionInfo(IBattlePlayer player, Unit unit, CellGrid grid);
     }
 
     public static class AiTurnRunner
@@ -30,11 +28,7 @@ namespace Windy.Srpg.Runtime.AI
             CellGrid grid,
             Action onTurnCompleted = null)
         {
-            return ExecuteTurn(
-                (IBattlePlayer)player,
-                orderedUnits?.Where(unit => unit != null).Cast<IGridUnit>(),
-                grid,
-                onTurnCompleted);
+            return ExecuteTurn((IBattlePlayer)player, orderedUnits, grid, onTurnCompleted);
         }
 
         public static IEnumerator ExecuteTurn(
@@ -43,27 +37,16 @@ namespace Windy.Srpg.Runtime.AI
             CellGrid grid,
             Action onTurnCompleted = null)
         {
-            return ExecuteTurn(
-                player,
-                orderedUnits?.Where(unit => unit != null).Cast<IGridUnit>(),
-                grid,
-                onTurnCompleted);
-        }
-
-        public static IEnumerator ExecuteTurn(
-            IBattlePlayer player,
-            IEnumerable<IGridUnit> orderedUnits,
-            IGridContext grid,
-            Action onTurnCompleted = null)
-        {
-            List<IGridUnit> units = orderedUnits?
+            List<Unit> units = orderedUnits?
                 .Where(unit => unit != null)
                 .ToList()
-                ?? new List<IGridUnit>();
+                ?? new List<Unit>();
 
-            foreach (IGridUnit unit in units)
+            foreach (Unit unit in units)
             {
-                AiDecisionAction[] actions = ResolveActions(unit);
+                AiDecisionAction[] actions = unit.GetComponentsInChildren<AiDecisionAction>(true)
+                    ?? Array.Empty<AiDecisionAction>();
+
                 foreach (AiDecisionAction action in actions)
                 {
                     if (action == null || unit == null)
@@ -99,17 +82,6 @@ namespace Windy.Srpg.Runtime.AI
 
             onTurnCompleted?.Invoke();
         }
-
-        private static AiDecisionAction[] ResolveActions(IGridUnit unit)
-        {
-            if (unit is not Component component)
-            {
-                return Array.Empty<AiDecisionAction>();
-            }
-
-            return component.GetComponentsInChildren<AiDecisionAction>(true)
-                ?? Array.Empty<AiDecisionAction>();
-        }
     }
 
     public static class AiTurnOrdering
@@ -123,15 +95,6 @@ namespace Windy.Srpg.Runtime.AI
                 ?? new List<Unit>();
         }
 
-        public static IReadOnlyList<GridUnit> OrderByMovementFreedom(IEnumerable<GridUnit> units)
-        {
-            return units?
-                .Where(unit => unit != null)
-                .OrderByDescending(CountTraversableNeighbors)
-                .ToList()
-                ?? new List<GridUnit>();
-        }
-
         private static int CountTraversableNeighbors(Unit unit, CellGrid cellGrid)
         {
             if (unit?.Cell == null || cellGrid == null)
@@ -142,18 +105,6 @@ namespace Windy.Srpg.Runtime.AI
             return unit.Cell
                 .GetNeighbours(cellGrid.GetAllCells())
                 .Count(unit.IsCellTraversable);
-        }
-
-        private static int CountTraversableNeighbors(GridUnit unit)
-        {
-            if (unit?.CurrentCell == null || unit.Grid == null)
-            {
-                return 0;
-            }
-
-            return unit.CurrentCell
-                .GetNeighbours(unit.Grid.Cells)
-                .Count(unit.CanTraverse);
         }
     }
 }

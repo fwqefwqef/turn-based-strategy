@@ -9,7 +9,6 @@ using Windy.Srpg.Game.Abilities;
 using UnityEngine;
 using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -17,7 +16,7 @@ namespace Windy.Srpg.Game.Grid
     /// Scene-facing battle host. Owns scene objects, deployment/save integration, Unity event
     /// wiring, and the scene state machine.
     /// </summary>
-    public partial class CellGrid : MonoBehaviour, IGridContext
+    public partial class CellGrid : MonoBehaviour
     {
         [HideInInspector] public bool Is2D;
         public Transform PlayersParent;
@@ -38,8 +37,6 @@ namespace Windy.Srpg.Game.Grid
         public int RoundCount { get; private set; }
         public bool IsPreBattlePhase => enablePreBattleUi && !battleStarted;
         internal bool IsBattleStarted => battleStarted;
-        IReadOnlyList<IBattlePlayer> IGridContext.Players => GetOrderedPlayers().Cast<IBattlePlayer>().ToList();
-        IReadOnlyList<IGridUnit> IGridContext.Units => GetAllUnits().Cast<IGridUnit>().ToList();
 
         private readonly HashSet<Unit> subscribedUnits = new HashSet<Unit>();
         private readonly HashSet<Cell> subscribedCells = new HashSet<Cell>();
@@ -75,13 +72,13 @@ namespace Windy.Srpg.Game.Grid
 
         public List<Player> GetOrderedPlayers()
         {
-            IEnumerable<Player> runtimePlayers = RuntimePlayers?
+            IEnumerable<Player> turnPlayers = SceneTurnPlayers?
                 .OfType<Player>()
                 .Where(player => player != null);
 
-            if (runtimePlayers != null && runtimePlayers.Any())
+            if (turnPlayers != null && turnPlayers.Any())
             {
-                return GridQueries.OrderPlayers(runtimePlayers);
+                return GridQueries.OrderPlayers(turnPlayers);
             }
 
             return GridQueries.OrderPlayers(
@@ -257,8 +254,7 @@ namespace Windy.Srpg.Game.Grid
         }
 
         /// <summary>
-        /// Commits a pending move after combat presentation when runtime routing is active; otherwise
-        /// falls back to legacy <see cref="Unit.ConfirmPendingMove"/>.
+        /// Commits a pending move after combat presentation.
         /// </summary>
         internal void TryCommitPendingMoveAfterCombatPresentation(Unit unit)
         {
