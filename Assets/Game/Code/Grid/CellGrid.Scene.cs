@@ -727,7 +727,7 @@ namespace Windy.Srpg.Game.Grid
 
             for (int i = 0; i < plan.PlayableUnits.Count; i++)
             {
-                Unit unit = ResolveSceneUnitFromGrid(plan.PlayableUnits[i]);
+                Unit unit = plan.PlayableUnits[i];
                 if (unit == null)
                 {
                     continue;
@@ -1037,21 +1037,8 @@ namespace Windy.Srpg.Game.Grid
         private static Func<List<Unit>> CreatePlayableUnitsAccessor(RoundRobinTurnPlan plan)
         {
             return () => plan.PlayableUnits?
-                .Select(unit => unit as Unit ?? (unit as Component)?.GetComponent<Unit>())
                 .Where(unit => unit != null)
                 .ToList() ?? new List<Unit>();
-        }
-
-        private static Unit ResolveSceneUnitFromGrid(IGridUnit unit)
-        {
-            if (unit is Unit customUnit)
-            {
-                return customUnit;
-            }
-
-            return unit is Component component
-                ? component.GetComponent<Unit>()
-                : null;
         }
 
         private static string FormatPlayerIdList(IReadOnlyList<int> playerIds)

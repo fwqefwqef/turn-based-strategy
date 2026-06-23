@@ -81,7 +81,7 @@ namespace Windy.Srpg.Game.Grid
         public bool ShouldRouteHumanMovementThroughRuntime => false;
         public bool ShouldRouteAiMovementThroughRuntime => !IsHumanTurn;
         public bool ShouldRouteTurnLoopThroughRuntime => false;
-        public bool ShouldRouteBattleOutcomeThroughRuntime => true;
+        public bool ShouldRouteBattleOutcomeThroughRuntime => false;
         private bool ShouldSyncFlowStateThroughRuntimeGrid =>
             ShouldRouteTurnLoopThroughRuntime || ShouldRouteHumanMovementThroughRuntime;
         public bool ShouldSuppressFrameworkSceneInput => UsesRuntimeDirectSceneInput;

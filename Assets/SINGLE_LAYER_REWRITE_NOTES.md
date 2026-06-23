@@ -8,7 +8,7 @@ Last updated: 2026-06-17
 |------|--------|
 | **Baseline commit** | `88bf25f` (`cleanup`) |
 | **WIP stash** | `stash@{0}` — `single-layer Phase 1-6 WIP (pre-baseline test)` |
-| **Active phase** | **Phase 7b in progress** — scene-owned human input; smoke test pending |
+| **Active phase** | **Phase 8 in progress** — turn plans use scene `Unit` (8a applied); smoke test pending |
 | **Rule** | One phase → compile → **smoke test** → commit. Never skip the smoke test. |
 
 To recover the abandoned slice (for reference only):
@@ -258,7 +258,7 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 
 **Next slice (7b):** flip `ShouldRouteHumanMovementThroughRuntime`; remove runtime-routing early-returns in `CellGridStates.All.cs`.
 
-### Phase 7b — Scene-owned human input (applied — smoke test pending)
+### Phase 7b — Scene-owned human input ✅
 
 | Touch | Change |
 |-------|--------|
@@ -266,23 +266,38 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 | `CellGridStates.All.cs` | Removed runtime-routing early-returns — clicks dispatch to scene state handlers |
 | `GameplayInputController` | **Unchanged** — already falls back to `HandleSceneUnitClicked` when runtime input inactive |
 
-**Still routed through runtime:**
+**Smoke checklist:**
 
-- `ShouldRouteBattleOutcomeThroughRuntime` — outcome evaluation
+- [x] User confirmed working (committed as `998d022`)
+
+---
+
+### Phase 8 — Delete mirrors and rename (8a applied — smoke test pending)
+
+**Phase 8a (this slice):** turn plans and battle outcome on scene types.
+
+| Touch | Change |
+|-------|--------|
+| `RoundRobinBattleFlow.cs` | `RoundRobinTurnPlan.PlayableUnits` is `IReadOnlyList<Unit>`; resolve scene units from `CellGrid` |
+| `CellGrid.Scene.cs` | Drop `IGridUnit` hop in playable-units accessor |
+| `CellGrid.cs` | `ShouldRouteBattleOutcomeThroughRuntime => false` |
+
+**Still present (later slices):**
+
+- `GridUnit` / `RuntimeGrid` mirror components and `CellGrid.Runtime.cs` sync bridge
+- `IGridContext` / `IGridUnit` on AI evaluators and legacy adapters
+- `Windy.Srpg.Runtime.*` namespaces on scene-owned types
 
 **Smoke checklist:**
 
 - [ ] Compiles in Unity
 - [ ] Smoke 1–6 (see gate above)
-- [ ] Human select / move / pending menu / attack-from-preview especially
 
----
+**Next slices:**
 
-### Phase 8 ΓÇö Delete mirrors and rename
-
-- Remove `GridUnit`, `RuntimeGrid`, `IGridUnit` from turn plans (`RoundRobinTurnPlan` uses `Unit`).
-- Move types out of `Windy.Srpg.Runtime.*` where they are scene-owned.
-- Delete stash branch when no longer needed.
+- **8b:** Remove `RuntimeGrid` state machine + dead routing in `CellGrid.Runtime.cs`
+- **8c:** Remove `GridUnit` mirror and `Unit.SceneBinding` push sync
+- **8d:** Delete `IGridContext` / `IGridUnit`; namespace cleanup
 
 ---
 
