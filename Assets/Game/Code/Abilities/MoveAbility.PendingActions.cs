@@ -500,14 +500,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                cell?.ClearHighlight();
-            }
-            else
-            {
-                cell.UnMark();
-            }
+            cell.UnMark();
         }
 
         private Cell GetActingCellForPendingActions(CellGrid cellGrid)
@@ -614,20 +607,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                CellHighlightKind kind = highlightMode switch
-                {
-                    SkillHighlightMode.Enemy => CellHighlightKind.Attack,
-                    SkillHighlightMode.Any => CellHighlightKind.Support,
-                    _ => CellHighlightKind.Deployment
-                };
-                cell?.ApplyHighlight(kind);
-            }
-            else
-            {
-                ApplySkillPreviewHighlight(cell, highlightMode, faint);
-            }
+            ApplySkillPreviewHighlight(cell, highlightMode, faint);
         }
 
         private static void ClearSkillPreviewCellMark(Cell cell, CellGrid cellGrid)
@@ -637,14 +617,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                cell?.ClearHighlight();
-            }
-            else
-            {
-                cell.UnMark();
-            }
+            cell.UnMark();
         }
 
         private void RefreshPendingSkillTargets(Skill skill, CellGrid cellGrid)
@@ -1307,14 +1280,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                cell?.ClearHighlight();
-            }
-            else
-            {
-                cell.UnMark();
-            }
+            cell.UnMark();
         }
 
         private void ClearTradeTargetingPreview()
@@ -3096,11 +3062,6 @@ namespace Windy.Srpg.Game.Abilities
             }
         }
 
-        private static bool ShouldUseRuntimeCellHighlighting(CellGrid cellGrid)
-        {
-            return cellGrid != null && cellGrid.ShouldRouteHumanMovementThroughRuntime;
-        }
-
         private static void MarkReachableCell(Cell cell, CellGrid cellGrid)
         {
             if (cell == null)
@@ -3108,14 +3069,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                cell?.ApplyHighlight(CellHighlightKind.Reachable);
-            }
-            else
-            {
-                cell.MarkAsReachable();
-            }
+            cell.MarkAsReachable();
         }
 
         private static void MarkPathCell(Cell cell, CellGrid cellGrid)
@@ -3125,14 +3079,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                cell?.ApplyHighlight(CellHighlightKind.Path);
-            }
-            else
-            {
-                cell.MarkAsPath();
-            }
+            cell.MarkAsPath();
         }
 
         private static void ClearCellMark(Cell cell, CellGrid cellGrid)
@@ -3142,14 +3089,7 @@ namespace Windy.Srpg.Game.Abilities
                 return;
             }
 
-            if (ShouldUseRuntimeCellHighlighting(cellGrid))
-            {
-                cell?.ClearHighlight();
-            }
-            else
-            {
-                cell.UnMark();
-            }
+            cell.UnMark();
         }
 
 

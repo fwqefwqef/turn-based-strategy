@@ -35,7 +35,7 @@ namespace Windy.Srpg.Game.Players
 
         private IEnumerator ExecuteTurn(CellGrid cellGrid)
         {
-            cellGrid.PrepareRuntimeRoutedAiTurn();
+            cellGrid.SyncRuntimeMirrorForAiTurn();
             IReadOnlyList<Unit> orderedUnits = SelectUnits(cellGrid);
             RuntimeParityDiagnostics.CompareAiTurnPrecalc(
                 cellGrid,

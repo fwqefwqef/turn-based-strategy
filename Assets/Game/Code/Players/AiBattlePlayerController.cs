@@ -39,7 +39,7 @@ namespace Windy.Srpg.Runtime.Players
                 yield break;
             }
 
-            grid.PrepareRuntimeRoutedAiTurn();
+            grid.SyncRuntimeMirrorForAiTurn();
             IReadOnlyList<Unit> orderedUnits = SelectUnits(grid);
             RuntimeParityDiagnostics.CompareAiTurnPrecalc(
                 grid,

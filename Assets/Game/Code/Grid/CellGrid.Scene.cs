@@ -21,19 +21,17 @@ namespace Windy.Srpg.Game.Grid
         public void RequestFrameworkInitializeAndStart()
         {
             InitializeBattleScene();
-            StartBattleViaRuntimeGrid();
+            StartBattle();
         }
 
         public void RequestFrameworkBattleStart()
         {
-            StartBattleViaRuntimeGrid();
+            StartBattle();
         }
 
         private void Update()
         {
-            NormalizeHumanInputState();
             SyncRuntimeGrid();
-            SyncRuntimeSceneInputGate();
             ProcessDeferredDestroyQueue();
         }
 
@@ -92,7 +90,6 @@ namespace Windy.Srpg.Game.Grid
             }
 
             subscribedCells.Clear();
-            ClearRuntimeSceneInputCoordinator();
         }
 
         private void OnApplicationPause(bool pauseStatus)
@@ -108,37 +105,7 @@ namespace Windy.Srpg.Game.Grid
             FlushCampaignSaveImmediate();
         }
 
-        private void StartBattleViaRuntimeGrid()
-        {
-            ResolveRuntimeGrid();
-            if (runtimeGrid == null || !ShouldRouteTurnLoopThroughRuntime)
-            {
-                StartBattleViaSceneAuthority();
-                return;
-            }
-
-            SyncRuntimeMirrorNow();
-            RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(this);
-            if (plan.NextPlayer == null)
-            {
-                Debug.LogError("CellGrid: No valid battle turn resolver or next player was found.");
-                return;
-            }
-
-            ApplySceneStateFromRuntime(() => SyncBattleStartFromPlan(plan, kickPlayerPlay: false, syncUnitTurnHooks: false));
-            PrepareRuntimeTurnStartForPlan(plan);
-            runtimeGrid.BeginBattleFromHost(
-                plan,
-                kickFirstTurn: false,
-                refreshSceneCollections: false);
-            ApplyRuntimeTurnStartToScenePlayableUnits();
-            SyncRuntimeMirrorNow();
-            SyncRuntimeSceneInputGate();
-            runtimeGrid.KickCurrentTurnPlay();
-            Debug.Log("Game started via Runtime grid");
-        }
-
-        private void StartBattleViaSceneAuthority()
+        private void StartBattle()
         {
             SyncRuntimeMirrorNow();
             RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(this);
@@ -151,7 +118,6 @@ namespace Windy.Srpg.Game.Grid
             PrepareRuntimeTurnStartForPlan(plan);
             SyncBattleStartFromPlan(plan, kickPlayerPlay: true, syncUnitTurnHooks: true);
             SyncRuntimeMirrorNow();
-            SyncRuntimeSceneInputGate();
             Debug.Log("Game started via scene grid");
         }
 
@@ -267,18 +233,6 @@ namespace Windy.Srpg.Game.Grid
             EmptyCellHighlighted?.Invoke(this, EventArgs.Empty);
         }
 
-        internal bool TryRouteEndTurnThroughRuntime()
-        {
-            ResolveRuntimeGrid();
-            if (runtimeGrid == null || !ShouldRouteTurnLoopThroughRuntime)
-            {
-                return false;
-            }
-
-            RequestEndTurn();
-            return true;
-        }
-
         internal bool TryDispatchCellDeselected(Cell cell)
         {
             return cell != null && TryDispatchToCurrentState(state => state.OnCellDeselected(cell));
@@ -320,10 +274,6 @@ namespace Windy.Srpg.Game.Grid
             return true;
         }
 
-        private void InstallFrameworkInputRouter()
-        {
-            SyncRuntimeSceneInputGate();
-        }
         // --- Scene registry and occupancy ---
         internal static Unit ResolveUnitFromRegistryUnit(object unit)
         {
@@ -737,38 +687,6 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
-        internal void ApplySceneTurnEndToCurrentPlayerUnits()
-        {
-            List<Unit> playableUnits = GetCurrentPlayerUnits();
-            for (int i = 0; i < playableUnits.Count; i++)
-            {
-                Unit unit = playableUnits[i];
-                if (unit == null)
-                {
-                    continue;
-                }
-
-                unit.OnTurnEnd();
-                NotifyBattleActionsTurnEnded(unit);
-            }
-        }
-
-        internal void ApplyRuntimeTurnStartToScenePlayableUnits()
-        {
-            List<Unit> playableUnits = GetCurrentPlayerUnits();
-            for (int i = 0; i < playableUnits.Count; i++)
-            {
-                Unit customUnit = playableUnits[i];
-                if (customUnit == null)
-                {
-                    continue;
-                }
-
-                NotifyBattleActionsTurnStarted(customUnit);
-                customUnit.ApplySceneTurnStartFromRuntime();
-            }
-        }
-
         internal void NotifyBattleActionsTurnStarted(Unit unit)
         {
             NotifyBattleActions(unit, action => action.OnTurnStarted(this));
@@ -821,11 +739,6 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (TryRouteEndTurnThroughRuntime())
-            {
-                return;
-            }
-
             EnterBlockedInputState();
             if (CheckGameFinished())
             {
@@ -843,7 +756,6 @@ namespace Windy.Srpg.Game.Grid
             PrepareRuntimeTurnStartForPlan(plan);
             CommitTurnTransition(plan, isNetworkInvoked);
             SyncRuntimeMirrorNow();
-            SyncRuntimeSceneInputGate();
         }
 
         internal void HandleSceneCellClicked(Cell cell)

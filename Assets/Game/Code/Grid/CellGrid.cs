@@ -10,18 +10,15 @@ using Windy.Srpg.Game.Abilities;
 using UnityEngine;
 using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
-using Windy.Srpg.Runtime.Grid.States;
 using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Grid
 {
     /// <summary>
-    /// Scene-facing battle host.
-    /// Owns authored scene objects, deployment/save integration, Unity event wiring, and the
-    /// scene state machine. It mirrors that scene state into <see cref="RuntimeGrid"/> for turn
-    /// order, runtime selection/move authority, and battle outcome evaluation.
+    /// Scene-facing battle host. Owns scene objects, deployment/save integration, Unity event
+    /// wiring, and the scene state machine. Pushes collection/metadata into RuntimeGrid mirror only.
     /// </summary>
-    public partial class CellGrid : MonoBehaviour, IGridContext, IRuntimeGridSceneInputCoordinator
+    public partial class CellGrid : MonoBehaviour, IGridContext
     {
         [HideInInspector] public bool Is2D;
         public Transform PlayersParent;
@@ -65,8 +62,6 @@ namespace Windy.Srpg.Game.Grid
         private string[] stagedDeploymentRosterUnitIds = Array.Empty<string>();
         private bool hasUnsavedDeploymentRosterChanges;
         private int occupancyRevision;
-        // Prevents feedback loops while runtime-driven state changes are applied back onto the scene state machine.
-        private bool suppressSceneToRuntimeStateMirror;
         public bool IsPreBattleDeploymentSwapModeActive => IsPreBattlePhase && isPreBattleDeploymentSwapMode;
         public bool HasUnsavedDeploymentRosterChanges => hasUnsavedDeploymentRosterChanges;
         public int OccupancyRevision => occupancyRevision;
@@ -78,20 +73,6 @@ namespace Windy.Srpg.Game.Grid
         public int CurrentPlayerNumber => currentPlayerNumber;
         public bool IsHumanTurn => CurrentPlayer is HumanPlayer;
         public bool CanRequestEndTurn => CurrentState?.BlocksEndTurn != true;
-        public bool ShouldRouteHumanMovementThroughRuntime => false;
-        public bool ShouldRouteAiMovementThroughRuntime => !IsHumanTurn;
-        public bool ShouldRouteTurnLoopThroughRuntime => false;
-        public bool ShouldRouteBattleOutcomeThroughRuntime => false;
-        private bool ShouldSyncFlowStateThroughRuntimeGrid =>
-            ShouldRouteTurnLoopThroughRuntime || ShouldRouteHumanMovementThroughRuntime;
-        public bool ShouldSuppressFrameworkSceneInput => UsesRuntimeDirectSceneInput;
-        // Runtime input ownership is only active during an actual human battle turn. Pre-battle,
-        // AI turns, and game-over flow still bypass this path.
-        public bool UsesRuntimeDirectSceneInput =>
-            ShouldRouteHumanMovementThroughRuntime
-            && !GameFinished
-            && !IsPreBattlePhase
-            && IsHumanSceneInputStateActive();
 
         public List<Player> GetOrderedPlayers()
         {
@@ -194,74 +175,32 @@ namespace Windy.Srpg.Game.Grid
 
             currentState?.OnStateExit();
             currentState = state;
-            if (!suppressSceneToRuntimeStateMirror)
-            {
-                MirrorSceneStateToRuntimeGrid(state);
-            }
-
             currentState?.OnStateEnter();
-            InstallFrameworkInputRouter();
         }
 
         public void EnterWaitingState()
         {
-            if (suppressSceneToRuntimeStateMirror || !ShouldSyncFlowStateThroughRuntimeGrid)
-            {
-                SetState(new CellGridStateWaitingForInput(this));
-                return;
-            }
-
-            ApplyRuntimeDrivenState(
-                new RuntimeGridStateWaitingForInput(runtimeGrid),
-                () => SetState(new CellGridStateWaitingForInput(this)));
+            SetState(new CellGridStateWaitingForInput(this));
         }
 
         public void EnterBlockedInputState()
         {
-            if (suppressSceneToRuntimeStateMirror || !ShouldSyncFlowStateThroughRuntimeGrid)
-            {
-                SetState(new CellGridStateBlockInput(this));
-                return;
-            }
-
-            ApplyRuntimeDrivenState(
-                new RuntimeGridStateBlockedInput(runtimeGrid),
-                () => SetState(new CellGridStateBlockInput(this)));
+            SetState(new CellGridStateBlockInput(this));
         }
 
-        /// <summary>
-        /// Blocks framework input without replacing the runtime grid state. Used during pending-move
-        /// combat presentation so <see cref="RuntimeGrid.ConfirmPendingMoveAfterCombat"/> can still run.
-        /// </summary>
         internal void EnterSceneOnlyBlockedInputState()
         {
-            ApplySceneStateFromRuntime(() => SetState(new CellGridStateBlockInput(this)));
+            SetState(new CellGridStateBlockInput(this));
         }
 
         public void EnterRemotePlayerTurnState()
         {
-            if (suppressSceneToRuntimeStateMirror || !ShouldSyncFlowStateThroughRuntimeGrid)
-            {
-                SetState(new CellGridStateRemotePlayerTurn(this));
-                return;
-            }
-
-            ApplyRuntimeDrivenState(
-                new RuntimeGridStateBlockedInput(runtimeGrid),
-                () => SetState(new CellGridStateRemotePlayerTurn(this)));
+            SetState(new CellGridStateRemotePlayerTurn(this));
         }
 
         public void EnterAiTurnState(AiPlayer aiPlayer)
         {
-            if (suppressSceneToRuntimeStateMirror || !ShouldSyncFlowStateThroughRuntimeGrid)
-            {
-                SetState(new CellGridStateAiTurn(this, aiPlayer));
-                return;
-            }
-
-            ApplyRuntimeDrivenState(
-                new RuntimeGridStateAiTurn(runtimeGrid),
-                () => SetState(new CellGridStateAiTurn(this, aiPlayer)));
+            SetState(new CellGridStateAiTurn(this, aiPlayer));
         }
 
         public void EnterSelectedState(Unit unit)
@@ -301,22 +240,11 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (ShouldRouteTurnLoopThroughRuntime)
-            {
-                ProcessRuntimeRoutedEndTurn();
-                return;
-            }
-
             ExecuteSceneEndTurn();
         }
 
         public bool RequestBattleOutcomeEvaluation()
         {
-            if (ShouldRouteBattleOutcomeThroughRuntime)
-            {
-                return ProcessRuntimeRoutedBattleOutcomeEvaluation();
-            }
-
             bool finished = CheckGameFinished();
             if (finished)
             {
@@ -326,52 +254,9 @@ namespace Windy.Srpg.Game.Grid
             return finished;
         }
 
-        /// <summary>
-        /// Syncs runtime mirror and blocked input before pending-move combat presentation (attack/skill/heal).
-        /// </summary>
-        internal void PrepareRuntimeRoutedPendingAttackCommit()
+        internal void PreparePendingCombatPresentation()
         {
-            if (GameFinished)
-            {
-                return;
-            }
-
-            if (ShouldRouteHumanMovementThroughRuntime)
-            {
-                ProcessRuntimeRoutedCombatPresentationBegan();
-                return;
-            }
-
             NotifyCombatPresentationBegan();
-        }
-
-        /// <summary>
-        /// Commits the pending move on the Runtime grid after combat presentation, then syncs legacy unit state.
-        /// </summary>
-        internal void ProcessRuntimeRoutedPendingAttackMoveCommit(Unit unit)
-        {
-            ProcessRuntimeRoutedPendingMoveCommit(unit, consumeAllRemainingMovement: false);
-        }
-
-        /// <summary>
-        /// Commits a pending move through Runtime grid authority, then syncs legacy unit/cell state.
-        /// </summary>
-        internal void ProcessRuntimeRoutedPendingMoveCommit(Unit unit, bool consumeAllRemainingMovement = false)
-        {
-            if (unit == null || !unit.HasPendingMove)
-            {
-                return;
-            }
-
-            // Phase 5: the scene Unit is authoritative for movement. Commit on the scene unit,
-            // then push the runtime mirror so it stays consistent.
-            if (!unit.ConfirmPendingMove(consumeAllRemainingMovement))
-            {
-                return;
-            }
-
-            unit.SyncMirroredRuntimeNow();
-            RefreshSceneCellOccupancyNow();
         }
 
         /// <summary>
@@ -388,13 +273,9 @@ namespace Windy.Srpg.Game.Grid
         /// </summary>
         internal void TryCommitPendingMoveFromPendingAction(Unit unit, bool consumeAllRemainingMovement = false)
         {
-            ProcessRuntimeRoutedPendingMoveCommit(unit, consumeAllRemainingMovement);
+            CommitPendingMoveOnSceneUnit(unit, consumeAllRemainingMovement);
         }
 
-        /// <summary>
-        /// Restores human input after combat. When runtime turn routing is active, the runtime
-        /// grid owns the post-combat return to waiting-for-input.
-        /// </summary>
         public void EnterPostCombatGridState()
         {
             if (GameFinished)
@@ -403,29 +284,13 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (ShouldRouteTurnLoopThroughRuntime)
-            {
-                ProcessRuntimeRoutedPostCombatRecovery();
-                return;
-            }
-
             EnterWaitingState();
         }
 
-        /// <summary>
-        /// Called when combat presentation begins (attack/skill sequences). Syncs runtime blocked
-        /// input for human turns and refreshes the runtime mirror before combat resolves.
-        /// </summary>
         internal void NotifyCombatPresentationBegan()
         {
             if (GameFinished)
             {
-                return;
-            }
-
-            if (ShouldRouteTurnLoopThroughRuntime)
-            {
-                ProcessRuntimeRoutedCombatPresentationBegan();
                 return;
             }
 
@@ -436,20 +301,10 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
-        /// <summary>
-        /// Called when the outermost combat presentation ends. Refreshes occupancy/outcome on the
-        /// Runtime grid after combat mutations settle.
-        /// </summary>
         internal void NotifyCombatPresentationEnded()
         {
             if (GameFinished)
             {
-                return;
-            }
-
-            if (ShouldRouteTurnLoopThroughRuntime)
-            {
-                ProcessRuntimeRoutedCombatPresentationEnded();
                 return;
             }
 
@@ -467,19 +322,6 @@ namespace Windy.Srpg.Game.Grid
             }
 
             currentState = new CellGridStateGameOver(this);
-        }
-
-        internal void ApplySceneStateFromRuntime(Action applyState)
-        {
-            suppressSceneToRuntimeStateMirror = true;
-            try
-            {
-                applyState?.Invoke();
-            }
-            finally
-            {
-                suppressSceneToRuntimeStateMirror = false;
-            }
         }
 
         private SceneUnitGenerator GetSceneUnitGenerator()

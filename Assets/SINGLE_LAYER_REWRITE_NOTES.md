@@ -8,7 +8,7 @@ Last updated: 2026-06-17
 |------|--------|
 | **Baseline commit** | `88bf25f` (`cleanup`) |
 | **WIP stash** | `stash@{0}` — `single-layer Phase 1-6 WIP (pre-baseline test)` |
-| **Active phase** | **Phase 8 in progress** — turn plans use scene `Unit` (8a applied); smoke test pending |
+| **Active phase** | **Phase 8b applied** — runtime state bridge removed; smoke test pending |
 | **Rule** | One phase → compile → **smoke test** → commit. Never skip the smoke test. |
 
 To recover the abandoned slice (for reference only):
@@ -290,12 +290,32 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 
 **Smoke checklist:**
 
+- [x] User confirmed working (committed as `75ae05f`)
+
+---
+
+### Phase 8b — Remove RuntimeGrid state bridge (applied — smoke test pending)
+
+| Touch | Change |
+|-------|--------|
+| `CellGrid.Runtime.cs` | Slimmed to collection/metadata mirror sync only (~140 lines, was ~870) |
+| `CellGrid.cs` | Scene-only state machine; removed all `ShouldRoute*` flags and runtime routing |
+| `CellGrid.Scene.cs` | `StartBattle()` scene-only; removed dead runtime turn-start helpers |
+| `GameplayInputController`, `MoveAbility`, `Unit`, `Cell` | Removed runtime input/highlight branches |
+
+**Still present (Phase 8c/8d):**
+
+- `RuntimeGrid` / `GridUnit` components on prefabs (mirror push-only)
+- `RuntimeGridStates.All.cs`, `RuntimeGrid` turn/state APIs (unused by CellGrid)
+- `IGridContext` / `IGridUnit` contracts
+
+**Smoke checklist:**
+
 - [ ] Compiles in Unity
 - [ ] Smoke 1–6 (see gate above)
 
 **Next slices:**
 
-- **8b:** Remove `RuntimeGrid` state machine + dead routing in `CellGrid.Runtime.cs`
 - **8c:** Remove `GridUnit` mirror and `Unit.SceneBinding` push sync
 - **8d:** Delete `IGridContext` / `IGridUnit`; namespace cleanup
 

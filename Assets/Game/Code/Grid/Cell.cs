@@ -84,12 +84,6 @@ namespace Windy.Srpg.Runtime.Grid
             }
 
             CellGrid grid = FindAnyObjectByType<CellGrid>();
-            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
-            {
-                Clicked?.Invoke(this);
-                return;
-            }
-
             grid?.HandleSceneCellClicked(this);
         }
 
@@ -101,12 +95,6 @@ namespace Windy.Srpg.Runtime.Grid
             }
 
             CellGrid grid = FindAnyObjectByType<CellGrid>();
-            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
-            {
-                Hovered?.Invoke(this);
-                return;
-            }
-
             grid?.HandleSceneCellSelected(this);
         }
 
@@ -118,12 +106,6 @@ namespace Windy.Srpg.Runtime.Grid
             }
 
             CellGrid grid = FindAnyObjectByType<CellGrid>();
-            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
-            {
-                Unhovered?.Invoke(this);
-                return;
-            }
-
             grid?.HandleSceneCellDeselected(this);
         }
 

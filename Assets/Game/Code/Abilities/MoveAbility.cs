@@ -673,7 +673,7 @@ namespace Windy.Srpg.Game.Abilities
 
         private void BeginPendingCombatPresentation(CellGrid cellGrid)
         {
-            cellGrid?.PrepareRuntimeRoutedPendingAttackCommit();
+            cellGrid?.PreparePendingCombatPresentation();
         }
 
         private void CommitPendingMoveAfterCombatPresentation(CellGrid cellGrid)
@@ -688,32 +688,11 @@ namespace Windy.Srpg.Game.Abilities
 
         private void EnterPendingMenuBlockedInput(CellGrid cellGrid)
         {
-            if (cellGrid != null && cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                cellGrid.EnterSceneOnlyBlockedInputState();
-                return;
-            }
-
             cellGrid?.EnterBlockedInputState();
         }
 
         private void EndTurnAndCommitPendingMove(CellGrid cellGrid)
         {
-            if (cellGrid != null && cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                CellGrid.RuntimeStateTransitionDecision runtimeDecision = cellGrid.ProcessRuntimePendingMoveWait();
-                CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: true);
-                UnitReference.OnUnitDeselected();
-                UnitReference.EndTurnForUnit();
-
-                if (runtimeDecision.StateLabel == "Waiting")
-                {
-                    cellGrid.ApplySceneStateFromRuntime(cellGrid.EnterWaitingState);
-                }
-
-                return;
-            }
-
             if (UnitReference.HasPendingMove)
             {
                 UnitReference.ConfirmPendingMove();
@@ -921,25 +900,6 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             return false;
-        }
-
-        internal void ApplySceneEffectsAfterRuntimePendingMoveRightClick(
-            CellGrid cellGrid,
-            CellGrid.RuntimeStateTransitionDecision runtimeDecision)
-        {
-            if (runtimeDecision.StateLabel == "Selected"
-                && runtimeDecision.SelectedUnit == UnitReference)
-            {
-                CancelPendingMoveAndRestoreSelection(cellGrid);
-                return;
-            }
-
-            if (runtimeDecision.StateLabel == "Waiting")
-            {
-                UnitReference.CancelPendingMove();
-                FindActionMenuUI()?.Hide();
-                cellGrid.ApplySceneStateFromRuntime(cellGrid.EnterWaitingState);
-            }
         }
 
     }

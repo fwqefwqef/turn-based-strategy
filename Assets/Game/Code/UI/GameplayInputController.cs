@@ -1017,14 +1017,7 @@ namespace Windy.Srpg.Game.UI
 
                 if (cellGrid != null)
                 {
-                    if (cellGrid.UsesRuntimeDirectSceneInput)
-                    {
-                        cellGrid.ProcessRuntimeRoutedSceneUnitClick(hoveredUnit);
-                    }
-                    else
-                    {
-                        cellGrid.HandleSceneUnitClicked(hoveredUnit);
-                    }
+                    cellGrid.HandleSceneUnitClicked(hoveredUnit);
                 }
 
                 return true;
@@ -1042,14 +1035,7 @@ namespace Windy.Srpg.Game.UI
 
                 if (cellGrid != null)
                 {
-                    if (cellGrid.UsesRuntimeDirectSceneInput)
-                    {
-                        cellGrid.ProcessRuntimeRoutedSceneCellClick(hoveredCell);
-                    }
-                    else
-                    {
-                        cellGrid.HandleSceneCellClicked(hoveredCell);
-                    }
+                    cellGrid.HandleSceneCellClicked(hoveredCell);
                 }
 
                 return true;

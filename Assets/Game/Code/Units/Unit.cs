@@ -473,24 +473,12 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            CellGrid grid = FindSceneCellGrid();
-            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
-            {
-                return;
-            }
-
             RaiseUnitClicked();
             UnitClicked?.Invoke(this, EventArgs.Empty);
         }
         public void OnMouseEnter()
         {
             if (GameplayInputController.IsCentralizedSceneInputActive)
-            {
-                return;
-            }
-
-            CellGrid grid = FindSceneCellGrid();
-            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
             {
                 return;
             }
@@ -502,12 +490,6 @@ namespace Windy.Srpg.Game.Units
         public void OnMouseExit()
         {
             if (GameplayInputController.IsCentralizedSceneInputActive)
-            {
-                return;
-            }
-
-            CellGrid grid = FindSceneCellGrid();
-            if (grid != null && grid.ShouldSuppressFrameworkSceneInput)
             {
                 return;
             }
