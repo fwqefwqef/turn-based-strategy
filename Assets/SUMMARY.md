@@ -1,8 +1,8 @@
-﻿# Turn Based Strategy â€” Architecture Summary
+﻿# Turn Based Strategy — Architecture Summary
 
 Last updated: 2026-06-23
 
-This document describes the **current** battle architecture after the single-layer merge (Phases 8dâ€“9). The scene layer is canonical: one `CellGrid`, one `Unit`, one `Cell` per battle â€” no parallel runtime mirror grid.
+This document describes the **current** battle architecture after the single-layer merge (Phases 8d–9). The scene layer is canonical: one `CellGrid`, one `Unit`, one `Cell` per battle — no parallel runtime mirror grid.
 
 For migration history and smoke-test gates, see `[SINGLE_LAYER_REWRITE_NOTES.md](SINGLE_LAYER_REWRITE_NOTES.md)`.
 
@@ -19,7 +19,7 @@ For migration history and smoke-test gates, see `[SINGLE_LAYER_REWRITE_NOTES.md]
 | Unit stats, combat, movement, inventory, progression    | `Unit`                                        | `Windy.Srpg.Game.Units`     |
 | Tile geometry, occupancy, highlights, tile input events | `Cell`                                        | `Windy.Srpg.Game.Grid`      |
 | Human / AI turn drivers                                 | `Player` hierarchy                            | `Windy.Srpg.Game.Players`   |
-| Per-unit actions (move, attack, â€¦)                      | `Ability`                                     | `Windy.Srpg.Game.Abilities` |
+| Per-unit actions (move, attack, …)                      | `Ability`                                     | `Windy.Srpg.Game.Abilities` |
 | Central board input                                     | `GameplayInputController`                     | `Windy.Srpg.Game.UI`        |
 | Campaign persistence                                    | `CampaignSaveManager` / `CampaignSaveFactory` | `Windy.Srpg.Game.Campaign`  |
 
@@ -28,53 +28,53 @@ For migration history and smoke-test gates, see `[SINGLE_LAYER_REWRITE_NOTES.md]
 
 Previously, battle logic was split between **scene** objects (`CellGrid`, `Unit`) and **runtime mirror** objects (`RuntimeGrid`, `GridUnit`) connected by sync bridges and `IGridContext` / `IGridUnit` cast-through APIs. That dual layer is **removed**. All active code paths now use scene types directly:
 
-- Input â†’ `GameplayInputController` â†’ `CellGrid.HandleScene*()` â†’ `CellGridState`
-- Pathfinding â†’ `Unit` + `DijkstraPathfinding` on scene `Cell` graph
-- Turn order â†’ `RoundRobinBattleFlow.ResolveStart/ResolveTurn(CellGrid)`
-- AI â†’ `AiPlayer` â†’ `AiTurnRunner` with `(IBattlePlayer, Unit, CellGrid)`
-- Player ownership â†’ `IBattlePlayer.Owns(Unit)` (not mirror units)
+- Input → `GameplayInputController` → `CellGrid.HandleScene*()` → `CellGridState`
+- Pathfinding → `Unit` + `DijkstraPathfinding` on scene `Cell` graph
+- Turn order → `RoundRobinBattleFlow.ResolveStart/ResolveTurn(CellGrid)`
+- AI → `AiPlayer` → `AiTurnRunner` with `(IBattlePlayer, Unit, CellGrid)`
+- Player ownership → `IBattlePlayer.Owns(Unit)` (not mirror units)
 
 Namespaces were consolidated under `Windy.Srpg.Game.*` (Phase 9). A few UI MonoBehaviours remain in the global namespace for historical scene references (`TurnCounterUI`, `ActionMenuUI`, etc.).
 
 ### Assembly
 
-- `**com.windy.srpg.game`** â€” all code under `Assets/Game/Code/` (`rootNamespace: Windy.Srpg.Game`)
-- `**com.windy.srpg.game.scenes**` â€” scene scripts under `Assets/Scenes/` (e.g. `SampleUnit`)
+- `**com.windy.srpg.game`** — all code under `Assets/Game/Code/` (`rootNamespace: Windy.Srpg.Game`)
+- `**com.windy.srpg.game.scenes**` — scene scripts under `Assets/Scenes/` (e.g. `SampleUnit`)
 
 Game data catalogs load from `Assets/StreamingAssets/gdata.json` via `CatalogResourceLoader`.
 
 ---
 
-## 2. Battle lifecycle (scene load â†’ turn end)
+## 2. Battle lifecycle (scene load → turn end)
 
 ```
 Awake (CellGrid)
-  â”œâ”€ EnsureSceneCellAnchors()
-  â”œâ”€ PrepareFriendlyDeploymentFromSave()     â† CampaignSaveData â†’ DeploymentSlots
-  â””â”€ WireSceneGridEvents()
+  ├─ EnsureSceneCellAnchors()
+  ├─ PrepareFriendlyDeploymentFromSave()     ← CampaignSaveData → DeploymentSlots
+  └─ WireSceneGridEvents()
 
 Start (CellGrid)
-  â”œâ”€ [pre-battle] RequestFrameworkInitialize() â†’ EnterBlockedInputState()
-  â””â”€ [immediate]  RequestFrameworkInitializeAndStart() â†’ StartBattle()
+  ├─ [pre-battle] RequestFrameworkInitialize() → EnterBlockedInputState()
+  └─ [immediate]  RequestFrameworkInitializeAndStart() → StartBattle()
 
 InitializeBattleScene()
-  â”œâ”€ Discover IBattleTurnPlayer + Player under PlayersParent
-  â”œâ”€ Collect scene Cells; IBattleSceneUnitSource registers Units
-  â””â”€ SceneLevelLoadingDone
+  ├─ Discover IBattleTurnPlayer + Player under PlayersParent
+  ├─ Collect scene Cells; IBattleSceneUnitSource registers Units
+  └─ SceneLevelLoadingDone
 
 StartBattle()
-  â”œâ”€ RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(CellGrid)
-  â”œâ”€ SyncBattleStartFromPlan(plan)         â† currentPlayerNumber, unit OnTurnStart
-  â””â”€ KickCurrentScenePlayer()              â† IBattleTurnPlayer.PlayTurn(CellGrid)
+  ├─ RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(CellGrid)
+  ├─ SyncBattleStartFromPlan(plan)         ← currentPlayerNumber, unit OnTurnStart
+  └─ KickCurrentScenePlayer()              ← IBattleTurnPlayer.PlayTurn(CellGrid)
 
-Human turn:  HumanPlayer.Play(CellGrid) â†’ EnterWaitingState()
-AI turn:     AiPlayer.Play(CellGrid) â†’ EnterAiTurnState() â†’ AiTurnRunner coroutine
+Human turn:  HumanPlayer.Play(CellGrid) → EnterWaitingState()
+AI turn:     AiPlayer.Play(CellGrid) → EnterAiTurnState() → AiTurnRunner coroutine
 
 End turn:    CellGrid.RequestEndTurn()
-  â”œâ”€ ExecuteSceneEndTurn()
-  â”œâ”€ RoundRobinBattleFlow.ResolveTurn(CellGrid) â†’ next RoundRobinTurnPlan
-  â”œâ”€ IBattleEndCondition.Evaluate(CellGrid) â†’ BattleOutcome
-  â””â”€ KickCurrentScenePlayer() or GameOver
+  ├─ ExecuteSceneEndTurn()
+  ├─ RoundRobinBattleFlow.ResolveTurn(CellGrid) → next RoundRobinTurnPlan
+  ├─ IBattleEndCondition.Evaluate(CellGrid) → BattleOutcome
+  └─ KickCurrentScenePlayer() or GameOver
 ```
 
 `GUIController.Awake()` wires `PreBattleUIController.Initialize(CellGrid)` and `GameplayInputController.Initialize(CellGrid)` so UI and input share the same grid reference.
@@ -83,18 +83,18 @@ End turn:    CellGrid.RequestEndTurn()
 
 ## 3. Parameter and data flow (detailed)
 
-### 3.1 Human input â†’ grid state machine
+### 3.1 Human input → grid state machine
 
 **Central gate:** When `GameplayInputController.IsCentralizedSceneInputActive` is true, `Cell.OnMouseDown` / `Unit.OnMouseEnter` return early; all board input goes through the controller.
 
 
 | Step | Caller       | Method                                       | Key parameters  | Callee                                                                         |
 | ---- | ------------ | -------------------------------------------- | --------------- | ------------------------------------------------------------------------------ |
-| 1    | Unity Update | `GameplayInputController.Update()`           | â€”               | polls input                                                                    |
-| 2    | Controller   | `UpdateMouseHover()` / keyboard hover        | â€”               | sets `hoveredCell`, `hoveredUnit`                                              |
+| 1    | Unity Update | `GameplayInputController.Update()`           | —               | polls input                                                                    |
+| 2    | Controller   | `UpdateMouseHover()` / keyboard hover        | —               | sets `hoveredCell`, `hoveredUnit`                                              |
 | 3    | Controller   | `ApplyHoverTarget(Cell cell, Unit unit)`     | scene refs      | `unit.RaiseSceneHighlightEvent()` or `cell.RaiseSceneHighlightEvent()`         |
-| 4    | Unit/Cell    | highlight event                              | `Unit` / `Cell` | `CellGrid` handlers â†’ `TryDispatchUnitHighlighted` / `TryDispatchCellSelected` |
-| 5    | Controller   | `TryHandleSelectCommand()`                   | â€”               | see below                                                                      |
+| 4    | Unit/Cell    | highlight event                              | `Unit` / `Cell` | `CellGrid` handlers → `TryDispatchUnitHighlighted` / `TryDispatchCellSelected` |
+| 5    | Controller   | `TryHandleSelectCommand()`                   | —               | see below                                                                      |
 | 6    | Controller   | `cellGrid.HandleSceneUnitClicked(Unit unit)` | `Unit`          | `TryDispatchUnitClicked(unit)`                                                 |
 | 7    | State        | `CellGridState.OnUnitClicked(Unit unit)`     | `Unit`          | e.g. `EnterSelectedState(unit)`                                                |
 
@@ -104,13 +104,13 @@ End turn:    CellGrid.RequestEndTurn()
 ```
 TryHandleSelectCommand()
   if TryOpenTurnInfoFromDoubleSelect()     // 0.35s window, same target
-    â†’ TurnCounterUI.RequestShow()
+    → TurnCounterUI.RequestShow()
   else if hoveredUnit != null
-    â†’ TurnCounterUI.RequestHide()
-    â†’ cellGrid.HandleSceneUnitClicked(hoveredUnit)
+    → TurnCounterUI.RequestHide()
+    → cellGrid.HandleSceneUnitClicked(hoveredUnit)
   else if hoveredCell != null
-    â†’ TurnCounterUI.RequestHide()
-    â†’ cellGrid.HandleSceneCellClicked(hoveredCell)
+    → TurnCounterUI.RequestHide()
+    → cellGrid.HandleSceneCellClicked(hoveredCell)
 ```
 
 **Turn info eligibility** (`ShouldOpenTurnInfoForHoveredUnit/Cell`):
@@ -124,57 +124,57 @@ TryHandleSelectCommand()
 
 ```
 TryHandleCancelCommand()
-  â†’ cellGrid.ProcessSceneRightClick()
-    â†’ currentState.OnRightClick()   // usually EnterWaitingState()
+  → cellGrid.ProcessSceneRightClick()
+    → currentState.OnRightClick()   // usually EnterWaitingState()
 ```
 
-**Inspect (S):** `UnitInspectPanelUI.TryOpenInspectForUnit(Unit)` â€” independent of grid state machine.
+**Inspect (S):** `UnitInspectPanelUI.TryOpenInspectForUnit(Unit)` — independent of grid state machine.
 
-### 3.2 Unit selection â†’ MoveAbility â†’ pending move â†’ action menu
+### 3.2 Unit selection → MoveAbility → pending move → action menu
 
 
 | Step | Type flow                       | Description                                                                                                          |
 | ---- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 1    | `Unit` â†’ `CellGrid`             | `CellGridStateWaitingForInput.OnUnitClicked(Unit)` calls `cellGrid.EnterSelectedState(Unit)`                         |
-| 2    | `CellGrid` â†’ state              | `new UnitSelectedState(CellGrid, Unit, IEnumerable<Ability>)` via `unit.GetAbilities()`                              |
-| 3    | `UnitSelectedState` â†’ abilities | For each `Ability` on unit: `OnActionSelected(CellGrid)`, `DisplayAction(CellGrid)`; input forwarded to all          |
-| 4    | `MoveAbility.Display`           | `Unit.GetAvailableDestinations(List<Cell>)` â†’ marks reachable `Cell`s                                                |
+| 1    | `Unit` → `CellGrid`             | `CellGridStateWaitingForInput.OnUnitClicked(Unit)` calls `cellGrid.EnterSelectedState(Unit)`                         |
+| 2    | `CellGrid` → state              | `new UnitSelectedState(CellGrid, Unit, IEnumerable<Ability>)` via `unit.GetAbilities()`                              |
+| 3    | `UnitSelectedState` → abilities | For each `Ability` on unit: `OnActionSelected(CellGrid)`, `DisplayAction(CellGrid)`; input forwarded to all          |
+| 4    | `MoveAbility.Display`           | `Unit.GetAvailableDestinations(List<Cell>)` → marks reachable `Cell`s                                                |
 | 5    | Click destination               | `MoveAbility.HandleCellClicked(Cell, CellGrid)`                                                                      |
-| 6    | Path                            | `Unit.FindPath(List<Cell>, Cell destination)` â†’ `IList<Cell>` via `DijkstraPathfinding`                              |
-| 7    | State                           | `cellGrid.EnterPendingMoveConfirmState(MoveAbility)` â†’ `CellGridStateMovePendingConfirm`                             |
+| 6    | Path                            | `Unit.FindPath(List<Cell>, Cell destination)` → `IList<Cell>` via `DijkstraPathfinding`                              |
+| 7    | State                           | `cellGrid.EnterPendingMoveConfirmState(MoveAbility)` → `CellGridStateMovePendingConfirm`                             |
 | 8    | Preview                         | `Unit.PreviewMove(Cell destination, IList<Cell> path)` sets internal `PendingMove` (occupancy **not** committed yet) |
-| 9    | UI                              | `MoveAbility.ShowActionMenu(CellGrid)` â†’ `ActionMenuUI` (attack / skill / item / trade / wait)                       |
+| 9    | UI                              | `MoveAbility.ShowActionMenu(CellGrid)` → `ActionMenuUI` (attack / skill / item / trade / wait)                       |
 
 
-**Wait in place:** Re-click selected unit â†’ `MoveAbility.OnSelectedUnitClicked(CellGrid)` â†’ `Unit.BeginPendingMoveInPlace()` â†’ pending confirm without path animation.
+**Wait in place:** Re-click selected unit → `MoveAbility.OnSelectedUnitClicked(CellGrid)` → `Unit.BeginPendingMoveInPlace()` → pending confirm without path animation.
 
 **Confirm move after action:**
 
 ```
 Unit.ConfirmPendingMove(bool consumeAllRemainingMovement)
   OR CellGrid.CommitPendingMoveOnSceneUnit(Unit, bool)
-    â†’ updates Unit.Cell, Cell.CurrentUnits, MovementPoints
-    â†’ fires movement / occupancy notifications
+    → updates Unit.Cell, Cell.CurrentUnits, MovementPoints
+    → fires movement / occupancy notifications
 ```
 
 **Attack from pending move:**
 
 ```
 MoveAbility.BeginAttackTargeting(CellGrid)
-  â†’ GetAttackableEnemiesFromPreview(CellGrid) : List<Unit>
-  â†’ user picks Unit target
-  â†’ Unit.AttackHandler(Unit target)
-  â†’ Unit.ConfirmPendingMove()
+  → GetAttackableEnemiesFromPreview(CellGrid) : List<Unit>
+  → user picks Unit target
+  → Unit.AttackHandler(Unit target)
+  → Unit.ConfirmPendingMove()
 ```
 
 Acting position during pending move uses `Unit.PreviewCell` (where the unit *will* be after confirm), so range checks for skills/attacks match the preview destination.
 
-### 3.3 AI turn â†’ AiPlayer â†’ evaluators â†’ actions
+### 3.3 AI turn → AiPlayer → evaluators → actions
 
 
 | Step | Method                                                                                    | Parameters                                                                                              |
 | ---- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| 1    | `CellGrid.KickCurrentScenePlayer()`                                                       | â€”                                                                                                       |
+| 1    | `CellGrid.KickCurrentScenePlayer()`                                                       | —                                                                                                       |
 | 2    | `IBattleTurnPlayer.PlayTurn(CellGrid grid)`                                               | `CellGrid`                                                                                              |
 | 3    | `AiPlayer.Play(CellGrid)`                                                                 | enters `CellGridStateAiTurn`                                                                            |
 | 4    | `AiPlayer.SelectUnits(CellGrid)`                                                          | `IReadOnlyList<Unit>` via `MovementFreedomUnitSelection` or `AiTurnOrdering`                            |
@@ -182,13 +182,13 @@ Acting position during pending move uses `Unit.PreviewCell` (where the unit *wil
 | 6    | `unit.GetComponentsInChildren<AiDecisionAction>()`                                        | each decision component                                                                                 |
 | 7    | `InitializeDecision(IBattlePlayer, Unit, CellGrid)`                                       | binds player, unit, grid                                                                                |
 | 8    | `Precalculate(...)` / `ShouldExecute(...)`                                                | evaluator setup                                                                                         |
-| 9    | `ExecuteDecision(...)` â†’ coroutine                                                        | e.g. `MoveToPositionAIAction`                                                                           |
-| 10   | Move                                                                                      | `CellEvaluator.Evaluate(Cell, Unit, Player, CellGrid)` â†’ best `Cell`; `MoveAbility.AIExecute(CellGrid)` |
-| 11   | Attack                                                                                    | `UnitEvaluator.Evaluate(Unit, Unit, Player, CellGrid)` â†’ best target; `unit.AttackHandler(Unit)`        |
-| 12   | Done                                                                                      | `onComplete()` â†’ `cellGrid.RequestEndTurn()`                                                            |
+| 9    | `ExecuteDecision(...)` → coroutine                                                        | e.g. `MoveToPositionAIAction`                                                                           |
+| 10   | Move                                                                                      | `CellEvaluator.Evaluate(Cell, Unit, Player, CellGrid)` → best `Cell`; `MoveAbility.AIExecute(CellGrid)` |
+| 11   | Attack                                                                                    | `UnitEvaluator.Evaluate(Unit, Unit, Player, CellGrid)` → best target; `unit.AttackHandler(Unit)`        |
+| 12   | Done                                                                                      | `onComplete()` → `cellGrid.RequestEndTurn()`                                                            |
 
 
-### 3.4 Campaign save â†’ pre-battle deployment â†’ battle units
+### 3.4 Campaign save → pre-battle deployment → battle units
 
 
 | Step      | Method                                                                                      | Data                                                  |
@@ -205,29 +205,29 @@ Acting position during pending move uses `Unit.PreviewCell` (where the unit *wil
 
 ```
 PreBattleUIController
-  â†’ cellGrid.SetDeploymentRoster(IEnumerable<string>)
-  â†’ cellGrid.ReplaceDeploymentSlotUnit(int slotIndex, string unitId)
-  â†’ cellGrid.SwapDeploymentSlots(int, int)   // board swap mode
-    â†’ ApplyStagedDeploymentRoster(...)
-    â†’ DeploymentRosterChanged event
+  → cellGrid.SetDeploymentRoster(IEnumerable<string>)
+  → cellGrid.ReplaceDeploymentSlotUnit(int slotIndex, string unitId)
+  → cellGrid.SwapDeploymentSlots(int, int)   // board swap mode
+    → ApplyStagedDeploymentRoster(...)
+    → DeploymentRosterChanged event
 ```
 
-**Persist:** `cellGrid.SaveDeploymentRosterChanges()` â†’ `CampaignSaveManager.Save(CampaignSaveData)`. Battle start may auto-save via `TryPersistOwnedUnitSave()` â†’ `CampaignSaveFactory.CreateFromOwnedUnits(IEnumerable<Unit>, ...)`.
+**Persist:** `cellGrid.SaveDeploymentRosterChanges()` → `CampaignSaveManager.Save(CampaignSaveData)`. Battle start may auto-save via `TryPersistOwnedUnitSave()` → `CampaignSaveFactory.CreateFromOwnedUnits(IEnumerable<Unit>, ...)`.
 
 ### 3.5 Turn loop and battle end
 
 ```
 CellGrid.ExecuteSceneEndTurn(bool isNetworkInvoked)
-  â†’ EnterBlockedInputState()
-  â†’ EndUnitsForCurrentPlayerTurn()          // marks units finished, cleanup
-  â†’ RoundRobinTurnPlan = RoundRobinBattleFlow.ResolveTurn(CellGrid)
+  → EnterBlockedInputState()
+  → EndUnitsForCurrentPlayerTurn()          // marks units finished, cleanup
+  → RoundRobinTurnPlan = RoundRobinBattleFlow.ResolveTurn(CellGrid)
        inputs:  IEnumerable<IBattlePlayer> from GetOrderedPlayers()
                 IEnumerable<Unit> from GetAllUnits()
        outputs: IBattlePlayer NextPlayer, IReadOnlyList<Unit> PlayableUnits
-  â†’ BattleOutcome = IBattleEndCondition.Evaluate(CellGrid)
+  → BattleOutcome = IBattleEndCondition.Evaluate(CellGrid)
        default: RoundRobinBattleFlow.EvaluateLastSideStanding(...)
-  â†’ CommitTurnTransition(plan)              // currentPlayerNumber, RoundCount++, TurnStarted
-  â†’ KickCurrentScenePlayer() or SyncStateToGameOver()
+  → CommitTurnTransition(plan)              // currentPlayerNumber, RoundCount++, TurnStarted
+  → KickCurrentScenePlayer() or SyncStateToGameOver()
 ```
 
 Configurable adapters on the `CellGrid` GameObject:
@@ -275,18 +275,18 @@ All ability types live in `**Ability.cs**` (base class, execution helpers, and t
 
 #### What `Ability` is
 
-`Ability` is an abstract `MonoBehaviour` child of a `Unit`. The grid state machine talks only to `Ability` â€” there is no separate action base class and no runtime/scene split.
+`Ability` is an abstract `MonoBehaviour` child of a `Unit`. The grid state machine talks only to `Ability` — there is no separate action base class and no runtime/scene split.
 
 Each unit typically has **multiple** sibling abilities (e.g. `MoveAbility`, `AttackRangeHighlightAbility`, `AttackAbility`). When the unit is selected, `UnitSelectedState` broadcasts input and lifecycle events to **every** `Ability` on that unit in parallel.
 
-Units discover abilities via `Unit.GetAbilities()` â†’ `GetComponentsInChildren<Ability>()`.
+Units discover abilities via `Unit.GetAbilities()` → `GetComponentsInChildren<Ability>()`.
 
 #### Two usage modes (same component, different entry points)
 
 
 | Mode                 | Who drives it           | Entry                                                    | Typical use                                                                         |
 | -------------------- | ----------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| **Reactive**         | Grid state machine      | `OnActionSelected`, `DisplayAction`, `OnCellClicked`, â€¦  | Human turn: highlights, pending move, action menu                                   |
+| **Reactive**         | Grid state machine      | `OnActionSelected`, `DisplayAction`, `OnCellClicked`, …  | Human turn: highlights, pending move, action menu                                   |
 | **Active execution** | Caller runs a coroutine | `AIExecute(CellGrid)` / `HumanExecute` / `RemoteExecute` | AI move (`MoveToPositionAIAction` sets `Destination`, then `moveAbility.AIExecute`) |
 
 
@@ -297,16 +297,16 @@ Reactive mode does **not** call `Act()`. Active execution wraps `Act()` in `Abil
 
 | Class                                                                  | Role                                                                                                                                                                                               |
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Ability`                                                              | Base MonoBehaviour: grid-facing lifecycle (`OnActionSelected`, `OnCellClicked`, â€¦), protected implementor hooks (`HandleCellClicked`, `Display`, â€¦), and coroutine execution (`Act`, `AIExecute`). |
+| `Ability`                                                              | Base MonoBehaviour: grid-facing lifecycle (`OnActionSelected`, `OnCellClicked`, …), protected implementor hooks (`HandleCellClicked`, `Display`, …), and coroutine execution (`Act`, `AIExecute`). |
 | `AbilityExecutionMode`                                                 | Enum: `HumanLocal`, `RemoteInvocation`, `AiLocal`.                                                                                                                                                 |
-| `AbilityExecutionFlow`                                                 | Static coroutine wrapper: before â†’ `Act()` â†’ after.                                                                                                                                                |
+| `AbilityExecutionFlow`                                                 | Static coroutine wrapper: before → `Act()` → after.                                                                                                                                                |
 | `MoveActionBase`, `AttackActionBase`, `AttackRangeHighlightActionBase` | Optional typed bases extending `Ability` (shared helpers; no current concrete subclasses).                                                                                                         |
 | `MoveAbility` (+ `MoveAbility.PendingActions`)                         | Primary human turn driver: movement preview, pending confirm, action menu, attack/skill/item/trade subflows.                                                                                       |
 | `AttackAbility`                                                        | Standalone attack flow (also used by AI).                                                                                                                                                          |
 | `AttackRangeHighlightAbility`                                          | Highlights in-range enemies while a unit is selected.                                                                                                                                              |
 
 
-#### Grid â†” ability notification
+#### Grid ↔ ability notification
 
 `CellGrid` notifies abilities on turn boundaries and unit destruction via `NotifyAbilities(Unit, Action<Ability>)`, which calls `unit.GetAbilities()` and invokes the matching hook on each component.
 
@@ -336,7 +336,7 @@ Reactive mode does **not** call `Act()`. Active execution wraps `Act()` in `Abil
 | `BuffData`                           | Serializable buff definition (stats, duration, effect id). |
 | `Buff`                               | Runtime buff instance on a unit.                           |
 | `UnitBuffList`                       | Active buff collection; turn start/end hooks.              |
-| `BuffRegistry`, `BuffEffectRegistry` | ID â†’ definition / effect factory.                          |
+| `BuffRegistry`, `BuffEffectRegistry` | ID → definition / effect factory.                          |
 | `BuffEffectBase`, `IP_BuffEffect`    | Buff effect plugin contract.                               |
 | `BuiltInBuffCatalog`                 | Registers built-in buff effects at startup.                |
 
@@ -371,7 +371,7 @@ All types live in `JsonCatalogLoader.cs`.
 | `CatalogResourceLoader`                                                                        | Static loader: `LoadItemCatalog()`, `LoadSkillCatalog()`, `LoadPassiveCatalog()`, `LoadBuffCatalog()` from `StreamingAssets/gdata.json`. |
 | `GameDataCatalogResource`                                                                      | Root JSON document wrapper.                                                                                                              |
 | `ItemCatalogResource`, `SkillCatalogResource`, `PassiveCatalogResource`, `BuffCatalogResource` | Section containers with `ToRuntimeDefinitions()`.                                                                                        |
-| `*CatalogEntry` types                                                                          | Serializable JSON rows (weapons, skills, passives, buffs, consumables, â€¦) mapped to runtime `*Data` objects.                             |
+| `*CatalogEntry` types                                                                          | Serializable JSON rows (weapons, skills, passives, buffs, consumables, …) mapped to runtime `*Data` objects.                             |
 
 
 ### Grid (`Windy.Srpg.Game.Grid`, `.Grid.States`)
@@ -379,17 +379,17 @@ All types live in `JsonCatalogLoader.cs`.
 
 | Class                                        | Role                                                                                                   |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `CellGrid`                                   | **Main partial** â€” public API, events, state transitions, pending-move commit, deferred destroy queue. |
-| `CellGrid.Scene`                             | **Partial** â€” Unity lifecycle, scene registry, turn loop, input dispatch, occupancy rebuild.           |
-| `CellGrid.PreBattle`                         | **Partial** â€” campaign I/O, deployment slots, roster staging.                                          |
+| `CellGrid`                                   | **Main partial** — public API, events, state transitions, pending-move commit, deferred destroy queue. |
+| `CellGrid.Scene`                             | **Partial** — Unity lifecycle, scene registry, turn loop, input dispatch, occupancy rebuild.           |
+| `CellGrid.PreBattle`                         | **Partial** — campaign I/O, deployment slots, roster staging.                                          |
 | `Cell`                                       | Grid tile: coordinates, neighbours, `CurrentUnits`, highlights, click/hover events.                    |
-| `CellHighlightKind`                          | Enum for overlay kinds (reachable, path, selected, â€¦).                                                 |
+| `CellHighlightKind`                          | Enum for overlay kinds (reachable, path, selected, …).                                                 |
 | `CellHighlighterBehaviour`                   | Abstract highlight renderer API.                                                                       |
 | `CellHighlighter`                            | Concrete tile highlighter (fills, cursor border, preview borders).                                     |
 | `CellTilePreviewUtility`                     | Skill preview highlight/border helpers.                                                                |
 | `CellOverlaySpriteFitter`                    | Fits overlay sprites to tile bounds.                                                                   |
 | `DeploymentSlot`                             | Pre-battle slot marker on a `Cell`; selection visuals.                                                 |
-| `SceneUnitGenerator`                         | `IBattleSceneUnitSource` â€” discovers unit transforms in scene hierarchy.                               |
+| `SceneUnitGenerator`                         | `IBattleSceneUnitSource` — discovers unit transforms in scene hierarchy.                               |
 | `RoundRobinBattleFlow`                       | Static turn-order and last-side-standing victory logic.                                                |
 | `RoundRobinTurnPlan`                         | Value type: `(IBattlePlayer NextPlayer, IReadOnlyList<Unit> PlayableUnits)`.                           |
 | `BattleOutcome`                              | Value type: finished flag + winning/defeated player id lists.                                          |
@@ -444,7 +444,7 @@ All types live in `JsonCatalogLoader.cs`.
 | `IPathfinder`         | Generic pathfinder interface over weighted graphs.                                   |
 | `DijkstraPathfinder`  | Generic Dijkstra implementation.                                                     |
 | `GridPath<TNode>`     | Path result container.                                                               |
-| `DijkstraPathfinding` | Adapter: `Dictionary<Cell, Dictionary<Cell, float>>` edges â†’ `Cell` paths for units. |
+| `DijkstraPathfinding` | Adapter: `Dictionary<Cell, Dictionary<Cell, float>>` edges → `Cell` paths for units. |
 
 
 ### Players (`Windy.Srpg.Game.Players`, `.Players.AI`)
@@ -456,8 +456,8 @@ All types live in `JsonCatalogLoader.cs`.
 | `IBattleTurnPlayer`            | Extends with `BindToGrid(CellGrid)`, `PlayTurn(CellGrid)`.        |
 | `BattlePlayerController`       | MonoBehaviour base implementing `IBattleTurnPlayer`.              |
 | `Player`                       | Abstract turn player; `Play(CellGrid)` implemented by subclasses. |
-| `HumanPlayer`                  | Human turn â†’ `cellGrid.EnterWaitingState()`.                      |
-| `AiPlayer`                     | AI turn â†’ `EnterAiTurnState` + `AiTurnRunner` coroutine.          |
+| `HumanPlayer`                  | Human turn → `cellGrid.EnterWaitingState()`.                      |
+| `AiPlayer`                     | AI turn → `EnterAiTurnState` + `AiTurnRunner` coroutine.          |
 | `HumanBattlePlayerController`  | Thin human controller (`IsHumanControlled == true`).              |
 | `AiBattlePlayerController`     | AI controller using `AiTurnRunner` directly.                      |
 | `UnitSelection`                | Abstract per-turn unit ordering strategy.                         |
@@ -494,7 +494,7 @@ All types live in `JsonCatalogLoader.cs`.
 | `CombatSequenceUI`        | Game.UI    | Animated combat presentation overlay.                                               |
 | `ExperienceGainHUD`       | Game.UI    | Post-combat XP display.                                                             |
 | `LevelUpUI`               | Game.UI    | Level-up stat allocation.                                                           |
-| `TurnCounterUI`           | *(global)* | Turn info modal; **double-select** to open; End Turn â†’ `RequestEndTurn()`.          |
+| `TurnCounterUI`           | *(global)* | Turn info modal; **double-select** to open; End Turn → `RequestEndTurn()`.          |
 | `ActionMenuUI`            | *(global)* | Pending-move action menu (`MoveAbility.IActionMenuUI`).                             |
 | `AttackPreviewUI`         | Game.UI    | Combat preview panel during pending attack.                                         |
 | `SkillMenuUI`             | Game.UI    | Skill picker during pending move.                                                   |
@@ -590,14 +590,14 @@ interface IBattleEndCondition {
 
 `Display`, `CleanUp`, `OnAbilitySelected/Deselected`, `HandleCellClicked/Selected/Deselected`, `HandleUnitClicked/Highlighted/Dehighlighted`, `OnTurnStart/End`, `OnUnitDestroyed`, `CanPerformAbility`, `Act(CellGrid, bool isRemote)`.
 
-**Execution:** `ExecuteAction(CellGrid)`, `AIExecute(CellGrid)`, `HumanExecute(CellGrid)`, `RemoteExecute(CellGrid)` â€” modes via `AbilityExecutionMode`.
+**Execution:** `ExecuteAction(CellGrid)`, `AIExecute(CellGrid)`, `HumanExecute(CellGrid)`, `RemoteExecute(CellGrid)` — modes via `AbilityExecutionMode`.
 
 ### CellGrid events (selection)
 
 
 | Event                                | When                                                 |
 | ------------------------------------ | ---------------------------------------------------- |
-| `PreBattleStateChanged`              | Pre-battle â†” battle transitions                      |
+| `PreBattleStateChanged`              | Pre-battle ↔ battle transitions                      |
 | `DeploymentRosterChanged`            | Roster edited                                        |
 | `UnitAdded`                          | Unit registered to grid                              |
 | `LevelInitialized` / `BattleStarted` | Framework ready / battle begun                       |
@@ -616,7 +616,7 @@ interface IBattleEndCondition {
 
 ### Cell events
 
-`Clicked`, `Hovered`, `Unhovered` â€” each `Action<Cell>`. Raised by mouse (when input not centralized) or by `RaiseSceneHighlightEvent()` from `GameplayInputController`.
+`Clicked`, `Hovered`, `Unhovered` — each `Action<Cell>`. Raised by mouse (when input not centralized) or by `RaiseSceneHighlightEvent()` from `GameplayInputController`.
 
 ---
 
@@ -650,12 +650,13 @@ Windy.Srpg.Game.Units           Unit split across Unit.cs + Unit.Behavior.cs, pr
 
 ## 8. Design notes for contributors
 
-1. **Single grid owner** â€” Do not reintroduce a parallel grid or unit type. Extend `CellGrid` / `Unit` / `Cell` directly.
-2. **Input** â€” Board clicks go through `GameplayInputController` when active; use `RaiseSceneHighlightEvent` / `HandleSceneUnitClicked`, not raw `OnMouseDown` side paths.
-3. **Pending move** â€” Always preview first (`PreviewMove`), commit later (`ConfirmPendingMove`). Combat and menus use preview cell for range.
-4. **Occupancy** â€” `Cell.CurrentUnits` + `Unit.RefreshCellOccupancy`; use `CellGrid.ResolveCanonicalCell` when binding units to tiles.
-5. **Turn counter** â€” `CellGrid.RoundCount` increments when player 0's turn ends (`OnTurnEnded`).
-6. **Turn info UI** â€” Double-select (0.35s) on finished friendly unit or empty waiting cell; single select performs normal grid click.
-7. **Abilities** â€” One base class (`Ability`). Add new unit behaviors as `Ability` subclasses on the unit prefab; override protected hooks for reactive input or `Act()` for coroutine execution. Use `GetAbilities()`, not a separate action type.
+1. **Single grid owner** — Do not reintroduce a parallel grid or unit type. Extend `CellGrid` / `Unit` / `Cell` directly.
+2. **Input** — Board clicks go through `GameplayInputController` when active; use `RaiseSceneHighlightEvent` / `HandleSceneUnitClicked`, not raw `OnMouseDown` side paths.
+3. **Pending move** — Always preview first (`PreviewMove`), commit later (`ConfirmPendingMove`). Combat and menus use preview cell for range.
+4. **Occupancy** — `Cell.CurrentUnits` + `Unit.RefreshCellOccupancy`; use `CellGrid.ResolveCanonicalCell` when binding units to tiles.
+5. **Turn counter** — `CellGrid.RoundCount` increments when player 0's turn ends (`OnTurnEnded`).
+6. **Turn info UI** — Double-select (0.35s) on finished friendly unit or empty waiting cell; single select performs normal grid click.
+7. **Abilities** — One base class (`Ability`). Add new unit behaviors as `Ability` subclasses on the unit prefab; override protected hooks for reactive input or `Act()` for coroutine execution. Use `GetAbilities()`, not a separate action type.
+
 
 
