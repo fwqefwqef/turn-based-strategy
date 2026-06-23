@@ -8,7 +8,7 @@ Last updated: 2026-06-17
 |------|--------|
 | **Baseline commit** | `88bf25f` (`cleanup`) |
 | **WIP stash** | `stash@{0}` — `single-layer Phase 1-6 WIP (pre-baseline test)` |
-| **Active phase** | **Phase 8b applied** — runtime state bridge removed; smoke test pending |
+| **Active phase** | **Phase 8c applied** — GridUnit mirror sync removed; smoke test pending |
 | **Rule** | One phase → compile → **smoke test** → commit. Never skip the smoke test. |
 
 To recover the abandoned slice (for reference only):
@@ -311,13 +311,31 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 
 **Smoke checklist:**
 
+- [x] User confirmed compile fix after 8b highlight cleanup
+
+---
+
+### Phase 8c — Remove GridUnit mirror push sync (applied — smoke test pending)
+
+| Touch | Change |
+|-------|--------|
+| `Unit.SceneBinding.cs` | Scene-only cell/occupancy; removed all `GridUnit` push sync |
+| `CellGrid.Runtime.cs` | **Deleted** — mirror bridge no longer needed |
+| `CellGrid.cs` / `CellGrid.Scene.cs` | Removed `SyncRuntimeMirrorNow`, `PrepareRuntimeTurnStartForPlan`, parity hooks |
+| `RuntimeParityDiagnostics.cs` | **Deleted** |
+| `Unit.CombatAndMovement.cs`, pre-battle, displacement | Removed mirror sync calls |
+
+**Still present (Phase 8d):**
+
+- `GridUnit.cs`, `RuntimeGrid.cs`, `RuntimeGridStates.All.cs` on prefabs (unused by battle flow)
+- `IGridContext` / `IGridUnit` contracts
+
+**Smoke checklist:**
+
 - [ ] Compiles in Unity
 - [ ] Smoke 1–6 (see gate above)
 
-**Next slices:**
-
-- **8c:** Remove `GridUnit` mirror and `Unit.SceneBinding` push sync
-- **8d:** Delete `IGridContext` / `IGridUnit`; namespace cleanup
+**Next slice (8d):** delete dead mirror types; `IGridContext` / `IGridUnit` cleanup; namespace move
 
 ---
 

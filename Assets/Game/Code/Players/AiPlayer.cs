@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using Windy.Srpg.Game.Diagnostics;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players.AI;
 using Windy.Srpg.Game.Units;
@@ -35,11 +34,7 @@ namespace Windy.Srpg.Game.Players
 
         private IEnumerator ExecuteTurn(CellGrid cellGrid)
         {
-            cellGrid.SyncRuntimeMirrorForAiTurn();
             IReadOnlyList<Unit> orderedUnits = SelectUnits(cellGrid);
-            RuntimeParityDiagnostics.CompareAiTurnPrecalc(
-                cellGrid,
-                cellGrid.GetCurrentPlayerUnits());
 
             if (!DebugMode)
             {

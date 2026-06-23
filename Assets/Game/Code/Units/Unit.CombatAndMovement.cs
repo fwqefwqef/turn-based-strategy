@@ -1181,7 +1181,6 @@ namespace Windy.Srpg.Game.Units
                 RegisterCellOccupancyList(resolvedStartCell);
 
                 RefreshCellOccupancy(resolvedStartCell);
-                SyncMirroredRuntimeCell(resolvedStartCell);
                 cachedPaths = null;
                 fromCell = resolvedStartCell;
 
@@ -1203,7 +1202,7 @@ namespace Windy.Srpg.Game.Units
             }
 
             // Phase 5: the scene Unit executes the move directly. The runtime mirror is
-            // synced afterward via SyncMirroredRuntimeCell so it stays consistent.
+            // Scene Unit owns movement; occupancy is updated on commit.
             var totalMovementCost = path.Sum(h => h.MovementCost);
             MovementPoints -= totalMovementCost;
 
@@ -1225,8 +1224,7 @@ namespace Windy.Srpg.Game.Units
 
             cachedPaths = null;
             RefreshCellOccupancy(destinationCell);
-            SyncMirroredRuntimeCell(destinationCell);
-            RefreshSceneOccupancyFromLiveUnits();
+            FindSceneCellGrid()?.RefreshSceneCellOccupancyNow();
             cellGrid?.RequestBattleOutcomeEvaluation();
         }
 
@@ -1316,9 +1314,8 @@ namespace Windy.Srpg.Game.Units
             RegisterCellOccupancyList(p.ToCell);
 
             RefreshCellOccupancy(p.ToCell);
-            SyncMirroredRuntimeCell(p.ToCell);
             cachedPaths = null;
-            RefreshSceneOccupancyFromLiveUnits();
+            FindSceneCellGrid()?.RefreshSceneCellOccupancyNow();
 
             OnMoveFinished();
             FindSceneCellGrid()?.RequestBattleOutcomeEvaluation();
@@ -1331,8 +1328,6 @@ namespace Windy.Srpg.Game.Units
         {
             if (!_pendingMove.HasValue)
                 return false;
-
-            ResolveRuntimeUnit()?.CancelPendingMove();
 
             var p = _pendingMove.Value;
             _previewMoveVersion++;
@@ -1366,8 +1361,6 @@ namespace Windy.Srpg.Game.Units
                 MovementCost = 0f,
                 FromLocalPos = transform.localPosition
             };
-
-            ResolveRuntimeUnit()?.BeginPendingMoveInPlace();
 
             return true;
         }

@@ -703,7 +703,6 @@ namespace Windy.Srpg.Game.Grid
             }
 
             RegisterSceneUnit(unit, targetCell);
-            MarkRuntimeGridDirty();
         }
 
         private void UnregisterDeploymentUnitFromBattle(Unit unit)
@@ -720,7 +719,6 @@ namespace Windy.Srpg.Game.Grid
             unit.DestroyedInCombat -= OnUnitDestroyed;
             subscribedUnits.Remove(unit);
             UnregisterSceneUnit(unit);
-            MarkRuntimeGridDirty();
         }
 
         private bool CanModifyRegisteredSceneUnits()
@@ -762,7 +760,6 @@ namespace Windy.Srpg.Game.Grid
             }
 
             unit.transform.localPosition = nextCell.transform.localPosition;
-            unit.SyncMirroredRuntimeCell(nextCell);
         }
 
         private static void ReleaseDeploymentUnitCell(Unit unit)
@@ -776,7 +773,6 @@ namespace Windy.Srpg.Game.Grid
             currentCell.CurrentUnits.Remove(unit);
             RefreshDeploymentCellOccupancy(currentCell);
             unit.Cell = null;
-            unit.ClearMirroredRuntimeCell();
         }
 
         private void SetDeploymentSlotVisibility(bool isVisible)

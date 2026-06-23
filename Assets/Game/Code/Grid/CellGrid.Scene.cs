@@ -31,7 +31,6 @@ namespace Windy.Srpg.Game.Grid
 
         private void Update()
         {
-            SyncRuntimeGrid();
             ProcessDeferredDestroyQueue();
         }
 
@@ -39,7 +38,6 @@ namespace Windy.Srpg.Game.Grid
         {
             EnsureSceneCellAnchors();
             PrepareFriendlyDeploymentFromSave();
-            ResolveRuntimeGrid();
             WireLegacyGridEvents();
             SubscribeToExistingCells();
         }
@@ -107,7 +105,6 @@ namespace Windy.Srpg.Game.Grid
 
         private void StartBattle()
         {
-            SyncRuntimeMirrorNow();
             RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(this);
             if (plan.NextPlayer == null)
             {
@@ -115,9 +112,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            PrepareRuntimeTurnStartForPlan(plan);
             SyncBattleStartFromPlan(plan, kickPlayerPlay: true, syncUnitTurnHooks: true);
-            SyncRuntimeMirrorNow();
             Debug.Log("Game started via scene grid");
         }
 
@@ -132,7 +127,6 @@ namespace Windy.Srpg.Game.Grid
             UpdateDeploymentSlotSelectionVisuals();
             TryPersistOwnedUnitSave();
             RoundCount = 1;
-            MarkRuntimeGridDirty();
             PreBattleStateChanged?.Invoke(this, EventArgs.Empty);
             BattleStarted?.Invoke(this, EventArgs.Empty);
             TurnStarted?.Invoke(this, EventArgs.Empty);
@@ -147,8 +141,6 @@ namespace Windy.Srpg.Game.Grid
                 RoundCount++;
             }
 
-            MarkRuntimeGridDirty();
-            SyncRuntimeMirrorNow();
             BattleTurnEnded?.Invoke(this, EventArgs.Empty);
             TurnStarted?.Invoke(this, EventArgs.Empty);
         }
@@ -168,9 +160,7 @@ namespace Windy.Srpg.Game.Grid
 
             customUnit.CombatDestroyed += OnCombatDestroyed;
             customUnit.DestroyedInCombat += OnUnitDestroyed;
-            customUnit.SyncMirroredRuntimeNow();
             UnitAdded?.Invoke(this, new UnitAddedEventArgs(customUnit));
-            MarkRuntimeGridDirty();
         }
 
         private void OnCombatDestroyed(object sender, AttackEventArgs e)
@@ -185,7 +175,6 @@ namespace Windy.Srpg.Game.Grid
             subscribedUnits.Remove(defender);
             defender.GetBattleActions().ForEach(action => action.OnOwnerDestroyed(this));
             Units.Remove(defender);
-            MarkRuntimeGridDirty();
             RequestBattleOutcomeEvaluation();
         }
 
@@ -322,7 +311,7 @@ namespace Windy.Srpg.Game.Grid
                 customUnit.PlayerNumber = ownerPlayer.PlayerNumber;
             }
 
-            customUnit.RegisterCellOccupancy();
+            customUnit.RegisterCellOccupancyList(targetCell ?? customUnit.Cell);
             customUnit.transform.localRotation = Quaternion.Euler(0, 0, 0);
             customUnit.Initialize();
             customUnit.EnsureSceneCellBinding();
@@ -411,13 +400,6 @@ namespace Windy.Srpg.Game.Grid
                 }
 
                 unit.EnsureSceneCellBinding();
-                if (unit.Cell == null)
-                {
-                    continue;
-                }
-
-                GridUnit runtimeUnit = unit.GetComponent<GridUnit>();
-                runtimeUnit?.AssignCellImmediate(unit.Cell, syncTransform: false);
             }
 
             occupancyRevision++;
@@ -668,25 +650,6 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
-        internal void PrepareRuntimeTurnStartForPlan(RoundRobinTurnPlan plan)
-        {
-            if (plan.PlayableUnits == null)
-            {
-                return;
-            }
-
-            for (int i = 0; i < plan.PlayableUnits.Count; i++)
-            {
-                Unit unit = plan.PlayableUnits[i];
-                if (unit == null)
-                {
-                    continue;
-                }
-
-                unit.PrepareRuntimeForTurnStart();
-            }
-        }
-
         internal void NotifyBattleActionsTurnStarted(Unit unit)
         {
             NotifyBattleActions(unit, action => action.OnTurnStarted(this));
@@ -753,9 +716,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            PrepareRuntimeTurnStartForPlan(plan);
             CommitTurnTransition(plan, isNetworkInvoked);
-            SyncRuntimeMirrorNow();
         }
 
         internal void HandleSceneCellClicked(Cell cell)

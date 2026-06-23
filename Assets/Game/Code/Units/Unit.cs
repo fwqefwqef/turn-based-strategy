@@ -337,7 +337,6 @@ namespace Windy.Srpg.Game.Units
             // instead of rebuilding from preset defaults.
             if (Application.isPlaying && presetAppliedAtRuntime && IsRuntimeInitializedForSaveRefresh())
             {
-                SyncMirroredRuntimeNow();
                 return;
             }
 
@@ -352,7 +351,7 @@ namespace Windy.Srpg.Game.Units
             SkillList.LoadStartingSkills(GetInitialSkills());
             PassiveList.LoadStartingPassives(GetInitialUniquePassives(), GetInitialEquipPassives());
 
-            SetTurnStateKind(UnitTurnStateKind.Normal, useStateTransition: false, syncRuntime: false);
+            SetTurnStateKind(UnitTurnStateKind.Normal, useStateTransition: false);
 
             ComputedTotalHitPoints = MaxHitPoints;
             ComputedTotalManaPoints = MaxManaPoints;
@@ -366,8 +365,6 @@ namespace Windy.Srpg.Game.Units
             {
                 action.InitializeAction(this);
             }
-
-            SyncMirroredRuntimeNow();
         }
 
         public void ConfigureFromOwnedUnitSaveData(OwnedUnitSaveData saveData, UnitPreset visualPreset)
@@ -432,7 +429,7 @@ namespace Windy.Srpg.Game.Units
                 CreateSavedPassiveEntries(saveData.UniquePassiveIds),
                 CreateSavedPassiveEntries(saveData.EquipPassiveIds));
 
-            SetTurnStateKind(UnitTurnStateKind.Normal, useStateTransition: false, syncRuntime: false);
+            SetTurnStateKind(UnitTurnStateKind.Normal, useStateTransition: false);
 
             ComputedTotalHitPoints = MaxHitPoints;
             ComputedTotalManaPoints = MaxManaPoints;
@@ -457,8 +454,6 @@ namespace Windy.Srpg.Game.Units
             {
                 action.InitializeAction(this);
             }
-
-            SyncMirroredRuntimeNow();
         }
 
         public void OnMouseDown()
@@ -565,16 +560,11 @@ namespace Windy.Srpg.Game.Units
             }
         }
 
-        private void SetTurnStateKind(UnitTurnStateKind stateKind, bool useStateTransition = true, bool syncRuntime = true)
+        private void SetTurnStateKind(UnitTurnStateKind stateKind, bool useStateTransition = true)
         {
             currentTurnStateKind = stateKind;
             hasInitializedTurnState = true;
             ApplyTurnStateVisual(stateKind);
-
-            if (syncRuntime)
-            {
-                SyncMirroredRuntimeTurnState();
-            }
         }
 
         private void ApplyTurnStateVisual(UnitTurnStateKind stateKind)
@@ -1958,7 +1948,6 @@ namespace Windy.Srpg.Game.Units
             Cell currentCell = Cell;
             UnregisterCellOccupancyList(currentCell);
             RefreshCellOccupancy(currentCell);
-            ClearMirroredRuntimeCell();
             MarkAsDestroyed();
             SuppressDefeatedInteraction();
 

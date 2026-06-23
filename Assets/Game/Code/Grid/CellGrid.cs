@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Windy.Srpg.Game.Campaign;
-using Windy.Srpg.Game.Diagnostics;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Game.Players;
@@ -16,7 +15,7 @@ namespace Windy.Srpg.Game.Grid
 {
     /// <summary>
     /// Scene-facing battle host. Owns scene objects, deployment/save integration, Unity event
-    /// wiring, and the scene state machine. Pushes collection/metadata into RuntimeGrid mirror only.
+    /// wiring, and the scene state machine.
     /// </summary>
     public partial class CellGrid : MonoBehaviour, IGridContext
     {
@@ -212,8 +211,6 @@ namespace Windy.Srpg.Game.Grid
             }
 
             SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
-
-            RuntimeParityDiagnostics.CompareMovementReach(unit, this, "human-select");
         }
 
         public void EnterPendingMoveConfirmState(MoveAbility moveAbility)
@@ -294,7 +291,6 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            SyncRuntimeMirrorNow();
             if (IsHumanTurn && CurrentState is not CellGridStateBlockInput)
             {
                 EnterSceneOnlyBlockedInputState();
@@ -308,7 +304,6 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            SyncRuntimeMirrorNow();
             RefreshSceneCellOccupancyNow();
             TryFlushDeferredDestroyQueue();
             RequestBattleOutcomeEvaluation();
@@ -370,6 +365,55 @@ namespace Windy.Srpg.Game.Grid
         private void ProcessDeferredDestroyQueue()
         {
             TryFlushDeferredDestroyQueue();
+        }
+
+        internal void CommitPendingMoveOnSceneUnit(Unit unit, bool consumeAllRemainingMovement = false)
+        {
+            if (unit == null || !unit.HasPendingMove)
+            {
+                return;
+            }
+
+            if (!unit.ConfirmPendingMove(consumeAllRemainingMovement))
+            {
+                return;
+            }
+
+            RefreshSceneCellOccupancyNow();
+        }
+
+        internal List<Unit> GetAttackableEnemiesFromActingCell(Unit actor, Cell actingCell)
+        {
+            if (actor == null || actingCell == null)
+            {
+                return new List<Unit>();
+            }
+
+            return GetEnemyUnits(CurrentPlayer)
+                .Where(enemy => enemy != null && actor.CanAttackTargetWithAnyWeapon(enemy, actingCell))
+                .ToList();
+        }
+
+        public void ProcessSceneRightClick()
+        {
+            if (CurrentState is States.IRightClickHandler handler)
+            {
+                handler.OnRightClick();
+            }
+        }
+
+        public void ClearAllCellHighlights()
+        {
+            foreach (Cell cell in GetAllCells())
+            {
+                if (cell == null)
+                {
+                    continue;
+                }
+
+                cell.UnMark();
+                cell?.ClearHighlight();
+            }
         }
     }
 

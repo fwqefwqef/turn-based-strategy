@@ -281,9 +281,6 @@ namespace Windy.Srpg.Game.Units
                 RefreshCellOccupancy(plan.TargetCell);
             }
 
-            user.SyncMirroredRuntimeCell(plan.UserCell);
-            target.SyncMirroredRuntimeCell(plan.TargetCell);
-
             SnapUnitToCell(user, plan.UserCell, cellGrid);
             SnapUnitToCell(target, plan.TargetCell, cellGrid);
             cellGrid?.RequestBattleOutcomeEvaluation();
