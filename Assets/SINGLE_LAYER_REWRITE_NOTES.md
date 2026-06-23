@@ -8,7 +8,7 @@ Last updated: 2026-06-17
 |------|--------|
 | **Baseline commit** | `88bf25f` (`cleanup`) |
 | **WIP stash** | `stash@{0}` — `single-layer Phase 1-6 WIP (pre-baseline test)` |
-| **Active phase** | **Phase 6 applied (uncommitted)** — smoke test before Phase 7 |
+| **Active phase** | **Phase 6 complete** — ready for Phase 7 |
 | **Rule** | One phase → compile → **smoke test** → commit. Never skip the smoke test. |
 
 To recover the abandoned slice (for reference only):
@@ -191,7 +191,7 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 
 ---
 
-### Phase 5 ΓÇö Transfer path / move authority to scene `Unit` (fresh impl, awaiting smoke)
+### Phase 5 ΓÇö Transfer path / move authority to scene `Unit` ✅
 
 **Intent:** After Phase 4 proved parity, flip the switch: the scene `Unit` is authoritative for pathfinding and movement execution. The runtime `GridUnit` mirror becomes **push-only** (it receives scene state but never drives it).
 
@@ -209,21 +209,19 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 
 **Smoke checklist:**
 
-- [ ] Compiles in Unity
-- [ ] Human: select unit ΓåÆ move ΓåÆ confirm; MP decrements correctly
-- [ ] Human: preview move + cancel restores position/MP
-- [ ] AI: enemies move and attack (end turn)
-- [ ] Parity logs still `MATCH` (diagnostics can stay enabled)
+- [x] Compiles in Unity
+- [x] Human move/preview/confirm; AI move/attack
+- [x] Parity logs `MATCH`
 
 ---
 
-### Phase 6 ΓÇö Single occupancy on `Cell` Γ£à
+### Phase 6 — Single occupancy on `Cell` ✅
 
 **Smoke checklist:**
 
 - [x] Compiles in Unity
-- [x] Smoke 1ΓÇô6 (see gate above)
-- [x] `[RuntimeParity] MATCH` on select + AI turn
+- [x] Smoke 1–6
+- [x] `[RuntimeParity] MATCH` on select + AI turn (all 3 enemies, post-move positions)
 
 ---
 
