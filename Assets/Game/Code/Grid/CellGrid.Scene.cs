@@ -6,9 +6,6 @@ using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Game.Abilities;
-using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Game.Players;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -172,7 +169,7 @@ namespace Windy.Srpg.Game.Grid
 
             defender.CombatDestroyed -= OnCombatDestroyed;
             subscribedUnits.Remove(defender);
-            defender.GetBattleActions().ForEach(action => action.OnOwnerDestroyed(this));
+            defender.GetAbilities().ForEach(action => action.OnOwnerDestroyed(this));
             Units.Remove(defender);
             RequestBattleOutcomeEvaluation();
         }
@@ -603,7 +600,7 @@ namespace Windy.Srpg.Game.Grid
                         continue;
                     }
 
-                    NotifyBattleActionsTurnStarted(unit);
+                    NotifyAbilitiesTurnStarted(unit);
                     unit.OnTurnStart();
                 }
             }
@@ -642,7 +639,7 @@ namespace Windy.Srpg.Game.Grid
                         continue;
                     }
 
-                    NotifyBattleActionsTurnStarted(unit);
+                    NotifyAbilitiesTurnStarted(unit);
                     unit.OnTurnStart();
                 }
             }
@@ -665,23 +662,23 @@ namespace Windy.Srpg.Game.Grid
                 }
 
                 unit.OnTurnEnd();
-                NotifyBattleActionsTurnEnded(unit);
+                NotifyAbilitiesTurnEnded(unit);
             }
         }
 
-        internal void NotifyBattleActionsTurnStarted(Unit unit)
+        internal void NotifyAbilitiesTurnStarted(Unit unit)
         {
-            NotifyBattleActions(unit, action => action.OnTurnStarted(this));
+            NotifyAbilities(unit, action => action.OnTurnStarted(this));
         }
 
-        internal void NotifyBattleActionsTurnEnded(Unit unit)
+        internal void NotifyAbilitiesTurnEnded(Unit unit)
         {
-            NotifyBattleActions(unit, action => action.OnTurnEnded(this));
+            NotifyAbilities(unit, action => action.OnTurnEnded(this));
         }
 
-        internal void NotifyBattleActionsOwnerDestroyed(Unit unit)
+        internal void NotifyAbilitiesOwnerDestroyed(Unit unit)
         {
-            NotifyBattleActions(unit, action => action.OnOwnerDestroyed(this));
+            NotifyAbilities(unit, action => action.OnOwnerDestroyed(this));
         }
 
         internal bool CheckGameFinished()
@@ -810,7 +807,7 @@ namespace Windy.Srpg.Game.Grid
             unit.UnitHighlighted -= OnSceneUnitHighlighted;
             unit.UnitDehighlighted -= OnSceneUnitDehighlighted;
             unit.UnitDestroyed -= OnSceneUnitDestroyed;
-            NotifyBattleActionsOwnerDestroyed(unit);
+            NotifyAbilitiesOwnerDestroyed(unit);
             CheckGameFinished();
         }
 
@@ -912,14 +909,14 @@ namespace Windy.Srpg.Game.Grid
             scenePlayer?.PlayTurn(this);
         }
 
-        private void NotifyBattleActions(Unit unit, Action<BattleAction> notify)
+        private void NotifyAbilities(Unit unit, Action<Ability> notify)
         {
             if (unit == null || notify == null)
             {
                 return;
             }
 
-            List<BattleAction> actions = unit.GetBattleActions();
+            List<Ability> actions = unit.GetAbilities();
             for (int i = 0; i < actions.Count; i++)
             {
                 notify(actions[i]);

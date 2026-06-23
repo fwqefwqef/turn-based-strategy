@@ -7,7 +7,6 @@ using UnityEngine.UI;
 using Windy.Srpg.Game.CameraControl;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.UI
 {
@@ -40,6 +39,7 @@ namespace Windy.Srpg.Game.UI
 
         private static readonly Color CursorBorderColor = Color.black;
         private static readonly Color FocusedButtonColor = new Color(0.63f, 0.84f, 1f, 1f);
+        private const float TurnInfoDoubleSelectWindowSeconds = 0.35f;
         private static GameplayInputController activeInstance;
 
         [Header("References")]
@@ -69,6 +69,9 @@ namespace Windy.Srpg.Game.UI
         private bool initialized;
         private Vector3 lastMousePosition;
         private bool? originalSendNavigationEvents;
+        private float lastTurnInfoSelectUnscaledTime = float.NegativeInfinity;
+        private Unit lastTurnInfoSelectUnit;
+        private Cell lastTurnInfoSelectCell;
 
         public static bool IsCentralizedSceneInputActive => activeInstance != null && activeInstance.enabled && activeInstance.initialized;
 
@@ -1005,14 +1008,14 @@ namespace Windy.Srpg.Game.UI
                 return false;
             }
 
+            if (TryOpenTurnInfoFromDoubleSelect())
+            {
+                TurnCounterUI.RequestShow();
+                return true;
+            }
+
             if (hoveredUnit != null)
             {
-                if (ShouldOpenTurnInfoForHoveredUnit(hoveredUnit))
-                {
-                    TurnCounterUI.RequestShow();
-                    return true;
-                }
-
                 TurnCounterUI.RequestHide();
 
                 if (cellGrid != null)
@@ -1025,12 +1028,6 @@ namespace Windy.Srpg.Game.UI
 
             if (hoveredCell != null)
             {
-                if (ShouldOpenTurnInfoForHoveredCell(hoveredCell))
-                {
-                    TurnCounterUI.RequestShow();
-                    return true;
-                }
-
                 TurnCounterUI.RequestHide();
 
                 if (cellGrid != null)
@@ -1041,6 +1038,7 @@ namespace Windy.Srpg.Game.UI
                 return true;
             }
 
+            ClearTurnInfoSelectTracking();
             return false;
         }
 
@@ -1402,6 +1400,34 @@ namespace Windy.Srpg.Game.UI
 
             return unit.PlayerNumber == cellGrid.CurrentPlayerNumber
                 && unit.IsFinishedForTurn;
+        }
+
+        private bool TryOpenTurnInfoFromDoubleSelect()
+        {
+            bool eligibleUnit = hoveredUnit != null && ShouldOpenTurnInfoForHoveredUnit(hoveredUnit);
+            bool eligibleCell = !eligibleUnit && hoveredCell != null && ShouldOpenTurnInfoForHoveredCell(hoveredCell);
+            if (!eligibleUnit && !eligibleCell)
+            {
+                ClearTurnInfoSelectTracking();
+                return false;
+            }
+
+            float now = Time.unscaledTime;
+            bool isDoubleSelect = now - lastTurnInfoSelectUnscaledTime <= TurnInfoDoubleSelectWindowSeconds
+                && ((eligibleUnit && lastTurnInfoSelectUnit == hoveredUnit && lastTurnInfoSelectCell == null)
+                    || (eligibleCell && lastTurnInfoSelectCell == hoveredCell && lastTurnInfoSelectUnit == null));
+
+            lastTurnInfoSelectUnscaledTime = now;
+            lastTurnInfoSelectUnit = eligibleUnit ? hoveredUnit : null;
+            lastTurnInfoSelectCell = eligibleCell ? hoveredCell : null;
+            return isDoubleSelect;
+        }
+
+        private void ClearTurnInfoSelectTracking()
+        {
+            lastTurnInfoSelectUnscaledTime = float.NegativeInfinity;
+            lastTurnInfoSelectUnit = null;
+            lastTurnInfoSelectCell = null;
         }
 
         private static Vector2Int DirectionDelta(KeyCode key)

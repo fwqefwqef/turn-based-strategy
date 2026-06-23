@@ -256,15 +256,15 @@ namespace Windy.Srpg.Game.Grid.States
     // --- Unit selected ---
     public class UnitSelectedState : CellGridState
     {
-        private readonly List<BattleAction> abilities;
+        private readonly List<Ability> abilities;
         private readonly Unit selectedUnit;
 
-        public UnitSelectedState(CellGrid cellGrid, Unit unit, IEnumerable<BattleAction> abilities) : base(cellGrid)
+        public UnitSelectedState(CellGrid cellGrid, Unit unit, IEnumerable<Ability> abilities) : base(cellGrid)
         {
-            List<BattleAction> resolvedAbilities = abilities?
+            List<Ability> resolvedAbilities = abilities?
                 .Where(ability => ability != null)
                 .ToList()
-                ?? new List<BattleAction>();
+                ?? new List<Ability>();
 
             if (resolvedAbilities.Count == 0)
             {
@@ -275,7 +275,7 @@ namespace Windy.Srpg.Game.Grid.States
             selectedUnit = unit;
         }
 
-        public UnitSelectedState(CellGrid cellGrid, Unit unit, BattleAction ability)
+        public UnitSelectedState(CellGrid cellGrid, Unit unit, Ability ability)
             : this(cellGrid, unit, new[] { ability })
         {
         }

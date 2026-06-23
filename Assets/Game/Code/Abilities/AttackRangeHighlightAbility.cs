@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.Abilities
 {

@@ -3,7 +3,6 @@ using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Game.AI;
-using Windy.Srpg.Game.Players;
 
 namespace Windy.Srpg.Game.AI.Actions
 {

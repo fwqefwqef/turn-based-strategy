@@ -10,8 +10,6 @@ using Windy.Srpg.Game.Localization;
 using Windy.Srpg.Game.Skills;
 using Windy.Srpg.Game.Units;
 using UnityEngine;
-using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.Abilities
 {

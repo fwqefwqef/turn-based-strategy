@@ -1,6 +1,4 @@
 using UnityEngine;
-using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.Grid
 {

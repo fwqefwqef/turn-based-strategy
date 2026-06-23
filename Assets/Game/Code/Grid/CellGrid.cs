@@ -7,8 +7,6 @@ using Windy.Srpg.Game.Units;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Abilities;
 using UnityEngine;
-using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Game.Players;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -207,7 +205,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
+            SetState(new UnitSelectedState(this, unit, unit.GetAbilities()));
         }
 
         public void EnterPendingMoveConfirmState(MoveAbility moveAbility)

@@ -3,7 +3,6 @@ using System.Linq;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.AI.Evaluators
 {
