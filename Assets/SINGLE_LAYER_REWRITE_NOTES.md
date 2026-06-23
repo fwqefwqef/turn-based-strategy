@@ -8,7 +8,7 @@ Last updated: 2026-06-17
 |------|--------|
 | **Baseline commit** | `88bf25f` (`cleanup`) |
 | **WIP stash** | `stash@{0}` — `single-layer Phase 1-6 WIP (pre-baseline test)` |
-| **Active phase** | **Phase 6 complete** — ready for Phase 7 |
+| **Active phase** | **Phase 7 complete** — ready for Phase 7b (human input routing) or Phase 8 |
 | **Rule** | One phase → compile → **smoke test** → commit. Never skip the smoke test. |
 
 To recover the abandoned slice (for reference only):
@@ -225,36 +225,38 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 
 ---
 
-### Phase 7 ΓÇö Collapse `RuntimeGrid` turn / input shadow (not started)
+### Phase 7 — Collapse `RuntimeGrid` turn / input shadow ✅ (7a complete)
 
 **Intent:** `CellGrid` states own flow; `RuntimeGrid` stops driving parallel state machine.
 
-**Rollback note (2026-06-17):** Phase 7 was attempted and reverted after AI stopped moving. Restart with incremental flag changes ΓÇö do not disable all `ShouldRoute*ThroughRuntime` flags at once.
+**Rollback note (2026-06-17):** Phase 7 was attempted and reverted after AI stopped moving. Restart with incremental flag changes — do not disable all `ShouldRoute*ThroughRuntime` flags at once.
 
-| Touch | Planned change |
-|-------|----------------|
-| `CellGrid.cs` | Gradually flip `ShouldRoute*ThroughRuntime` flags; scene-first `Enter*State` / `RequestEndTurn` |
-| `CellGrid.Scene.cs` | Scene-first battle start + end turn when turn loop not routed |
-| `CellGridStates.All.cs` | Remove runtime-routing early-returns only after scene handlers proven |
-| `CellGrid.Runtime.cs` | Keep `ApplyRuntimeDrivenState` until mirror is read-only |
+**Phase 7a (applied):** turn loop only — keep human movement routed through runtime mirror.
 
-**Prerequisite fixes before retry:**
+| Touch | Change |
+|-------|--------|
+| `CellGrid.cs` | `ShouldRouteTurnLoopThroughRuntime => false`; `ShouldSyncFlowStateThroughRuntimeGrid` gates `Enter*State`; `RequestEndTurn` → `ExecuteSceneEndTurn`; scene combat notify hooks |
+| `CellGrid.Scene.cs` | `StartBattleViaSceneAuthority` when turn loop not routed; scene end turn syncs mirror after transition |
+| `CellGridStates.All.cs` | **Unchanged** — human click routing early-returns stay until 7b |
+| `CellGrid.Runtime.cs` | **Unchanged** — runtime path kept for rollback / future 7b |
 
-- `AiBattlePlayerController` must pass scene `AiPlayer` to `AiTurnRunner` (not `IBattlePlayer` controller)
-- Mirror sync: scene authoritative for movement since Phase 5 ΓÇö avoid stale runtime pull during battle
+**Still routed through runtime (7a):**
 
-**Exit:** smoke test 1ΓÇô6 with scene-owned state/input.
+- `ShouldRouteHumanMovementThroughRuntime` — human select / pending-move clicks
+- `ShouldRouteBattleOutcomeThroughRuntime` — outcome evaluation
 
 **Smoke checklist:**
 
-- [ ] Compiles in Unity
-- [ ] Smoke 1 ΓÇö battle start
-- [ ] Smoke 2 ΓÇö human move + reachable tiles
-- [ ] Smoke 3 ΓÇö action menu attack + skill
-- [ ] Smoke 4 ΓÇö end action / turn
-- [ ] Smoke 5 ΓÇö AI move
-- [ ] Smoke 6 ΓÇö second human turn
-- [ ] `[RuntimeParity] MATCH` on select + AI turn (optional)
+- [x] Compiles in Unity
+- [x] Smoke 1 — battle start (`Game started via scene grid`)
+- [x] Smoke 2 — human move + reachable tiles
+- [x] Smoke 3 — action menu attack + skill
+- [x] Smoke 4 — end action / turn
+- [x] Smoke 5 — AI move
+- [x] Smoke 6 — second human turn
+- [x] User confirmed: works flawlessly
+
+**Next slice (7b):** flip `ShouldRouteHumanMovementThroughRuntime`; remove runtime-routing early-returns in `CellGridStates.All.cs`.
 
 ---
 

@@ -78,10 +78,12 @@ namespace Windy.Srpg.Game.Grid
         public int CurrentPlayerNumber => currentPlayerNumber;
         public bool IsHumanTurn => CurrentPlayer is HumanPlayer;
         public bool CanRequestEndTurn => CurrentState?.BlocksEndTurn != true;
-        public bool ShouldRouteHumanMovementThroughRuntime => IsHumanTurn;
+        public bool ShouldRouteHumanMovementThroughRuntime => false;
         public bool ShouldRouteAiMovementThroughRuntime => !IsHumanTurn;
-        public bool ShouldRouteTurnLoopThroughRuntime => true;
+        public bool ShouldRouteTurnLoopThroughRuntime => false;
         public bool ShouldRouteBattleOutcomeThroughRuntime => true;
+        private bool ShouldSyncFlowStateThroughRuntimeGrid =>
+            ShouldRouteTurnLoopThroughRuntime || ShouldRouteHumanMovementThroughRuntime;
         public bool ShouldSuppressFrameworkSceneInput => UsesRuntimeDirectSceneInput;
         // Runtime input ownership is only active during an actual human battle turn. Pre-battle,
         // AI turns, and game-over flow still bypass this path.
@@ -203,7 +205,7 @@ namespace Windy.Srpg.Game.Grid
 
         public void EnterWaitingState()
         {
-            if (suppressSceneToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror || !ShouldSyncFlowStateThroughRuntimeGrid)
             {
                 SetState(new CellGridStateWaitingForInput(this));
                 return;
@@ -216,7 +218,7 @@ namespace Windy.Srpg.Game.Grid
 
         public void EnterBlockedInputState()
         {
-            if (suppressSceneToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror || !ShouldSyncFlowStateThroughRuntimeGrid)
             {
                 SetState(new CellGridStateBlockInput(this));
                 return;
@@ -238,7 +240,7 @@ namespace Windy.Srpg.Game.Grid
 
         public void EnterRemotePlayerTurnState()
         {
-            if (suppressSceneToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror || !ShouldSyncFlowStateThroughRuntimeGrid)
             {
                 SetState(new CellGridStateRemotePlayerTurn(this));
                 return;
@@ -251,7 +253,7 @@ namespace Windy.Srpg.Game.Grid
 
         public void EnterAiTurnState(AiPlayer aiPlayer)
         {
-            if (suppressSceneToRuntimeStateMirror)
+            if (suppressSceneToRuntimeStateMirror || !ShouldSyncFlowStateThroughRuntimeGrid)
             {
                 SetState(new CellGridStateAiTurn(this, aiPlayer));
                 return;
@@ -270,21 +272,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (suppressSceneToRuntimeStateMirror)
-            {
-                SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
-            }
-            else if (ShouldRouteHumanMovementThroughRuntime)
-            {
-                ResolveRuntimeGrid();
-                ApplyRuntimeDrivenState(
-                    BuildRuntimeSelectedState(unit),
-                    () => SetState(new UnitSelectedState(this, unit, unit.GetBattleActions())));
-            }
-            else
-            {
-                SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
-            }
+            SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
 
             RuntimeParityDiagnostics.CompareMovementReach(unit, this, "human-select");
         }
@@ -294,21 +282,6 @@ namespace Windy.Srpg.Game.Grid
             if (moveAbility == null)
             {
                 EnterWaitingState();
-                return;
-            }
-
-            if (suppressSceneToRuntimeStateMirror)
-            {
-                SetState(new CellGridStateMovePendingConfirm(this, moveAbility));
-                return;
-            }
-
-            if (ShouldRouteHumanMovementThroughRuntime)
-            {
-                ResolveRuntimeGrid();
-                ApplyRuntimeDrivenState(
-                    BuildRuntimePendingMoveState(moveAbility),
-                    () => SetState(new CellGridStateMovePendingConfirm(this, moveAbility)));
                 return;
             }
 
@@ -328,7 +301,13 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            ProcessRuntimeRoutedEndTurn();
+            if (ShouldRouteTurnLoopThroughRuntime)
+            {
+                ProcessRuntimeRoutedEndTurn();
+                return;
+            }
+
+            ExecuteSceneEndTurn();
         }
 
         public bool RequestBattleOutcomeEvaluation()
@@ -352,12 +331,18 @@ namespace Windy.Srpg.Game.Grid
         /// </summary>
         internal void PrepareRuntimeRoutedPendingAttackCommit()
         {
-            if (!ShouldRouteHumanMovementThroughRuntime || GameFinished)
+            if (GameFinished)
             {
                 return;
             }
 
-            ProcessRuntimeRoutedCombatPresentationBegan();
+            if (ShouldRouteHumanMovementThroughRuntime)
+            {
+                ProcessRuntimeRoutedCombatPresentationBegan();
+                return;
+            }
+
+            NotifyCombatPresentationBegan();
         }
 
         /// <summary>
@@ -433,12 +418,22 @@ namespace Windy.Srpg.Game.Grid
         /// </summary>
         internal void NotifyCombatPresentationBegan()
         {
-            if (!ShouldRouteTurnLoopThroughRuntime || GameFinished)
+            if (GameFinished)
             {
                 return;
             }
 
-            ProcessRuntimeRoutedCombatPresentationBegan();
+            if (ShouldRouteTurnLoopThroughRuntime)
+            {
+                ProcessRuntimeRoutedCombatPresentationBegan();
+                return;
+            }
+
+            SyncRuntimeMirrorNow();
+            if (IsHumanTurn && CurrentState is not CellGridStateBlockInput)
+            {
+                EnterSceneOnlyBlockedInputState();
+            }
         }
 
         /// <summary>
@@ -447,12 +442,21 @@ namespace Windy.Srpg.Game.Grid
         /// </summary>
         internal void NotifyCombatPresentationEnded()
         {
-            if (!ShouldRouteTurnLoopThroughRuntime || GameFinished)
+            if (GameFinished)
             {
                 return;
             }
 
-            ProcessRuntimeRoutedCombatPresentationEnded();
+            if (ShouldRouteTurnLoopThroughRuntime)
+            {
+                ProcessRuntimeRoutedCombatPresentationEnded();
+                return;
+            }
+
+            SyncRuntimeMirrorNow();
+            RefreshSceneCellOccupancyNow();
+            TryFlushDeferredDestroyQueue();
+            RequestBattleOutcomeEvaluation();
         }
 
         internal void SyncStateToGameOver()

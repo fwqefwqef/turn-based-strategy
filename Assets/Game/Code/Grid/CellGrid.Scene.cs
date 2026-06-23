@@ -111,9 +111,9 @@ namespace Windy.Srpg.Game.Grid
         private void StartBattleViaRuntimeGrid()
         {
             ResolveRuntimeGrid();
-            if (runtimeGrid == null)
+            if (runtimeGrid == null || !ShouldRouteTurnLoopThroughRuntime)
             {
-                StartLegacyBattle();
+                StartBattleViaSceneAuthority();
                 return;
             }
 
@@ -136,6 +136,23 @@ namespace Windy.Srpg.Game.Grid
             SyncRuntimeSceneInputGate();
             runtimeGrid.KickCurrentTurnPlay();
             Debug.Log("Game started via Runtime grid");
+        }
+
+        private void StartBattleViaSceneAuthority()
+        {
+            SyncRuntimeMirrorNow();
+            RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(this);
+            if (plan.NextPlayer == null)
+            {
+                Debug.LogError("CellGrid: No valid battle turn resolver or next player was found.");
+                return;
+            }
+
+            PrepareRuntimeTurnStartForPlan(plan);
+            SyncBattleStartFromPlan(plan, kickPlayerPlay: true, syncUnitTurnHooks: true);
+            SyncRuntimeMirrorNow();
+            SyncRuntimeSceneInputGate();
+            Debug.Log("Game started via scene grid");
         }
 
         private void OnGameStarted(object sender, EventArgs e)
@@ -823,7 +840,10 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
+            PrepareRuntimeTurnStartForPlan(plan);
             CommitTurnTransition(plan, isNetworkInvoked);
+            SyncRuntimeMirrorNow();
+            SyncRuntimeSceneInputGate();
         }
 
         internal void HandleSceneCellClicked(Cell cell)
