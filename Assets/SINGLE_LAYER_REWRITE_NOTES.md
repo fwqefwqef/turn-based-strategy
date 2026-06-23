@@ -8,7 +8,7 @@ Last updated: 2026-06-17
 |------|--------|
 | **Baseline commit** | `88bf25f` (`cleanup`) |
 | **WIP stash** | `stash@{0}` — `single-layer Phase 1-6 WIP (pre-baseline test)` |
-| **Active phase** | **Phase 7 complete** — ready for Phase 7b (human input routing) or Phase 8 |
+| **Active phase** | **Phase 7b in progress** — scene-owned human input; smoke test pending |
 | **Rule** | One phase → compile → **smoke test** → commit. Never skip the smoke test. |
 
 To recover the abandoned slice (for reference only):
@@ -257,6 +257,24 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 - [x] User confirmed: works flawlessly
 
 **Next slice (7b):** flip `ShouldRouteHumanMovementThroughRuntime`; remove runtime-routing early-returns in `CellGridStates.All.cs`.
+
+### Phase 7b — Scene-owned human input (applied — smoke test pending)
+
+| Touch | Change |
+|-------|--------|
+| `CellGrid.cs` | `ShouldRouteHumanMovementThroughRuntime => false`; scene-only `EnterSelectedState` / `EnterPendingMoveConfirmState`; pending-attack commit uses scene combat notify |
+| `CellGridStates.All.cs` | Removed runtime-routing early-returns — clicks dispatch to scene state handlers |
+| `GameplayInputController` | **Unchanged** — already falls back to `HandleSceneUnitClicked` when runtime input inactive |
+
+**Still routed through runtime:**
+
+- `ShouldRouteBattleOutcomeThroughRuntime` — outcome evaluation
+
+**Smoke checklist:**
+
+- [ ] Compiles in Unity
+- [ ] Smoke 1–6 (see gate above)
+- [ ] Human select / move / pending menu / attack-from-preview especially
 
 ---
 

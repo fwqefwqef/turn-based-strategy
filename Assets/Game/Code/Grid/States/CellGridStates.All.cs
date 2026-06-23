@@ -109,11 +109,6 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnUnitClicked(Unit customUnit)
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return;
-            }
-
             bool willSelect = _cellGrid.GetCurrentPlayerUnits().Contains(customUnit)
                 && !customUnit.IsFinishedForTurn;
 
@@ -251,11 +246,6 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnUnitClicked(Unit customUnit)
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return;
-            }
-
             customMoveAbility?.OnPendingMoveUnitClicked(customUnit, _cellGrid);
         }
 
@@ -271,11 +261,6 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnCellClicked(Cell cell)
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return;
-            }
-
             customMoveAbility?.OnPendingMoveCellClicked(cell, _cellGrid);
         }
 
@@ -291,11 +276,6 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnRightClick()
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return;
-            }
-
             customMoveAbility?.OnPendingMoveRightClicked(_cellGrid);
         }
     }
@@ -360,11 +340,6 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnCellClicked(Cell cell)
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return;
-            }
-
             abilities.ForEach(action => action.OnCellClicked(cell, _cellGrid));
         }
 
@@ -382,21 +357,11 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnRightClick()
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return;
-            }
-
             _cellGrid.EnterWaitingState();
         }
 
         private void HandleLegacyUnitClick(Unit unit)
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return;
-            }
-
             if (unit == selectedUnit)
             {
                 var customMoveAbility = abilities.OfType<MoveAbility>().FirstOrDefault();
