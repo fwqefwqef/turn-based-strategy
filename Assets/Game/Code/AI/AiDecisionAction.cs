@@ -6,9 +6,9 @@ using UnityEngine;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Players;
+using Windy.Srpg.Game.Players;
 
-namespace Windy.Srpg.Runtime.AI
+namespace Windy.Srpg.Game.AI
 {
     public abstract class AiDecisionAction : MonoBehaviour
     {

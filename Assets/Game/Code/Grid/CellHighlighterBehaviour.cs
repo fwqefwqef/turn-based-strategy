@@ -1,7 +1,6 @@
 using UnityEngine;
-using Windy.Srpg.Runtime.Grid;
 
-namespace Windy.Srpg.Runtime.Rendering
+namespace Windy.Srpg.Game.Grid
 {
     public abstract class CellHighlighterBehaviour : MonoBehaviour
     {

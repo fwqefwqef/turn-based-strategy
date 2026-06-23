@@ -4,9 +4,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Actions;
-using Windy.Srpg.Runtime.Grid;
-using Cell = Windy.Srpg.Runtime.Grid.Cell;
 
 namespace Windy.Srpg.Game.Abilities
 {

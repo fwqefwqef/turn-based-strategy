@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.UI;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Rendering;
 
-namespace Windy.Srpg.Runtime.Grid
+namespace Windy.Srpg.Game.Grid
 {
     /// <summary>
     /// Square grid tile: coordinates, pathfinding, occupancy, highlights, and scene input.

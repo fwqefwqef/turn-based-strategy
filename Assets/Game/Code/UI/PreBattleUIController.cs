@@ -7,7 +7,7 @@ using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Localization;
 using UnityEngine;
 using UnityEngine.UI;
-using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.UI
 {

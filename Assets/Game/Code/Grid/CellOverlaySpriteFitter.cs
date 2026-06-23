@@ -1,5 +1,5 @@
 using UnityEngine;
-using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.Grid
 {

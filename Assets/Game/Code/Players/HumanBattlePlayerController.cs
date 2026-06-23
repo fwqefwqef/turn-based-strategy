@@ -1,4 +1,4 @@
-namespace Windy.Srpg.Runtime.Players
+namespace Windy.Srpg.Game.Players
 {
     public sealed class HumanBattlePlayerController : BattlePlayerController
     {

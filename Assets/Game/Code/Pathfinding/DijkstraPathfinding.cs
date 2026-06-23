@@ -1,16 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
-using Windy.Srpg.Runtime.Grid;
-using Windy.Srpg.Runtime.Pathfinding;
+using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Game.Pathfinding;
 
 namespace Windy.Srpg.Game.Pathfinding.Algorithms
 {
     /// <summary>
-    /// Adapter over the public runtime pathfinder for grid-cell movement graphs.
+    /// Adapter over <see cref="DijkstraPathfinder"/> for grid-cell movement graphs.
     /// </summary>
     public sealed class DijkstraPathfinding
     {
-        private static readonly IPathfinder RuntimePathfinder = new DijkstraPathfinder();
+        private static readonly IPathfinder SharedPathfinder = new DijkstraPathfinder();
 
         public Dictionary<Cell, IList<Cell>> FindAllPaths(
             Dictionary<Cell, Dictionary<Cell, float>> edges,
@@ -22,8 +22,8 @@ namespace Windy.Srpg.Game.Pathfinding.Algorithms
                 return result;
             }
 
-            Dictionary<Cell, IList<Cell>> runtimePaths = RuntimePathfinder.FindAllPaths(edges, originNode);
-            foreach (KeyValuePair<Cell, IList<Cell>> entry in runtimePaths)
+            Dictionary<Cell, IList<Cell>> paths = SharedPathfinder.FindAllPaths(edges, originNode);
+            foreach (KeyValuePair<Cell, IList<Cell>> entry in paths)
             {
                 result[entry.Key] = ConvertToLegacyPath(entry.Value, originNode);
             }
@@ -34,22 +34,22 @@ namespace Windy.Srpg.Game.Pathfinding.Algorithms
         public IList<T> FindPath<T>(Dictionary<T, Dictionary<T, float>> edges, T originNode, T destinationNode)
             where T : Cell
         {
-            IList<T> runtimePath = RuntimePathfinder.FindPath(edges, originNode, destinationNode);
-            return ConvertToLegacyPath(runtimePath, originNode);
+            IList<T> path = SharedPathfinder.FindPath(edges, originNode, destinationNode);
+            return ConvertToLegacyPath(path, originNode);
         }
 
-        private static IList<TNode> ConvertToLegacyPath<TNode>(IList<TNode> runtimePath, TNode originNode)
+        private static IList<TNode> ConvertToLegacyPath<TNode>(IList<TNode> path, TNode originNode)
         {
             List<TNode> legacyPath = new List<TNode>();
-            if (runtimePath == null || runtimePath.Count == 0)
+            if (path == null || path.Count == 0)
             {
                 return legacyPath;
             }
 
             EqualityComparer<TNode> comparer = EqualityComparer<TNode>.Default;
-            for (int i = runtimePath.Count - 1; i >= 0; i--)
+            for (int i = path.Count - 1; i >= 0; i--)
             {
-                TNode node = runtimePath[i];
+                TNode node = path[i];
                 if (node != null && !comparer.Equals(node, originNode))
                 {
                     legacyPath.Add(node);

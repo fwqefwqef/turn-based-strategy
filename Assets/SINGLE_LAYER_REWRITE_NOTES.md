@@ -8,7 +8,7 @@ Last updated: 2026-06-23
 |------|--------|
 | **Baseline commit** | `88bf25f` (`cleanup`) |
 | **WIP stash** | `stash@{0}` — `single-layer Phase 1-6 WIP (pre-baseline test)` |
-| **Active phase** | **Phase 8d complete** — mirror types deleted; readability cleanup applied |
+| **Active phase** | **Phase 9 complete** — scene-owned types use `Windy.Srpg.Game.*` namespaces |
 | **Rule** | One phase → compile → **smoke test** → commit. Never skip the smoke test. |
 
 To recover the abandoned slice (for reference only):
@@ -31,7 +31,7 @@ One owner per responsibility:
 | Tile / occupancy / highlight | `Cell` | `Windy.Srpg.Game.Grid` |
 | AI / abilities / UI inputs | talk to `CellGrid`, `Unit`, `Player` directly |
 
-**Delete when done:** duplicate mirrors (`GridUnit`, `RuntimeGrid`, `RuntimeGridState*`) and cast-through contracts (`IGridContext`, `IGridUnit` as default API). **Done in Phase 8d.**
+**Deleted when done:** duplicate mirrors (`GridUnit`, `RuntimeGrid`, `RuntimeGridState*`) and cast-through contracts (`IGridContext`, `IGridUnit` as default API). **Done in Phase 8d. Namespace cleanup done in Phase 9.**
 
 ---
 
@@ -360,7 +360,29 @@ If any step fails, **stop**, fix or revert the phase ΓÇö do not start the nex
 - [x] Smoke 1–6 (user verified during session)
 - [x] Prefab/scene missing-script cleanup (`FriendlyUnit`, `EnemyUnit`, `test.unity`)
 
-**Next:** Phase 9 (namespace cleanup) when desired.
+**Next:** ~~Phase 9 (namespace cleanup)~~ **Done — see Phase 9 below.**
+
+---
+
+### Phase 9 — Namespace cleanup (complete)
+
+Move scene-owned types from `Windy.Srpg.Runtime.*` into matching `Windy.Srpg.Game.*` namespaces:
+
+| Old namespace | New namespace |
+|---------------|---------------|
+| `Windy.Srpg.Runtime.Grid` | `Windy.Srpg.Game.Grid` |
+| `Windy.Srpg.Runtime.Actions` | `Windy.Srpg.Game.Abilities` |
+| `Windy.Srpg.Runtime.Players` | `Windy.Srpg.Game.Players` |
+| `Windy.Srpg.Runtime.Pathfinding` | `Windy.Srpg.Game.Pathfinding` |
+| `Windy.Srpg.Runtime.Rendering` | `Windy.Srpg.Game.Grid` (`CellHighlighterBehaviour`) |
+| `Windy.Srpg.Runtime.AI` | `Windy.Srpg.Game.AI` (`AiDecisionAction`) |
+
+All `using Windy.Srpg.Runtime.*` references under `Assets/` were updated. The single-layer merge is **complete**.
+
+**Smoke checklist:**
+
+- [ ] Compiles in Unity
+- [ ] Smoke 1–6 (see gate above)
 
 ---
 
@@ -398,9 +420,4 @@ Phase N: [name]
 
 ## Remaining seams at baseline (HEAD)
 
-- `Unit` vs `GridUnit` ΓÇö duplicate occupancy, pending move, pathfinding delegation
-- `CellGrid` vs `RuntimeGrid` ΓÇö dual state machines + turn kick
-- `IGridUnit` / `IGridContext` ΓÇö embedded in actions, AI, `RoundRobinTurnPlan`
-- `Windy.Srpg.Runtime.*` namespaces on scene-owned types
-
-These are **expected** until Phases 5ΓÇô8. Do not ΓÇ£clean them up early.ΓÇ¥
+These were **expected** until Phases 5–8 and are now resolved. Do not reintroduce dual-layer patterns.

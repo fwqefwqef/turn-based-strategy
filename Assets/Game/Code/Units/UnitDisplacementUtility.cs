@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.Units
 {

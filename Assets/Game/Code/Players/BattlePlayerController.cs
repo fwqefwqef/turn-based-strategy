@@ -3,7 +3,7 @@ using UnityEngine.Serialization;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 
-namespace Windy.Srpg.Runtime.Players
+namespace Windy.Srpg.Game.Players
 {
     public abstract class BattlePlayerController : MonoBehaviour, IBattleTurnPlayer
     {

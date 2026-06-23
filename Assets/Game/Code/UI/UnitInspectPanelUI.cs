@@ -14,7 +14,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using RuntimeBuff = Windy.Srpg.Game.Buffs.Buff;
-using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.UI
 {

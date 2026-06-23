@@ -5,9 +5,7 @@ using Windy.Srpg.Game.AI;
 using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Actions;
-using Windy.Srpg.Runtime.Grid;
-using Windy.Srpg.Runtime.Rendering;
+using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.Grid.States
 {

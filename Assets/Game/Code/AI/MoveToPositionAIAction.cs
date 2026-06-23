@@ -11,7 +11,7 @@ using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players;
 using UnityEngine;
-using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Game.AI.Actions
 {

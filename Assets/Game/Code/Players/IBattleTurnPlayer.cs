@@ -1,6 +1,6 @@
 using Windy.Srpg.Game.Grid;
 
-namespace Windy.Srpg.Runtime.Players
+namespace Windy.Srpg.Game.Players
 {
     public interface IBattleTurnPlayer : IBattlePlayer
     {

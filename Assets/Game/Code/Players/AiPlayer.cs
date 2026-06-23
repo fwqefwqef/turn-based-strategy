@@ -5,7 +5,7 @@ using UnityEngine;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players.AI;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.AI;
+using Windy.Srpg.Game.AI;
 
 namespace Windy.Srpg.Game.Players
 {

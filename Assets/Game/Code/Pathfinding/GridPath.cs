@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Windy.Srpg.Runtime.Pathfinding
+namespace Windy.Srpg.Game.Pathfinding
 {
     public sealed class GridPath<TNode>
     {

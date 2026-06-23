@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Players;
+using Windy.Srpg.Game.Players;
 
-namespace Windy.Srpg.Runtime.Grid
+namespace Windy.Srpg.Game.Grid
 {
     public readonly struct RoundRobinTurnPlan
     {

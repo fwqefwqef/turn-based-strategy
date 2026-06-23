@@ -2,9 +2,8 @@ using System.Collections;
 using UnityEngine;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Grid;
 
-namespace Windy.Srpg.Runtime.Actions
+namespace Windy.Srpg.Game.Abilities
 {
     public abstract class BattleAction : MonoBehaviour
     {
