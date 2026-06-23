@@ -517,19 +517,9 @@ namespace Windy.Srpg.Game.Abilities
                 return null;
             }
 
-            // Framework preview is authoritative for pending-action menu queries. Runtime
-            // PreviewCell can lag because legacy→runtime state mirroring may run before PreviewMove.
-            Cell frameworkActingCell = UnitReference.PreviewCell ?? UnitReference.Cell;
-
-            if (cellGrid == null || !cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return frameworkActingCell;
-            }
-
-            Cell runtimeActingCell = cellGrid.ResolveRuntimeActingCell(UnitReference);
-            return runtimeActingCell == frameworkActingCell
-                ? runtimeActingCell
-                : frameworkActingCell;
+            return UnitReference.HasPendingMove
+                ? UnitReference.PreviewCell
+                : UnitReference.Cell;
         }
 
         private static CellGrid FindSceneCellGrid()
@@ -3007,7 +2997,7 @@ namespace Windy.Srpg.Game.Abilities
             return $"{FormatPercentValue(critChance)} ({normalDamage} -> {critDamage})";
         }
 
-        protected override void OnCellSelected(Cell cell, CellGrid cellGrid)
+        protected override void HandleCellSelected(Cell cell, CellGrid cellGrid)
         {
             RefreshAvailableDestinationsIfNeeded(cellGrid);
 
@@ -3019,7 +3009,7 @@ namespace Windy.Srpg.Game.Abilities
             }
         }
 
-        protected override void OnCellDeselected(Cell cell, CellGrid cellGrid)
+        protected override void HandleCellDeselected(Cell cell, CellGrid cellGrid)
         {
             RefreshAvailableDestinationsIfNeeded(cellGrid);
 
@@ -3163,7 +3153,7 @@ namespace Windy.Srpg.Game.Abilities
         }
 
 
-        protected override bool CanPerform(CellGrid cellGrid)
+        protected override bool CanPerformAbility(CellGrid cellGrid)
         {
             RefreshAvailableDestinationsIfNeeded(cellGrid);
             return UnitReference.CanStartActionThisTurn && UnitReference.GetAvailableDestinations(ResolveCells(cellGrid)).Count > 0;

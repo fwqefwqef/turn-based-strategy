@@ -8,7 +8,7 @@ namespace Windy.Srpg.Runtime.Pathfinding
         public Dictionary<TNode, IList<TNode>> FindAllPaths<TNode>(Dictionary<TNode, Dictionary<TNode, float>> edges, TNode originNode)
         {
             var result = new Dictionary<TNode, IList<TNode>>();
-            if (edges == null || !edges.ContainsKey(originNode))
+            if (edges == null || originNode == null || !edges.ContainsKey(originNode))
             {
                 return result;
             }
@@ -25,7 +25,7 @@ namespace Windy.Srpg.Runtime.Pathfinding
 
         public IList<TNode> FindPath<TNode>(Dictionary<TNode, Dictionary<TNode, float>> edges, TNode originNode, TNode destinationNode)
         {
-            if (edges == null)
+            if (edges == null || originNode == null || destinationNode == null)
             {
                 return Array.Empty<TNode>();
             }

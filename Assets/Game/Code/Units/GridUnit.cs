@@ -3,7 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.UI;
+using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Pathfinding;
@@ -69,9 +71,13 @@ namespace Windy.Srpg.Runtime.Units
         public virtual void Initialize()
         {
             CacheActions();
+            Unit sceneUnit = GetComponent<Unit>();
             foreach (var action in actions)
             {
-                action.InitializeAction(this);
+                if (sceneUnit != null)
+                {
+                    action.InitializeAction(sceneUnit);
+                }
             }
 
             MovementPointsRemaining = BaseMovementPoints;
@@ -87,18 +93,30 @@ namespace Windy.Srpg.Runtime.Units
         {
             MovementPointsRemaining = BaseMovementPoints;
             SetState(new UnitTurnStateNormal(this));
+            CellGrid sceneGrid = Grid != null ? Grid.GetComponent<CellGrid>() : null;
+            if (sceneGrid == null)
+            {
+                return;
+            }
+
             foreach (var action in actions)
             {
-                action.OnTurnStarted(Grid);
+                action.OnTurnStarted(sceneGrid);
             }
         }
 
         public virtual void EndTurn()
         {
             SetState(new UnitTurnStateFinished(this));
+            CellGrid sceneGrid = Grid != null ? Grid.GetComponent<CellGrid>() : null;
+            if (sceneGrid == null)
+            {
+                return;
+            }
+
             foreach (var action in actions)
             {
-                action.OnTurnEnded(Grid);
+                action.OnTurnEnded(sceneGrid);
             }
         }
 
@@ -162,11 +180,23 @@ namespace Windy.Srpg.Runtime.Units
 
         public virtual bool CanTraverse(Cell cell)
         {
+            Unit sceneUnit = GetComponent<Unit>();
+            if (sceneUnit != null)
+            {
+                return sceneUnit.IsCellTraversable(cell);
+            }
+
             return cell != null && cell.IsTraversable && (!cell.IsOccupied || cell.Occupants.Contains(this) || !blocksOtherUnits);
         }
 
         public virtual bool CanStopOn(Cell cell)
         {
+            Unit sceneUnit = GetComponent<Unit>();
+            if (sceneUnit != null)
+            {
+                return sceneUnit.IsCellMovableTo(cell);
+            }
+
             return cell != null && cell.CanOccupy(this);
         }
 
@@ -390,6 +420,12 @@ namespace Windy.Srpg.Runtime.Units
 
         public virtual void CachePaths(IReadOnlyList<Cell> cells)
         {
+            if (CurrentCell == null)
+            {
+                cachedPaths = new Dictionary<Cell, IList<Cell>>();
+                return;
+            }
+
             cachedPaths = pathfinder.FindAllPaths(GetGraphEdges(cells), CurrentCell);
         }
 

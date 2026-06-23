@@ -2,13 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Windy.Srpg.Game.Diagnostics;
 using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players.AI;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.AI;
-using Windy.Srpg.Runtime.Grid;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Game.Players
 {
@@ -32,34 +30,29 @@ namespace Windy.Srpg.Game.Players
         public override void Play(CellGrid cellGrid)
         {
             cellGrid.EnterAiTurnState(this);
-            StartCoroutine(ExecuteRuntimeRoutedTurn(cellGrid));
+            StartCoroutine(ExecuteTurn(cellGrid));
         }
 
-        private IEnumerator ExecuteRuntimeRoutedTurn(CellGrid cellGrid)
+        private IEnumerator ExecuteTurn(CellGrid cellGrid)
         {
-            RuntimeGrid grid = cellGrid.GetComponent<RuntimeGrid>();
-            if (grid == null)
-            {
-                yield return ExecuteTurn(cellGrid);
-                yield break;
-            }
-
-            IReadOnlyList<GridUnit> runtimeOrder = SelectRuntimeUnits(grid, cellGrid);
             cellGrid.PrepareRuntimeRoutedAiTurn();
+            IReadOnlyList<Unit> orderedUnits = SelectUnits(cellGrid);
+            RuntimeParityDiagnostics.CompareAiTurnPrecalc(
+                cellGrid,
+                cellGrid.GetCurrentPlayerUnits());
 
             if (!DebugMode)
             {
                 yield return AiTurnRunner.ExecuteTurn(
                     this,
-                    runtimeOrder.Cast<IGridUnit>(),
-                    grid,
+                    orderedUnits,
+                    cellGrid,
                     () => cellGrid.RequestEndTurn());
                 yield break;
             }
 
-            foreach (GridUnit runtimeUnit in runtimeOrder)
+            foreach (Unit unit in orderedUnits)
             {
-                Unit unit = runtimeUnit?.GetComponent<Unit>();
                 if (unit == null)
                 {
                     continue;
@@ -79,93 +72,13 @@ namespace Windy.Srpg.Game.Players
 
                     yield return null;
 
-                    action.InitializeDecision(this, unit, grid);
-                    bool shouldExecute = action.ShouldExecute(this, unit, grid);
-
-                    action.Precalculate(this, unit, grid);
-                    action.ShowDebugDecisionInfo(this, unit, grid);
-                    Debug.Log($"Current action: {action.GetType().Name}, press A to execute");
-                    yield return WaitForDebugKey(KeyCode.A);
-
-                    if (shouldExecute)
-                    {
-                        yield return null;
-                        yield return action.ExecuteDecision(this, unit, grid);
-                    }
-
-                    if (action == null || unit == null)
-                    {
-                        break;
-                    }
-
-                    action.CleanUpDecision(this, unit, grid);
-                }
-
-                if (unit == null)
-                {
-                    continue;
-                }
-
-                unit.MarkAsFriendly();
-            }
-
-            cellGrid.RequestEndTurn();
-            yield return null;
-        }
-
-        private IEnumerator ExecuteTurn(CellGrid cellGrid)
-        {
-            IReadOnlyList<Unit> orderedUnits = SelectUnits(cellGrid);
-
-            if (!DebugMode)
-            {
-                yield return AiTurnRunner.ExecuteTurn(
-                    this,
-                    orderedUnits.Cast<Windy.Srpg.Runtime.Units.IGridUnit>(),
-                    cellGrid,
-                    () => cellGrid.RequestEndTurn());
-                yield break;
-            }
-
-            foreach (Unit unit in orderedUnits)
-            {
-                if (unit == null)
-                {
-                    continue;
-                }
-
-                if (DebugMode)
-                {
-                    unit.MarkAsSelected();
-                    Debug.Log($"Current unit: {unit.name}, press N to continue");
-                    yield return WaitForDebugKey(KeyCode.N);
-                }
-
-                AiDecisionAction[] actions = unit.GetComponentsInChildren<AiDecisionAction>();
-                foreach (AiDecisionAction action in actions)
-                {
-                    if (action == null || unit == null)
-                    {
-                        break;
-                    }
-
-                    yield return null;
-
                     action.InitializeDecision(this, unit, cellGrid);
                     bool shouldExecute = action.ShouldExecute(this, unit, cellGrid);
 
-                    if (DebugMode)
-                    {
-                        action.Precalculate(this, unit, cellGrid);
-                        action.ShowDebugDecisionInfo(this, unit, cellGrid);
-                        Debug.Log($"Current action: {action.GetType().Name}, press A to execute");
-                        yield return WaitForDebugKey(KeyCode.A);
-                    }
-                    else if (shouldExecute)
-                    {
-                        yield return null;
-                        action.Precalculate(this, unit, cellGrid);
-                    }
+                    action.Precalculate(this, unit, cellGrid);
+                    action.ShowDebugDecisionInfo(this, unit, cellGrid);
+                    Debug.Log($"Current action: {action.GetType().Name}, press A to execute");
+                    yield return WaitForDebugKey(KeyCode.A);
 
                     if (shouldExecute)
                     {
@@ -193,49 +106,23 @@ namespace Windy.Srpg.Game.Players
             yield return null;
         }
 
-        private IReadOnlyList<GridUnit> SelectRuntimeUnits(RuntimeGrid grid, CellGrid cellGrid)
-        {
-            var selector = GetComponent<UnitSelection>();
-            if (selector == null)
-            {
-                return AiTurnOrdering.OrderByMovementFreedom(grid.GetCurrentPlayerUnits());
-            }
-
-            List<Unit> playerUnits = cellGrid.GetUnitsForPlayer(grid.CurrentPlayerId);
-            return selector
-                .SelectNext(() => playerUnits, cellGrid)
-                .Where(unit => unit != null)
-                .Select(unit => unit.GetComponent<GridUnit>())
-                .Where(unit => unit != null)
-                .ToList();
-        }
-
         private IReadOnlyList<Unit> SelectUnits(CellGrid cellGrid)
         {
             var selector = GetComponent<UnitSelection>();
             if (selector == null)
             {
-                List<GridUnit> runtimeUnits = cellGrid.GetCurrentPlayerUnits()
-                    .Where(unit => unit != null)
-                    .Select(unit => unit.GetComponent<GridUnit>())
-                    .Where(unit => unit != null)
-                    .ToList();
-
-                IReadOnlyList<Unit> orderedUnits = AiTurnOrdering.OrderByMovementFreedom(runtimeUnits)
-                    .Select(unit => unit != null ? unit.GetComponent<Unit>() : null)
-                    .Where(unit => unit != null)
-                    .ToList();
-
-                if (orderedUnits.Count > 0)
-                {
-                    return orderedUnits;
-                }
-
-                return cellGrid.GetCurrentPlayerUnits().Where(unit => unit != null).ToList();
+                return AiTurnOrdering.OrderByMovementFreedom(
+                    cellGrid.GetCurrentPlayerUnits().Where(unit => unit != null),
+                    cellGrid);
             }
 
+            List<Unit> playerUnits = cellGrid.GetCurrentPlayerUnits()
+                .Where(unit => unit != null)
+                .Distinct()
+                .ToList();
+
             return selector
-                .SelectNext(() => cellGrid.GetCurrentPlayerUnits().ToList(), cellGrid)
+                .SelectNext(() => playerUnits, cellGrid)
                 .Where(unit => unit != null)
                 .ToList();
         }
@@ -268,4 +155,3 @@ namespace Windy.Srpg.Game.Players
         }
     }
 }
-

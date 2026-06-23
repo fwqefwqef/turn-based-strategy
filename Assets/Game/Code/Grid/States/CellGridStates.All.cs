@@ -303,15 +303,15 @@ namespace Windy.Srpg.Game.Grid.States
     // --- Unit selected ---
     public class UnitSelectedState : CellGridState
     {
-        private readonly List<IBattleAction> abilities;
+        private readonly List<BattleAction> abilities;
         private readonly Unit selectedUnit;
 
-        public UnitSelectedState(CellGrid cellGrid, Unit unit, IEnumerable<IBattleAction> abilities) : base(cellGrid)
+        public UnitSelectedState(CellGrid cellGrid, Unit unit, IEnumerable<BattleAction> abilities) : base(cellGrid)
         {
-            List<IBattleAction> resolvedAbilities = abilities?
+            List<BattleAction> resolvedAbilities = abilities?
                 .Where(ability => ability != null)
                 .ToList()
-                ?? new List<IBattleAction>();
+                ?? new List<BattleAction>();
 
             if (resolvedAbilities.Count == 0)
             {
@@ -322,7 +322,7 @@ namespace Windy.Srpg.Game.Grid.States
             selectedUnit = unit;
         }
 
-        public UnitSelectedState(CellGrid cellGrid, Unit unit, IBattleAction ability)
+        public UnitSelectedState(CellGrid cellGrid, Unit unit, BattleAction ability)
             : this(cellGrid, unit, new[] { ability })
         {
         }
@@ -345,24 +345,17 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnUnitClicked(Unit unit)
         {
-            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
-            {
-                return;
-            }
-
             HandleLegacyUnitClick(unit);
         }
 
         public override void OnUnitHighlighted(Unit unit)
         {
-            IGridUnit gridUnit = unit;
-            abilities.ForEach(action => action.OnUnitHighlighted(gridUnit, _cellGrid));
+            abilities.ForEach(action => action.OnUnitHighlighted(unit, _cellGrid));
         }
 
         public override void OnUnitDehighlighted(Unit unit)
         {
-            IGridUnit gridUnit = unit;
-            abilities.ForEach(action => action.OnUnitDehighlighted(gridUnit, _cellGrid));
+            abilities.ForEach(action => action.OnUnitDehighlighted(unit, _cellGrid));
         }
 
         public override void OnCellClicked(Cell cell)
@@ -399,6 +392,11 @@ namespace Windy.Srpg.Game.Grid.States
 
         private void HandleLegacyUnitClick(Unit unit)
         {
+            if (_cellGrid.ShouldRouteHumanMovementThroughRuntime)
+            {
+                return;
+            }
+
             if (unit == selectedUnit)
             {
                 var customMoveAbility = abilities.OfType<MoveAbility>().FirstOrDefault();

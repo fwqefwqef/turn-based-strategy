@@ -3,6 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Game.Players;
+using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
 using Windy.Srpg.Runtime.Units;
@@ -21,6 +24,32 @@ namespace Windy.Srpg.Runtime.AI
 
     public static class AiTurnRunner
     {
+        public static IEnumerator ExecuteTurn(
+            Player player,
+            IEnumerable<Unit> orderedUnits,
+            CellGrid grid,
+            Action onTurnCompleted = null)
+        {
+            return ExecuteTurn(
+                (IBattlePlayer)player,
+                orderedUnits?.Where(unit => unit != null).Cast<IGridUnit>(),
+                grid,
+                onTurnCompleted);
+        }
+
+        public static IEnumerator ExecuteTurn(
+            IBattlePlayer player,
+            IEnumerable<Unit> orderedUnits,
+            CellGrid grid,
+            Action onTurnCompleted = null)
+        {
+            return ExecuteTurn(
+                player,
+                orderedUnits?.Where(unit => unit != null).Cast<IGridUnit>(),
+                grid,
+                onTurnCompleted);
+        }
+
         public static IEnumerator ExecuteTurn(
             IBattlePlayer player,
             IEnumerable<IGridUnit> orderedUnits,
@@ -85,6 +114,15 @@ namespace Windy.Srpg.Runtime.AI
 
     public static class AiTurnOrdering
     {
+        public static IReadOnlyList<Unit> OrderByMovementFreedom(IEnumerable<Unit> units, CellGrid cellGrid)
+        {
+            return units?
+                .Where(unit => unit != null)
+                .OrderByDescending(unit => CountTraversableNeighbors(unit, cellGrid))
+                .ToList()
+                ?? new List<Unit>();
+        }
+
         public static IReadOnlyList<GridUnit> OrderByMovementFreedom(IEnumerable<GridUnit> units)
         {
             return units?
@@ -92,6 +130,18 @@ namespace Windy.Srpg.Runtime.AI
                 .OrderByDescending(CountTraversableNeighbors)
                 .ToList()
                 ?? new List<GridUnit>();
+        }
+
+        private static int CountTraversableNeighbors(Unit unit, CellGrid cellGrid)
+        {
+            if (unit?.Cell == null || cellGrid == null)
+            {
+                return 0;
+            }
+
+            return unit.Cell
+                .GetNeighbours(cellGrid.GetAllCells())
+                .Count(unit.IsCellTraversable);
         }
 
         private static int CountTraversableNeighbors(GridUnit unit)
@@ -107,4 +157,3 @@ namespace Windy.Srpg.Runtime.AI
         }
     }
 }
-

@@ -22,4 +22,3 @@ namespace Windy.Srpg.Game.AI.Evaluators
         }
     }
 }
-

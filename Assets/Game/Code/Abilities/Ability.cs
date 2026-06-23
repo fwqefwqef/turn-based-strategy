@@ -1,49 +1,22 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Windy.Srpg.Game.Units;
 using UnityEngine;
 using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Game.Grid.States;
+using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
-using Windy.Srpg.Runtime.Units;
+using Cell = Windy.Srpg.Runtime.Grid.Cell;
 
 namespace Windy.Srpg.Game.Abilities
 {
     /// <summary>
-    /// Scene-facing ability shell.
-    /// Converts the generic runtime <see cref="BattleAction"/> callbacks into strongly typed
-    /// scene <see cref="Unit"/> and <see cref="CellGrid"/> hooks, while keeping execution flow
-    /// shared across human, AI, and remote invocation paths.
+    /// Scene-facing ability shell on top of <see cref="BattleAction"/>.
     /// </summary>
     public abstract class Ability : BattleAction
     {
-        protected Unit UnitRef
-        {
-            get
-            {
-                Unit customUnit = GetUnit<Unit>();
-                if (customUnit != null)
-                {
-                    return customUnit;
-                }
-
-                return GetUnit<GridUnit>()?.GetComponent<Unit>();
-            }
-        }
-
-        protected Unit UnitReference => UnitRef;
-
-        protected static CellGrid ResolveCellGrid(IGridContext grid)
-        {
-            if (grid is CellGrid customCellGrid)
-            {
-                return customCellGrid;
-            }
-
-            return (grid as RuntimeGrid)?.GetComponent<CellGrid>();
-        }
+        protected Unit UnitRef => OwnerUnit;
+        protected Unit UnitReference => OwnerUnit;
 
         protected IEnumerator HumanExecute(CellGrid cellGrid)
         {
@@ -70,18 +43,7 @@ namespace Windy.Srpg.Game.Abilities
             yield return ExecuteInline(cellGrid, BattleActionExecutionMode.AiLocal, false);
         }
 
-        protected sealed override IEnumerator Act(IGridContext grid, bool isRemoteInvocation = false)
-        {
-            CellGrid customCellGrid = ResolveCellGrid(grid);
-            if (customCellGrid == null)
-            {
-                yield break;
-            }
-
-            yield return StartCoroutine(Act(customCellGrid, isRemoteInvocation));
-        }
-
-        protected virtual IEnumerator Act(CellGrid cellGrid, bool isNetworkInvoked = false)
+        protected override IEnumerator Act(CellGrid cellGrid, bool isNetworkInvoked = false)
         {
             yield break;
         }
@@ -90,112 +52,121 @@ namespace Windy.Srpg.Game.Abilities
         {
         }
 
-        public override void InitializeAction(IGridUnit unit)
+        public override void InitializeAction(Unit unit)
         {
             base.InitializeAction(unit);
             Initialize();
         }
 
-        public override bool CanPerformAction(IGridContext grid)
-        {
-            return CanPerform(ResolveCellGrid(grid));
-        }
+        protected virtual void HandleUnitClicked(Unit unit, CellGrid cellGrid) { }
 
-        public virtual void OnUnitClicked(Unit unit, CellGrid cellGrid) { }
+        protected virtual void HandleUnitHighlighted(Unit unit, CellGrid cellGrid) { }
 
-        public virtual void OnUnitHighlighted(Unit unit, CellGrid cellGrid) { }
-
-        public virtual void OnUnitDehighlighted(Unit unit, CellGrid cellGrid) { }
+        protected virtual void HandleUnitDehighlighted(Unit unit, CellGrid cellGrid) { }
 
         protected virtual void OnUnitDestroyed(CellGrid cellGrid) { }
 
-        protected virtual void OnCellClicked(Cell cell, CellGrid cellGrid) { }
+        protected virtual void HandleCellClicked(Cell cell, CellGrid cellGrid) { }
 
-        protected virtual void OnCellSelected(Cell cell, CellGrid cellGrid) { }
+        protected virtual void HandleCellSelected(Cell cell, CellGrid cellGrid) { }
 
-        protected virtual void OnCellDeselected(Cell cell, CellGrid cellGrid) { }
+        protected virtual void HandleCellDeselected(Cell cell, CellGrid cellGrid) { }
 
         protected virtual void Display(CellGrid cellGrid) { }
 
-        public override void DisplayAction(IGridContext grid)
+        public override void DisplayAction(CellGrid grid)
         {
-            Display(ResolveCellGrid(grid));
+            Display(grid);
         }
 
         protected virtual void CleanUp(CellGrid cellGrid) { }
 
-        public override void CleanUpAction(IGridContext grid)
+        public override void CleanUpAction(CellGrid grid)
         {
-            CleanUp(ResolveCellGrid(grid));
+            CleanUp(grid);
         }
 
         protected virtual void OnAbilitySelected(CellGrid cellGrid) { }
 
-        public override void OnActionSelected(IGridContext grid)
+        public override void OnActionSelected(CellGrid grid)
         {
-            OnAbilitySelected(ResolveCellGrid(grid));
+            OnAbilitySelected(grid);
         }
 
         protected virtual void OnAbilityDeselected(CellGrid cellGrid) { }
 
-        public override void OnActionDeselected(IGridContext grid)
+        public override void OnActionDeselected(CellGrid grid)
         {
-            OnAbilityDeselected(ResolveCellGrid(grid));
+            OnAbilityDeselected(grid);
         }
 
         protected virtual void OnTurnStart(CellGrid cellGrid) { }
 
-        public override void OnTurnStarted(IGridContext grid)
+        public override void OnTurnStarted(CellGrid grid)
         {
-            OnTurnStart(ResolveCellGrid(grid));
+            OnTurnStart(grid);
         }
 
         protected virtual void OnTurnEnd(CellGrid cellGrid) { }
 
-        public override void OnTurnEnded(IGridContext grid)
+        public override void OnTurnEnded(CellGrid grid)
         {
-            OnTurnEnd(ResolveCellGrid(grid));
+            OnTurnEnd(grid);
         }
 
-        public override void OnOwnerDestroyed(IGridContext grid)
+        public override void OnOwnerDestroyed(CellGrid grid)
         {
-            OnUnitDestroyed(ResolveCellGrid(grid));
+            OnUnitDestroyed(grid);
         }
 
-        protected virtual bool CanPerform(CellGrid cellGrid) { return false; }
-
-        public virtual IDictionary<string, string> Encapsulate() { throw new NotImplementedException(); }
-
-        protected virtual IEnumerator Apply(CellGrid cellGrid, IDictionary<string, string> actionParams, bool isNetworkInvoked = true) { throw new NotImplementedException(); }
-
-        public override void OnCellClicked(Cell cell, IGridContext grid)
+        protected virtual bool CanPerformAbility(CellGrid cellGrid)
         {
-            OnCellClicked(cell, ResolveCellGrid(grid));
+            return false;
         }
 
-        public override void OnCellHighlighted(Cell cell, IGridContext grid)
+        protected override bool CanPerform(CellGrid cellGrid)
         {
-            OnCellSelected(cell, ResolveCellGrid(grid));
+            return CanPerformAbility(cellGrid);
         }
 
-        public override void OnCellDehighlighted(Cell cell, IGridContext grid)
+        public virtual IDictionary<string, string> Encapsulate()
         {
-            OnCellDeselected(cell, ResolveCellGrid(grid));
+            throw new NotImplementedException();
         }
 
-        public override void OnUnitClicked(IGridUnit unit, IGridContext grid)
+        protected virtual IEnumerator Apply(CellGrid cellGrid, IDictionary<string, string> actionParams, bool isNetworkInvoked = true)
         {
-            OnUnitClicked(unit as Unit, ResolveCellGrid(grid));
+            throw new NotImplementedException();
         }
 
-        public override void OnUnitHighlighted(IGridUnit unit, IGridContext grid)
+        public override void OnCellClicked(Cell cell, CellGrid grid)
         {
-            OnUnitHighlighted(unit as Unit, ResolveCellGrid(grid));
+            HandleCellClicked(cell, grid);
         }
 
-        public override void OnUnitDehighlighted(IGridUnit unit, IGridContext grid)
+        public override void OnCellHighlighted(Cell cell, CellGrid grid)
         {
-            OnUnitDehighlighted(unit as Unit, ResolveCellGrid(grid));
+            HandleCellSelected(cell, grid);
+        }
+
+        public override void OnCellDehighlighted(Cell cell, CellGrid grid)
+        {
+            HandleCellDeselected(cell, grid);
+        }
+
+        public override void OnUnitClicked(Unit unit, CellGrid grid)
+        {
+            HandleUnitClicked(unit, grid);
+        }
+
+        public override void OnUnitHighlighted(Unit unit, CellGrid grid)
+        {
+            HandleUnitHighlighted(unit, grid);
+        }
+
+        public override void OnUnitDehighlighted(Unit unit, CellGrid grid)
+        {
+            HandleUnitDehighlighted(unit, grid);
         }
 
         private IEnumerator ExecuteInline(CellGrid cellGrid, BattleActionExecutionMode executionMode, bool isNetworkInvoked)
@@ -230,4 +201,3 @@ namespace Windy.Srpg.Game.Abilities
         }
     }
 }
-

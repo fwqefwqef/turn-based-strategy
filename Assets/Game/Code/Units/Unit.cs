@@ -322,7 +322,7 @@ namespace Windy.Srpg.Game.Units
             }
         }
 
-        private static DijkstraPathfinding _pathfinder = new DijkstraPathfinding();
+        private static readonly DijkstraPathfinding Pathfinder = new DijkstraPathfinding();
 
         public virtual void Initialize()
         {
@@ -868,10 +868,9 @@ namespace Windy.Srpg.Game.Units
             return PassiveList.RemovePassive(entry);
         }
 
-        public List<IBattleAction> GetBattleActions()
+        public List<BattleAction> GetBattleActions()
         {
-            return GetComponentsInChildren<MonoBehaviour>()
-                .OfType<IBattleAction>()
+            return GetComponentsInChildren<BattleAction>()
                 .Where(action => action != null)
                 .ToList();
         }

@@ -17,6 +17,7 @@ using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Runtime.Pathfinding;
 using Windy.Srpg.Runtime.Units;
 using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
@@ -26,6 +27,10 @@ namespace Windy.Srpg.Game.Units
 {
     public partial class Unit
     {
+        // Uses the legacy path convention (destination-first, origin excluded) so the values
+        // returned by BuildScenePaths match what Move/PreviewMove/AnimateMovementPath expect.
+        private static readonly DijkstraPathfinding ScenePathfinder = new DijkstraPathfinding();
+
         #region CTRL+F: Combat Entry / Attack Sequence / Defense Resolution
 
         public virtual bool IsUnitAttackable(Unit other, Cell sourceCell)
@@ -1197,41 +1202,8 @@ namespace Windy.Srpg.Game.Units
                 SnapToCellLocalPosition(fromCell);
             }
 
-            GridUnit runtimeMovementUnit = TryUseRuntimePathAuthority(out _, out GridUnit runtimePathUnit)
-                ? runtimePathUnit
-                : null;
-
-            if (runtimeMovementUnit != null
-                && TryBuildRuntimeMovementPath(path, out var runtimeOrderedPath))
-            {
-                SyncMirroredRuntimeNow();
-
-                Cell runtimeDestination = destinationCell;
-                bool startedPendingMove = runtimeDestination != null
-                    && runtimeMovementUnit.BeginPendingMove(runtimeDestination, runtimeOrderedPath);
-
-                if (startedPendingMove)
-                {
-                    if (MovementAnimationSpeed > 0)
-                    {
-                        yield return StartCoroutine(
-                            runtimeMovementUnit.AnimateAlongPathVisual(runtimeOrderedPath, MovementAnimationSpeed, IsSceneGrid2D()));
-                    }
-                    else
-                    {
-                        SnapToCellLocalPosition(destinationCell);
-                    }
-
-                    if (runtimeMovementUnit.ConfirmPendingMove(consumeAllRemainingMovement: false, syncTransform: false))
-                    {
-                        ApplySceneSyncFromRuntimeMoveCommit(cellGrid);
-                        yield break;
-                    }
-
-                    runtimeMovementUnit.CancelPendingMove();
-                }
-            }
-
+            // Phase 5: the scene Unit executes the move directly. The runtime mirror is
+            // synced afterward via SyncMirroredRuntimeCell so it stays consistent.
             var totalMovementCost = path.Sum(h => h.MovementCost);
             MovementPoints -= totalMovementCost;
 
@@ -1326,13 +1298,6 @@ namespace Windy.Srpg.Game.Units
                 return false;
 
             var p = _pendingMove.Value;
-            if (TryUseRuntimeMovementAuthority(out CellGrid cellGrid, out GridUnit runtimeUnit)
-                && TryCommitPendingMoveViaRuntime(p, runtimeUnit, cellGrid, consumeAllRemainingMovement))
-            {
-                _pendingMove = null;
-                return true;
-            }
-
             bool isStayingInPlace = p.ToCell == p.FromCell;
             if (!isStayingInPlace && !CanOccupyCell(p.ToCell))
             {
@@ -1360,66 +1325,6 @@ namespace Windy.Srpg.Game.Units
 
             _pendingMove = null;
             return true;
-        }
-
-        private bool TryCommitPendingMoveViaRuntime(
-            PendingMove pendingMove,
-            GridUnit runtimeUnit,
-            CellGrid cellGrid,
-            bool consumeAllRemainingMovement)
-        {
-            if (runtimeUnit == null)
-            {
-                return false;
-            }
-
-            Cell runtimeDestination = pendingMove.ToCell;
-            if (runtimeDestination == null)
-            {
-                return false;
-            }
-
-            if (pendingMove.FromCell != null)
-            {
-                SyncMirroredRuntimeCell(pendingMove.FromCell);
-            }
-            else
-            {
-                ClearMirroredRuntimeCell();
-            }
-
-            bool startedPendingMove;
-            if (pendingMove.ToCell == pendingMove.FromCell)
-            {
-                startedPendingMove = runtimeUnit.BeginPendingMoveInPlace();
-            }
-            else if (TryBuildRuntimeMovementPath(pendingMove.Path, out var runtimePath))
-            {
-                startedPendingMove = runtimeUnit.BeginPendingMove(runtimeDestination, runtimePath);
-            }
-            else
-            {
-                return false;
-            }
-
-            if (!startedPendingMove || !runtimeUnit.ConfirmPendingMove(consumeAllRemainingMovement, syncTransform: false))
-            {
-                return false;
-            }
-
-            ApplySceneSyncFromRuntimeMoveCommit(cellGrid);
-            return true;
-        }
-
-        internal void ApplySceneSyncAfterRuntimePendingMoveCommit(CellGrid cellGrid)
-        {
-            if (!_pendingMove.HasValue)
-            {
-                return;
-            }
-
-            ApplySceneSyncFromRuntimeMoveCommit(cellGrid);
-            _pendingMove = null;
         }
 
         public virtual bool CancelPendingMove()
@@ -1462,34 +1367,14 @@ namespace Windy.Srpg.Game.Units
                 FromLocalPos = transform.localPosition
             };
 
-            if (TryUseRuntimeMovementAuthority(out _, out GridUnit runtimeUnit))
-            {
-                runtimeUnit.BeginPendingMoveInPlace();
-            }
+            ResolveRuntimeUnit()?.BeginPendingMoveInPlace();
 
             return true;
         }
 
         protected virtual IEnumerator PreviewMovementAnimation(IList<Cell> path, int previewMoveVersion)
         {
-            Windy.Srpg.Game.Grid.CellGrid runtimeMovementGrid = FindSceneCellGrid();
-            GridUnit runtimeMovementUnit = (runtimeMovementGrid != null
-                && runtimeMovementGrid.ShouldRouteHumanMovementThroughRuntime)
-                ? GetComponent<GridUnit>()
-                : null;
-
-            if (runtimeMovementUnit != null && MovementAnimationSpeed > 0
-                && TryBuildRuntimeMovementPath(path, out var runtimeOrderedPath))
-            {
-                yield return StartCoroutine(runtimeMovementUnit.AnimateAlongPathVisual(
-                    runtimeOrderedPath,
-                    MovementAnimationSpeed,
-                    IsSceneGrid2D(),
-                    () => previewMoveVersion != _previewMoveVersion || !_pendingMove.HasValue,
-                    worldPosition => PreviewMoveCameraFollowRequested?.Invoke(worldPosition)));
-                yield break;
-            }
-
+            // Phase 5: the scene Unit owns its preview animation.
             var isMap2D = IsSceneGrid2D();
             for (int i = path.Count - 1; i >= 0; i--)
             {
@@ -1603,41 +1488,47 @@ namespace Windy.Srpg.Game.Units
 
         public HashSet<Cell> GetAvailableDestinations(List<Cell> cells)
         {
-            if (TryUseRuntimePathAuthority(out _, out GridUnit runtimeUnit))
-            {
-                SyncMirroredRuntimeNow();
-                return runtimeUnit.GetAvailableDestinations(cells ?? new List<Cell>());
-            }
+            // Phase 5: scene Unit owns pathfinding. The runtime mirror is push-only.
+            return ComputeAvailableDestinationsSceneOnly(cells);
+        }
 
-            CachePaths(cells);
+        internal HashSet<Cell> ComputeAvailableDestinationsSceneOnly(List<Cell> cells)
+        {
+            CachePathsSceneOnly(cells);
 
+            Cell originCell = ResolvePathfindingCell(cells ?? new List<Cell>(), Cell);
             HashSet<Cell> reachableCells = new HashSet<Cell>();
-            foreach (Cell candidate in cells)
+            foreach (Cell candidate in cells ?? new List<Cell>())
             {
+                if (candidate == null
+                    || candidate == originCell
+                    || (originCell != null && candidate.Coordinates == originCell.Coordinates))
+                {
+                    continue;
+                }
+
                 if (!IsCellMovableTo(candidate))
                 {
                     continue;
                 }
 
-                if (!cachedPaths.TryGetValue(candidate, out IList<Cell> route) || route == null)
+                if (!TryGetCachedPath(candidate, out IList<Cell> route) || route == null)
                 {
                     continue;
                 }
 
-                float totalMovementCost = 0f;
-                for (int i = 0; i < route.Count; i++)
+                if (route.Count < 1)
                 {
-                    totalMovementCost += route[i].MovementCost;
-                    if (totalMovementCost > MovementPoints)
-                    {
-                        break;
-                    }
+                    continue;
                 }
 
-                if (totalMovementCost <= MovementPoints)
+                float totalMovementCost = SumPathMovementCost(route);
+                if (totalMovementCost > MovementPoints)
                 {
-                    reachableCells.Add(candidate);
+                    continue;
                 }
+
+                reachableCells.Add(candidate);
             }
 
             return reachableCells;
@@ -1645,63 +1536,121 @@ namespace Windy.Srpg.Game.Units
 
         public void CachePaths(List<Cell> cells)
         {
-            if (TryUseRuntimePathAuthority(out _, out GridUnit runtimeUnit))
-            {
-                SyncMirroredRuntimeNow();
-                runtimeUnit.CachePaths(cells ?? new List<Cell>());
-                cachedPaths = null;
-                return;
-            }
+            CachePathsSceneOnly(cells);
+        }
 
-            cachedPaths = BuildCurrentPaths(cells);
+        internal void CachePathsSceneOnly(List<Cell> cells)
+        {
+            cachedPaths = BuildScenePaths(cells);
         }
 
         public IList<Cell> FindPath(List<Cell> cells, Cell destination)
         {
-            if (TryUseRuntimePathAuthority(out _, out GridUnit runtimeUnit))
-            {
-                SyncMirroredRuntimeNow();
-                List<Cell> runtimeCells = cells ?? new List<Cell>();
-                Cell runtimeDestination = destination;
-                if (runtimeDestination != null
-                    && TryBuildSceneMovementPath(
-                        runtimeUnit.FindPath(runtimeCells, runtimeDestination),
-                        runtimeUnit.CurrentCell,
-                        out List<Cell> runtimePath))
-                {
-                    return runtimePath;
-                }
+            return ComputeFindPathSceneOnly(cells, destination);
+        }
 
+        internal IList<Cell> ComputeFindPathSceneOnly(List<Cell> cells, Cell destination)
+        {
+            if (destination == null)
+            {
                 return new List<Cell>();
             }
 
             if (cachedPaths == null)
             {
-                CachePaths(cells);
+                CachePathsSceneOnly(cells);
             }
 
-            if (cachedPaths.TryGetValue(destination, out var path))
+            if (TryGetCachedPath(destination, out IList<Cell> path))
             {
                 return path;
             }
+
             return new List<Cell>();
         }
 
-        private Dictionary<Cell, IList<Cell>> BuildCurrentPaths(List<Cell> cells)
+        private bool TryGetCachedPath(Cell destination, out IList<Cell> path)
         {
-            if (cells == null || Cell == null)
+            path = null;
+            if (cachedPaths == null || destination == null)
+            {
+                return false;
+            }
+
+            if (cachedPaths.TryGetValue(destination, out path))
+            {
+                return path != null;
+            }
+
+            foreach (KeyValuePair<Cell, IList<Cell>> entry in cachedPaths)
+            {
+                if (entry.Key != null && entry.Key.Coordinates == destination.Coordinates)
+                {
+                    path = entry.Value;
+                    return path != null;
+                }
+            }
+
+            return false;
+        }
+
+        private Dictionary<Cell, IList<Cell>> BuildScenePaths(List<Cell> cells)
+        {
+            Cell originCell = ResolvePathfindingCell(cells, Cell);
+            if (cells == null || originCell == null)
             {
                 return new Dictionary<Cell, IList<Cell>>();
             }
 
-            var edges = GetGraphEdges(cells);
-            Dictionary<Cell, Dictionary<Cell, float>> boardEdges = edges.ToDictionary(
-                kvp => (Cell)kvp.Key,
-                kvp => kvp.Value.ToDictionary(n => (Cell)n.Key, n => n.Value));
-            Dictionary<Cell, IList<Cell>> boardPaths = _pathfinder.FindAllPaths(boardEdges, Cell);
-            return boardPaths.ToDictionary(
-                kvp => (Cell)kvp.Key,
-                kvp => (IList<Cell>)kvp.Value.Cast<Cell>().ToList());
+            Dictionary<Cell, Dictionary<Cell, float>> edges = GetSceneGraphEdges(cells);
+            if (!edges.ContainsKey(originCell))
+            {
+                return new Dictionary<Cell, IList<Cell>>();
+            }
+
+            return ScenePathfinder.FindAllPaths(edges, originCell);
+        }
+
+        private static Cell ResolvePathfindingCell(List<Cell> cells, Cell preferredCell)
+        {
+            if (preferredCell == null)
+            {
+                return null;
+            }
+
+            if (cells != null)
+            {
+                foreach (Cell candidate in cells)
+                {
+                    if (candidate != null && candidate.Coordinates == preferredCell.Coordinates)
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            return preferredCell;
+        }
+
+        private static float SumPathMovementCost(IList<Cell> path)
+        {
+            if (path == null || path.Count == 0)
+            {
+                return 0f;
+            }
+
+            // Legacy path convention excludes the origin cell, so every entry is a movement step.
+            float total = 0f;
+            for (int i = 0; i < path.Count; i++)
+            {
+                Cell step = path[i];
+                if (step != null)
+                {
+                    total += step.MovementCost;
+                }
+            }
+
+            return total;
         }
 
         private bool CanOccupyCell(Cell cell)
@@ -1711,12 +1660,7 @@ namespace Windy.Srpg.Game.Units
                 return false;
             }
 
-            if (!IsLinkedCellTraversable(cell))
-            {
-                return false;
-            }
-
-            return !cell.IsTaken && !HasBlockingOccupant(cell) && !HasBlockingRuntimeOccupant(cell);
+            return cell.IsTraversable && !HasBlockingOccupant(cell);
         }
 
         private bool CanTraverseCell(Cell cell)
@@ -1726,24 +1670,19 @@ namespace Windy.Srpg.Game.Units
                 return false;
             }
 
-            if (!IsLinkedCellTraversable(cell))
-            {
-                return false;
-            }
-
             if (cell == Cell)
             {
                 return true;
             }
 
-            return !cell.IsTaken && !HasBlockingOccupant(cell) && !HasBlockingRuntimeOccupant(cell);
+            return cell.IsTraversable && !HasBlockingOccupant(cell);
         }
 
         private bool HasBlockingOccupant(Cell cell)
         {
             if (cell?.CurrentUnits == null)
             {
-                return HasBlockingSceneOccupant(cell, this);
+                return false;
             }
 
             foreach (Unit occupant in cell.CurrentUnits)
@@ -1761,35 +1700,53 @@ namespace Windy.Srpg.Game.Units
                 return true;
             }
 
-            return HasBlockingSceneOccupant(cell, this);
+            return false;
         }
 
-        protected Dictionary<Cell, Dictionary<Cell, float>> GetGraphEdges(List<Cell> cells)
+        private Dictionary<Cell, Dictionary<Cell, float>> GetSceneGraphEdges(List<Cell> cells)
         {
+            Cell originCell = ResolvePathfindingCell(cells, Cell);
             Dictionary<Cell, Dictionary<Cell, float>> edgeLookup = new Dictionary<Cell, Dictionary<Cell, float>>();
-            foreach (Cell originCell in cells)
+            if (cells == null)
             {
-                bool canStartFromCell = originCell == Cell || IsCellTraversable(originCell);
-                if (!canStartFromCell)
+                return edgeLookup;
+            }
+
+            foreach (Cell cell in cells)
+            {
+                if (cell == null)
+                {
+                    continue;
+                }
+
+                if (!IsCellTraversable(cell) && cell != originCell)
                 {
                     continue;
                 }
 
                 Dictionary<Cell, float> neighbours = new Dictionary<Cell, float>();
-                foreach (Cell adjacentCell in originCell.GetNeighbours(cells))
+                foreach (Cell adjacentCell in cell.GetNeighbours(cells))
                 {
-                    if (!IsCellTraversable(adjacentCell) && !IsCellMovableTo(adjacentCell))
+                    if (adjacentCell == null)
                     {
                         continue;
                     }
 
-                    neighbours[adjacentCell] = adjacentCell.MovementCost;
+                    if (IsCellTraversable(adjacentCell) || IsCellMovableTo(adjacentCell))
+                    {
+                        neighbours[adjacentCell] = Mathf.Max(0f, adjacentCell.TraversalCost);
+                    }
                 }
 
-                edgeLookup[originCell] = neighbours;
+                edgeLookup[cell] = neighbours;
             }
 
             return edgeLookup;
+        }
+
+        protected Dictionary<Cell, Dictionary<Cell, float>> GetGraphEdges(List<Cell> cells)
+        {
+            return GetSceneGraphEdges(cells);
         }
 
         #endregion

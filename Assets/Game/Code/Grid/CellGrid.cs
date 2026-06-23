@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Windy.Srpg.Game.Campaign;
+using Windy.Srpg.Game.Diagnostics;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Game.Players;
@@ -272,19 +273,20 @@ namespace Windy.Srpg.Game.Grid
             if (suppressSceneToRuntimeStateMirror)
             {
                 SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
-                return;
             }
-
-            if (ShouldRouteHumanMovementThroughRuntime)
+            else if (ShouldRouteHumanMovementThroughRuntime)
             {
                 ResolveRuntimeGrid();
                 ApplyRuntimeDrivenState(
                     BuildRuntimeSelectedState(unit),
                     () => SetState(new UnitSelectedState(this, unit, unit.GetBattleActions())));
-                return;
+            }
+            else
+            {
+                SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
             }
 
-            SetState(new UnitSelectedState(this, unit, unit.GetBattleActions()));
+            RuntimeParityDiagnostics.CompareMovementReach(unit, this, "human-select");
         }
 
         public void EnterPendingMoveConfirmState(MoveAbility moveAbility)
@@ -371,29 +373,20 @@ namespace Windy.Srpg.Game.Grid
         /// </summary>
         internal void ProcessRuntimeRoutedPendingMoveCommit(Unit unit, bool consumeAllRemainingMovement = false)
         {
-            if (!ShouldRouteHumanMovementThroughRuntime || unit == null || !unit.HasPendingMove)
+            if (unit == null || !unit.HasPendingMove)
             {
                 return;
             }
 
-            ResolveRuntimeGrid();
-            if (runtimeGrid == null)
+            // Phase 5: the scene Unit is authoritative for movement. Commit on the scene unit,
+            // then push the runtime mirror so it stays consistent.
+            if (!unit.ConfirmPendingMove(consumeAllRemainingMovement))
             {
                 return;
             }
 
-            SyncRuntimeMirrorNow();
-            runtimeGrid.ConfirmPendingMoveAfterCombat(consumeAllRemainingMovement);
-
-            GridUnit runtimeUnit = unit.GetComponent<GridUnit>();
-            if (unit.HasPendingMove
-                && runtimeUnit != null
-                && runtimeUnit.HasPendingMove)
-            {
-                runtimeUnit.ConfirmPendingMove(consumeAllRemainingMovement, syncTransform: false);
-            }
-
-            unit.ApplySceneSyncAfterRuntimePendingMoveCommit(this);
+            unit.SyncMirroredRuntimeNow();
+            RefreshSceneCellOccupancyNow();
         }
 
         /// <summary>
@@ -410,18 +403,7 @@ namespace Windy.Srpg.Game.Grid
         /// </summary>
         internal void TryCommitPendingMoveFromPendingAction(Unit unit, bool consumeAllRemainingMovement = false)
         {
-            if (unit == null || !unit.HasPendingMove)
-            {
-                return;
-            }
-
-            if (ShouldRouteHumanMovementThroughRuntime)
-            {
-                ProcessRuntimeRoutedPendingMoveCommit(unit, consumeAllRemainingMovement);
-                return;
-            }
-
-            unit.ConfirmPendingMove(consumeAllRemainingMovement);
+            ProcessRuntimeRoutedPendingMoveCommit(unit, consumeAllRemainingMovement);
         }
 
         /// <summary>

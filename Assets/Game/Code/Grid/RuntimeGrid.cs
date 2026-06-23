@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Runtime.Grid.States;
 using Windy.Srpg.Runtime.Players;
 using Windy.Srpg.Runtime.Units;
@@ -113,7 +114,7 @@ namespace Windy.Srpg.Runtime.Grid
 
             foreach (var player in players.OfType<IBattleTurnPlayer>())
             {
-                player.BindToGrid(this);
+                player.BindToGrid(SceneGrid);
             }
 
             SetCurrentPlayerById(startPlan.NextPlayer?.PlayerId ?? -1);
@@ -233,9 +234,11 @@ namespace Windy.Srpg.Runtime.Grid
 
             if (player is IBattleTurnPlayer turnPlayer)
             {
-                turnPlayer.PlayTurn(this);
+                turnPlayer.PlayTurn(SceneGrid);
             }
         }
+
+        private CellGrid SceneGrid => GetComponent<CellGrid>();
 
         public virtual void ProcessUnitClick(GridUnit unit)
         {
@@ -434,7 +437,7 @@ namespace Windy.Srpg.Runtime.Grid
 
             if (kickTurnPlayerPlay && player is IBattleTurnPlayer turnPlayer)
             {
-                turnPlayer.PlayTurn(this);
+                turnPlayer.PlayTurn(SceneGrid);
             }
         }
 

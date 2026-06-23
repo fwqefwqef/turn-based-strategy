@@ -1,5 +1,4 @@
 using Windy.Srpg.Game.Grid;
-using Windy.Srpg.Runtime.Grid;
 using Windy.Srpg.Runtime.Players;
 using Windy.Srpg.Runtime.Units;
 
@@ -8,16 +7,6 @@ namespace Windy.Srpg.Game.Players
     public abstract class Player : BattlePlayerController
     {
         public abstract override bool IsHumanControlled { get; }
-
-        private static CellGrid ResolveCellGrid(IGridContext grid)
-        {
-            if (grid is CellGrid customCellGrid)
-            {
-                return customCellGrid;
-            }
-
-            return (grid as RuntimeGrid)?.GetComponent<CellGrid>();
-        }
 
         public override bool Owns(IGridUnit unit)
         {
@@ -28,25 +17,22 @@ namespace Windy.Srpg.Game.Players
         {
         }
 
-        public override void BindToGrid(IGridContext grid)
+        public override void BindToGrid(CellGrid grid)
         {
-            CellGrid customCellGrid = ResolveCellGrid(grid);
-            if (customCellGrid != null)
+            if (grid != null)
             {
-                OnInitialize(customCellGrid);
+                OnInitialize(grid);
             }
         }
 
-        public override void PlayTurn(IGridContext grid)
+        public override void PlayTurn(CellGrid grid)
         {
-            CellGrid customCellGrid = ResolveCellGrid(grid);
-            if (customCellGrid != null)
+            if (grid != null)
             {
-                Play(customCellGrid);
+                Play(grid);
             }
         }
 
         public abstract void Play(CellGrid cellGrid);
     }
 }
-

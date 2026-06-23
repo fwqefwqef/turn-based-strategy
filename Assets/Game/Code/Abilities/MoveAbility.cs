@@ -294,7 +294,11 @@ namespace Windy.Srpg.Game.Abilities
 
         protected override IEnumerator Act(CellGrid cellGrid, bool isNetworkInvoked = false)
         {
-            if (UnitReference.CanStartActionThisTurn && availableDestinations.Contains(Destination))
+            RefreshAvailableDestinationsIfNeeded(cellGrid);
+            if (UnitReference.CanStartActionThisTurn
+                && Destination != null
+                && availableDestinations != null
+                && availableDestinations.Contains(Destination))
             {
                 // If the unit already preview-moved, just commit it.
                 if (UnitReference.HasPendingMove)
@@ -315,9 +319,9 @@ namespace Windy.Srpg.Game.Abilities
                     var path = UnitReference.FindPath(ResolveCells(cellGrid), Destination);
                     yield return UnitReference.Move(Destination, path);
                 }
-            }
 
-            yield return base.Act(cellGrid, isNetworkInvoked);
+                yield return base.Act(cellGrid, isNetworkInvoked);
+            }
         }
 
         protected override void Display(CellGrid cellGrid)
@@ -333,7 +337,7 @@ namespace Windy.Srpg.Game.Abilities
             }
         }
 
-        public override void OnUnitClicked(Unit unit, CellGrid cellGrid)
+        protected override void HandleUnitClicked(Unit unit, CellGrid cellGrid)
         {
             if (cellGrid != null
                 && cellGrid.GetCurrentPlayerUnits().Contains(unit)
@@ -367,7 +371,7 @@ namespace Windy.Srpg.Game.Abilities
             StartCoroutine(CompletePendingMovePreview(cellGrid, UnitReference.PreviewCell, waitForPreviewCamera: false));
         }
 
-        protected override void OnCellClicked(Cell cell, CellGrid cellGrid)
+        protected override void HandleCellClicked(Cell cell, CellGrid cellGrid)
         {
             RefreshAvailableDestinationsIfNeeded(cellGrid);
 

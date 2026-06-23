@@ -104,7 +104,7 @@ namespace Windy.Srpg.Game.Units
 
             if (battleCell == null)
             {
-                runtimeUnit.ClearCurrentCell();
+                // Phase 5: never wipe mirror occupancy when the scene binding is temporarily unknown.
                 return;
             }
 
@@ -156,57 +156,36 @@ namespace Windy.Srpg.Game.Units
             SetTurnStateKind(turnState, syncRuntime: false);
         }
 
+        // Phase 5: the scene Unit is authoritative for movement and pathfinding. The runtime
+        // GridUnit mirror is push-only, so this always pushes scene state into the mirror.
         internal void SyncMirroredRuntimeNow()
         {
-            if (HasPendingMove)
-            {
-                PushSceneStateToRuntimeMirror();
-                return;
-            }
-
-            if (ShouldPullSceneFromRuntimeMirror())
-            {
-                PullRuntimeStateToScene(refreshOccupancy: true);
-                return;
-            }
-
+            EnsureSceneCellBinding();
             PushSceneStateToRuntimeMirror();
         }
 
-        internal void PullRuntimeStateToScene(bool refreshOccupancy = true)
+        internal void EnsureSceneCellBinding()
         {
-            GridUnit runtimeUnit = ResolveRuntimeUnit();
-            if (runtimeUnit == null)
+            if (!Application.isPlaying || Cell != null)
             {
                 return;
             }
 
-            MovementPoints = runtimeUnit.MovementPointsRemaining;
-            SetTurnStateKind(ResolveSceneTurnStateFromRuntime(runtimeUnit), syncRuntime: false);
-
-            Cell resolvedCell = runtimeUnit.CurrentCell;
-            if (resolvedCell != Cell)
+            CellGrid cellGrid = FindSceneCellGrid();
+            Cell resolved = ResolveTransformStartCell(cellGrid, null);
+            if (resolved == null)
             {
-                UnregisterCellOccupancyList(Cell);
-                RefreshCellOccupancy(Cell);
-                Cell = resolvedCell;
-                RegisterCellOccupancyList(resolvedCell);
+                GridUnit runtimeUnit = ResolveRuntimeUnit();
+                resolved = runtimeUnit?.CurrentCell;
             }
 
-            if (refreshOccupancy)
+            if (resolved == null)
             {
-                RefreshCellOccupancy(resolvedCell);
-                RefreshSceneOccupancyFromLiveUnits();
+                return;
             }
 
-            cachedPaths = null;
-        }
-
-        internal void ApplySceneSyncFromRuntimeMoveCommit(CellGrid cellGrid)
-        {
-            PullRuntimeStateToScene();
-            OnMoveFinished();
-            cellGrid?.RequestBattleOutcomeEvaluation();
+            Cell = resolved;
+            RegisterCellOccupancyList(resolved);
         }
 
         internal void RegisterCellOccupancyList(Cell targetCell = null)
@@ -222,7 +201,7 @@ namespace Windy.Srpg.Game.Units
                 resolvedCell.CurrentUnits.Add(this);
             }
 
-            resolvedCell.RefreshOccupancyFromCurrentUnits();
+            RefreshCellOccupancy(resolvedCell);
             RegisterCellOccupancy(resolvedCell);
         }
 
@@ -246,16 +225,11 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            bool hasLegacyOccupant = cell.CurrentUnits != null
+            bool hasBlockingUnit = cell.CurrentUnits != null
                 && cell.CurrentUnits.Any(occupant =>
                     occupant != null && occupant.Obstructable && !occupant.ExcludedFromBattle);
-            bool hasSceneOccupant = HasBlockingSceneOccupant(cell, null);
-            bool hasRuntimeOccupant = cell.Occupants.Any(unit => unit != null && unit.BlocksOtherUnits);
 
-            cell.IsTaken = (!cell.IsTraversable)
-                || hasLegacyOccupant
-                || hasSceneOccupant
-                || hasRuntimeOccupant;
+            cell.IsTaken = !cell.IsTraversable || hasBlockingUnit;
 
             InvalidateAllCachedPaths();
         }
@@ -306,14 +280,6 @@ namespace Windy.Srpg.Game.Units
             SyncMirroredRuntimeTurnState();
             SyncMirroredRuntimeCell(Cell);
             SyncMirroredRuntimePendingMove();
-        }
-
-        private bool ShouldPullSceneFromRuntimeMirror()
-        {
-            CellGrid cellGrid = FindSceneCellGrid();
-            return cellGrid != null
-                && cellGrid.IsBattleStarted
-                && ResolveRuntimeUnit() != null;
         }
 
         private void SyncMirroredRuntimePendingMove()
@@ -389,32 +355,6 @@ namespace Windy.Srpg.Game.Units
             runtimeUnit.SetMovementPointsRemaining(MovementPoints);
         }
 
-        private bool HasBlockingRuntimeOccupant(Cell cell)
-        {
-            if (cell == null)
-            {
-                return false;
-            }
-
-            GridUnit runtimeUnit = ResolveRuntimeUnit();
-            foreach (GridUnit occupant in cell.Occupants)
-            {
-                if (occupant == null || occupant == runtimeUnit || !occupant.BlocksOtherUnits)
-                {
-                    continue;
-                }
-
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool IsLinkedCellTraversable(Cell cell)
-        {
-            return cell == null || cell.IsTraversable;
-        }
-
         private bool TryBuildRuntimeMovementPath(IList<Cell> movementPath, out List<Cell> orderedRuntimePath)
         {
             orderedRuntimePath = null;
@@ -439,54 +379,6 @@ namespace Windy.Srpg.Game.Units
             return true;
         }
 
-        private static bool TryBuildSceneMovementPath(
-            IList<Cell> runtimePath,
-            Cell originCell,
-            out List<Cell> orderedPath)
-        {
-            orderedPath = null;
-            if (runtimePath == null || runtimePath.Count == 0)
-            {
-                return false;
-            }
-
-            var path = new List<Cell>(runtimePath.Count);
-            for (int i = runtimePath.Count - 1; i >= 0; i--)
-            {
-                Cell cell = runtimePath[i];
-                if (originCell != null && cell == originCell)
-                {
-                    continue;
-                }
-
-                if (cell == null)
-                {
-                    return false;
-                }
-
-                path.Add(cell);
-            }
-
-            orderedPath = path;
-            return true;
-        }
-
-        private bool TryUseRuntimeMovementAuthority(out CellGrid cellGrid, out GridUnit runtimeUnit)
-        {
-            cellGrid = FindSceneCellGrid();
-            runtimeUnit = ResolveRuntimeUnit();
-            return Application.isPlaying
-                && cellGrid != null
-                && runtimeUnit != null;
-        }
-
-        private bool TryUseRuntimePathAuthority(out CellGrid cellGrid, out GridUnit runtimeUnit)
-        {
-            cellGrid = FindSceneCellGrid();
-            runtimeUnit = ResolveRuntimeUnit();
-            return TryUseRuntimeMovementAuthority(out cellGrid, out runtimeUnit);
-        }
-
         private static void RefreshSceneOccupancyFromLiveUnits()
         {
             if (!Application.isPlaying)
@@ -495,32 +387,6 @@ namespace Windy.Srpg.Game.Units
             }
 
             FindSceneCellGrid()?.RefreshSceneCellOccupancyNow();
-        }
-
-        private static bool HasBlockingSceneOccupant(Cell cell, Unit self)
-        {
-            if (cell == null)
-            {
-                return false;
-            }
-
-            CellGrid cellGrid = FindSceneCellGrid();
-            if (cellGrid == null)
-            {
-                return false;
-            }
-
-            foreach (Unit unit in cellGrid.GetAllSceneUnitsFromHierarchy())
-            {
-                if (unit == null || unit == self || unit.Cell != cell || !unit.Obstructable || unit.ExcludedFromBattle)
-                {
-                    continue;
-                }
-
-                return true;
-            }
-
-            return false;
         }
 
         private GridUnit ResolveRuntimeUnit()

@@ -1,11 +1,10 @@
-using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Game.Grid;
 
 namespace Windy.Srpg.Runtime.Players
 {
     public interface IBattleTurnPlayer : IBattlePlayer
     {
-        void BindToGrid(IGridContext grid);
-        void PlayTurn(IGridContext grid);
+        void BindToGrid(CellGrid grid);
+        void PlayTurn(CellGrid grid);
     }
 }
-

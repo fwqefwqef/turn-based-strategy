@@ -2,9 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Game.Players;
+using Windy.Srpg.Game.Diagnostics;
+using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.AI;
-using Windy.Srpg.Runtime.Grid;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Runtime.Players
 {
@@ -17,30 +19,45 @@ namespace Windy.Srpg.Runtime.Players
             StopAllCoroutines();
         }
 
-        public override void PlayTurn(IGridContext grid)
+        public override void PlayTurn(CellGrid grid)
         {
-            if (grid is not RuntimeGrid runtimeGrid)
+            if (grid == null)
             {
                 return;
             }
 
+            AiPlayer aiPlayer = GetComponent<AiPlayer>();
             StopAllCoroutines();
-            StartCoroutine(ExecuteTurn(runtimeGrid));
+            grid.EnterAiTurnState(aiPlayer);
+            StartCoroutine(ExecuteTurn(grid, aiPlayer));
         }
 
-        private IEnumerator ExecuteTurn(RuntimeGrid grid)
+        private IEnumerator ExecuteTurn(CellGrid grid, AiPlayer aiPlayer)
         {
-            IReadOnlyList<GridUnit> orderedUnits = SelectUnits(grid);
-            yield return AiTurnRunner.ExecuteTurn(
-                this,
-                orderedUnits.Cast<IGridUnit>(),
+            if (aiPlayer == null)
+            {
+                yield break;
+            }
+
+            grid.PrepareRuntimeRoutedAiTurn();
+            IReadOnlyList<Unit> orderedUnits = SelectUnits(grid);
+            RuntimeParityDiagnostics.CompareAiTurnPrecalc(
                 grid,
-                () => grid.EndCurrentTurn());
+                grid.GetCurrentPlayerUnits());
+
+            yield return AiTurnRunner.ExecuteTurn(
+                aiPlayer,
+                orderedUnits,
+                grid,
+                () => grid.RequestEndTurn());
         }
 
-        private IReadOnlyList<GridUnit> SelectUnits(RuntimeGrid grid)
+        private IReadOnlyList<Unit> SelectUnits(CellGrid grid)
         {
-            return AiTurnOrdering.OrderByMovementFreedom(grid.GetCurrentPlayerUnits());
+            return AiTurnOrdering.OrderByMovementFreedom(
+                grid.GetCurrentPlayerUnits().Where(unit => unit != null),
+                grid);
         }
     }
 }
+

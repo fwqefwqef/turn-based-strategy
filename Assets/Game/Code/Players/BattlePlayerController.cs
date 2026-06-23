@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.Serialization;
-using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Runtime.Players
@@ -19,13 +19,12 @@ namespace Windy.Srpg.Runtime.Players
             return unit != null && unit.PlayerId == playerId;
         }
 
-        public virtual void BindToGrid(IGridContext grid)
+        public virtual void BindToGrid(CellGrid grid)
         {
         }
 
-        public virtual void PlayTurn(IGridContext grid)
+        public virtual void PlayTurn(CellGrid grid)
         {
         }
     }
 }
-

@@ -307,10 +307,7 @@ namespace Windy.Srpg.Runtime.Grid
 
         internal void RefreshOccupancyFromCurrentUnits()
         {
-            bool hasBlockingUnit = currentUnits.Any(unit =>
-                unit != null && unit.Obstructable && !unit.ExcludedFromBattle);
-            bool hasRuntimeOccupant = Occupants.Any(unit => unit != null && unit.BlocksOtherUnits);
-            isTaken = !IsTraversable || hasBlockingUnit || hasRuntimeOccupant;
+            Unit.RefreshCellOccupancy(this);
         }
 
         private void CacheHighlightersIfNeeded()

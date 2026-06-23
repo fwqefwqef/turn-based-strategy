@@ -4,9 +4,11 @@ using UnityEngine;
 using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Units;
-using Windy.Srpg.Runtime.Grid.States;
+using Windy.Srpg.Runtime.Actions;
 using Windy.Srpg.Runtime.Grid;
+using Windy.Srpg.Runtime.Grid.States;
 using Windy.Srpg.Runtime.Units;
+using RuntimeGridState = Windy.Srpg.Runtime.Grid.States.RuntimeGridState;
 
 namespace Windy.Srpg.Game.Grid
 {
@@ -622,7 +624,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            foreach (Windy.Srpg.Runtime.Actions.IBattleAction action in actingUnit.GetBattleActions())
+            foreach (BattleAction action in actingUnit.GetBattleActions())
             {
                 action?.OnCellClicked(cell, this);
             }

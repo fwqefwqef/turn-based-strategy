@@ -1,112 +1,86 @@
 using System.Collections;
 using UnityEngine;
+using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Game.Units;
 using Windy.Srpg.Runtime.Grid;
-using Windy.Srpg.Runtime.Units;
 
 namespace Windy.Srpg.Runtime.Actions
 {
-    // --- IBattleAction contract ---
-    public interface IBattleAction
+    public abstract class BattleAction : MonoBehaviour
     {
-        void InitializeAction(IGridUnit unit);
-        bool CanPerformAction(IGridContext grid);
-        IEnumerator ExecuteAction(IGridContext grid, bool isRemoteInvocation = false);
-        void DisplayAction(IGridContext grid);
-        void CleanUpAction(IGridContext grid);
-        void OnActionSelected(IGridContext grid);
-        void OnActionDeselected(IGridContext grid);
-        void OnCellClicked(Cell cell, IGridContext grid);
-        void OnCellHighlighted(Cell cell, IGridContext grid);
-        void OnCellDehighlighted(Cell cell, IGridContext grid);
-        void OnUnitClicked(IGridUnit unit, IGridContext grid);
-        void OnUnitHighlighted(IGridUnit unit, IGridContext grid);
-        void OnUnitDehighlighted(IGridUnit unit, IGridContext grid);
-        void OnTurnStarted(IGridContext grid);
-        void OnTurnEnded(IGridContext grid);
-        void OnOwnerDestroyed(IGridContext grid);
-    }
+        protected Unit OwnerUnit { get; private set; }
 
-    // --- BattleAction base ---
-    public abstract class BattleAction : MonoBehaviour, IBattleAction
-    {
-        protected IGridUnit Unit { get; private set; }
-
-        protected T GetUnit<T>() where T : class, IGridUnit
+        public virtual void InitializeAction(Unit unit)
         {
-            return Unit as T;
+            OwnerUnit = unit;
         }
 
-        public virtual void InitializeAction(IGridUnit unit)
-        {
-            Unit = unit;
-        }
+        protected abstract IEnumerator Act(CellGrid grid, bool isRemoteInvocation = false);
 
-        protected abstract IEnumerator Act(IGridContext grid, bool isRemoteInvocation = false);
-
-        public virtual IEnumerator ExecuteAction(IGridContext grid, bool isRemoteInvocation = false)
+        public virtual IEnumerator ExecuteAction(CellGrid grid, bool isRemoteInvocation = false)
         {
             return Act(grid, isRemoteInvocation);
         }
 
-        protected virtual bool CanPerform(IGridContext grid)
+        protected virtual bool CanPerform(CellGrid grid)
         {
-            return Unit != null;
+            return OwnerUnit != null;
         }
 
-        public virtual bool CanPerformAction(IGridContext grid)
+        public virtual bool CanPerformAction(CellGrid grid)
         {
             return CanPerform(grid);
         }
 
-        public virtual void DisplayAction(IGridContext grid)
+        public virtual void DisplayAction(CellGrid grid)
         {
         }
 
-        public virtual void CleanUpAction(IGridContext grid)
+        public virtual void CleanUpAction(CellGrid grid)
         {
         }
 
-        public virtual void OnActionSelected(IGridContext grid)
+        public virtual void OnActionSelected(CellGrid grid)
         {
         }
 
-        public virtual void OnActionDeselected(IGridContext grid)
+        public virtual void OnActionDeselected(CellGrid grid)
         {
         }
 
-        public virtual void OnCellClicked(Cell cell, IGridContext grid)
+        public virtual void OnCellClicked(Cell cell, CellGrid grid)
         {
         }
 
-        public virtual void OnCellHighlighted(Cell cell, IGridContext grid)
+        public virtual void OnCellHighlighted(Cell cell, CellGrid grid)
         {
         }
 
-        public virtual void OnCellDehighlighted(Cell cell, IGridContext grid)
+        public virtual void OnCellDehighlighted(Cell cell, CellGrid grid)
         {
         }
 
-        public virtual void OnUnitClicked(IGridUnit unit, IGridContext grid)
+        public virtual void OnUnitClicked(Unit unit, CellGrid grid)
         {
         }
 
-        public virtual void OnUnitHighlighted(IGridUnit unit, IGridContext grid)
+        public virtual void OnUnitHighlighted(Unit unit, CellGrid grid)
         {
         }
 
-        public virtual void OnUnitDehighlighted(IGridUnit unit, IGridContext grid)
+        public virtual void OnUnitDehighlighted(Unit unit, CellGrid grid)
         {
         }
 
-        public virtual void OnTurnStarted(IGridContext grid)
+        public virtual void OnTurnStarted(CellGrid grid)
         {
         }
 
-        public virtual void OnTurnEnded(IGridContext grid)
+        public virtual void OnTurnEnded(CellGrid grid)
         {
         }
 
-        public virtual void OnOwnerDestroyed(IGridContext grid)
+        public virtual void OnOwnerDestroyed(CellGrid grid)
         {
         }
     }
@@ -137,23 +111,19 @@ namespace Windy.Srpg.Runtime.Actions
         }
     }
 
-    // --- MoveActionBase ---
     public abstract class MoveActionBase : BattleAction
     {
         public virtual bool CanTraverse(Cell cell)
         {
-            var unit = GetUnit<GridUnit>();
-            return unit != null && unit.CanTraverse(cell);
+            return OwnerUnit != null && OwnerUnit.IsCellTraversable(cell);
         }
 
         public virtual bool CanStopOn(Cell cell)
         {
-            var unit = GetUnit<GridUnit>();
-            return unit != null && unit.CanStopOn(cell);
+            return OwnerUnit != null && OwnerUnit.IsCellMovableTo(cell);
         }
     }
 
-    // --- AttackActionBase ---
     public abstract class AttackActionBase : BattleAction
     {
         [SerializeField] private int minRange = 1;
@@ -163,9 +133,7 @@ namespace Windy.Srpg.Runtime.Actions
         public int MaxRange => Mathf.Max(MinRange, maxRange);
     }
 
-    // --- AttackRangeHighlightActionBase ---
     public abstract class AttackRangeHighlightActionBase : BattleAction
     {
     }
-
 }

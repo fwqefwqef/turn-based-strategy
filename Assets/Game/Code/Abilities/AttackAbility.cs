@@ -39,7 +39,7 @@ namespace Windy.Srpg.Game.Abilities
             }
         }
 
-        public override void OnUnitClicked(Unit unit, CellGrid cellGrid)
+        protected override void HandleUnitClicked(Unit unit, CellGrid cellGrid)
         {
             if (cellGrid != null
                 && cellGrid.GetCurrentPlayerUnits().Contains(unit)
@@ -49,7 +49,7 @@ namespace Windy.Srpg.Game.Abilities
             }
         }
 
-        protected override void OnCellClicked(Cell cell, CellGrid cellGrid)
+        protected override void HandleCellClicked(Cell cell, CellGrid cellGrid)
         {
             if (cell == null)
             {
@@ -64,7 +64,7 @@ namespace Windy.Srpg.Game.Abilities
             inAttackRange?.ForEach(u => u?.UnMark());
         }
 
-        protected override bool CanPerform(CellGrid cellGrid)
+        protected override bool CanPerformAbility(CellGrid cellGrid)
         {
             if (!UnitRef.CanStartActionThisTurn || !UnitRef.HasUsableWeapon)
             {
@@ -81,41 +81,6 @@ namespace Windy.Srpg.Game.Abilities
                 .ToList();
 
             return inAttackRange.Count > 0;
-        }
-    }
-    public class AttackRangeHighlightAbility : Ability
-    {
-        private List<Unit> inRange;
-
-        protected override void OnCellSelected(Cell cell, CellGrid cellGrid)
-        {
-            ClearHighlights();
-        }
-
-        protected override void OnCellDeselected(Cell cell, CellGrid cellGrid)
-        {
-            ClearHighlights();
-        }
-
-        protected override void CleanUp(CellGrid cellGrid)
-        {
-            ClearHighlights();
-        }
-
-        protected override void OnAbilityDeselected(CellGrid cellGrid)
-        {
-            ClearHighlights();
-        }
-
-        protected override void OnTurnEnd(CellGrid cellGrid)
-        {
-            ClearHighlights();
-        }
-
-        private void ClearHighlights()
-        {
-            inRange?.ForEach(u => u?.UnMark());
-            inRange = null;
         }
     }
 }

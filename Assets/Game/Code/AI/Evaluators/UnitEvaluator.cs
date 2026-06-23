@@ -16,4 +16,4 @@ namespace Windy.Srpg.Game.AI.Evaluators
         public abstract float Evaluate(Unit unitToEvaluate, Unit evaluatingUnit, Player currentPlayer, CellGrid cellGrid);
     }
 }
-
+

@@ -241,7 +241,8 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            if (battleCell.Occupants != null && battleCell.Occupants.Count > 0)
+            if (battleCell.CurrentUnits != null
+                && battleCell.CurrentUnits.Any(unit => unit != null && !unit.ExcludedFromBattle))
             {
                 return;
             }
@@ -357,6 +358,7 @@ namespace Windy.Srpg.Game.Grid
             customUnit.RegisterCellOccupancy();
             customUnit.transform.localRotation = Quaternion.Euler(0, 0, 0);
             customUnit.Initialize();
+            customUnit.EnsureSceneCellBinding();
 
             customUnit.UnitClicked += OnSceneUnitClicked;
             customUnit.UnitHighlighted += OnSceneUnitHighlighted;
@@ -436,7 +438,13 @@ namespace Windy.Srpg.Game.Grid
 
             foreach (Unit unit in GetAllSceneUnitsFromHierarchy())
             {
-                if (unit == null || unit.ExcludedFromBattle || unit.Cell == null)
+                if (unit == null || unit.ExcludedFromBattle)
+                {
+                    continue;
+                }
+
+                unit.EnsureSceneCellBinding();
+                if (unit.Cell == null)
                 {
                     continue;
                 }
@@ -519,10 +527,7 @@ namespace Windy.Srpg.Game.Grid
 
         public void StartLegacyBattle()
         {
-            IBattleTurnResolver turnResolver = GetComponent<IBattleTurnResolver>();
-            RoundRobinTurnPlan plan = turnResolver != null
-                ? turnResolver.ResolveStart(this)
-                : new RoundRobinTurnPlan(null, Array.Empty<IGridUnit>());
+            RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveStart(this);
             SyncBattleStartFromPlan(plan, kickPlayerPlay: true);
         }
 
@@ -705,7 +710,13 @@ namespace Windy.Srpg.Game.Grid
 
             for (int i = 0; i < plan.PlayableUnits.Count; i++)
             {
-                ResolveSceneUnitFromGrid(plan.PlayableUnits[i])?.PrepareRuntimeForTurnStart();
+                Unit unit = ResolveSceneUnitFromGrid(plan.PlayableUnits[i]);
+                if (unit == null)
+                {
+                    continue;
+                }
+
+                unit.PrepareRuntimeForTurnStart();
             }
         }
 
@@ -761,7 +772,7 @@ namespace Windy.Srpg.Game.Grid
             IBattleEndCondition endCondition = GetComponent<IBattleEndCondition>();
             BattleOutcome outcome = endCondition != null
                 ? endCondition.Evaluate(this)
-                : new BattleOutcome(false, null, null);
+                : RoundRobinBattleFlow.EvaluateLastSideStanding(this);
             return TryApplyBattleOutcome(outcome);
         }
 
@@ -805,10 +816,13 @@ namespace Windy.Srpg.Game.Grid
             }
 
             EndUnitsForCurrentPlayerTurn();
-            IBattleTurnResolver turnResolver = GetComponent<IBattleTurnResolver>();
-            RoundRobinTurnPlan plan = turnResolver != null
-                ? turnResolver.ResolveTurn(this)
-                : new RoundRobinTurnPlan(null, Array.Empty<IGridUnit>());
+            RoundRobinTurnPlan plan = RoundRobinBattleFlow.ResolveTurn(this);
+            if (plan.NextPlayer == null)
+            {
+                Debug.LogError("CellGrid: No valid battle turn resolver or next player was found.");
+                return;
+            }
+
             CommitTurnTransition(plan, isNetworkInvoked);
         }
 
@@ -982,18 +996,18 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            Player legacyStylePlayer = ScenePlayers.Find(player => player != null && player.PlayerNumber == currentPlayerNumber);
-            legacyStylePlayer?.PlayTurn(this);
+            Player scenePlayer = ScenePlayers.Find(player => player != null && player.PlayerNumber == currentPlayerNumber);
+            scenePlayer?.PlayTurn(this);
         }
 
-        private void NotifyBattleActions(Unit unit, Action<IBattleAction> notify)
+        private void NotifyBattleActions(Unit unit, Action<BattleAction> notify)
         {
             if (unit == null || notify == null)
             {
                 return;
             }
 
-            List<IBattleAction> actions = unit.GetBattleActions();
+            List<BattleAction> actions = unit.GetBattleActions();
             for (int i = 0; i < actions.Count; i++)
             {
                 notify(actions[i]);
