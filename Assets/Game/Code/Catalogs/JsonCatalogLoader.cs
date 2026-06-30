@@ -12,12 +12,19 @@ namespace Windy.Srpg.Game.Catalogs
     public static class CatalogResourceLoader
     {
         private const string UnifiedCatalogFileName = "gdata.json";
+        private static readonly string[] CatalogSearchDirectories =
+        {
+            Path.Combine(Application.dataPath, "Game", "Data"),
+            Application.streamingAssetsPath,
+            Path.Combine(Application.dataPath, "StreamingAssets")
+        };
+
         private static GameDataCatalogResource cachedGameDataCatalog;
         private static bool hasLoadedGameDataCatalog;
 
         public static T LoadResource<T>(string fileName) where T : class, new()
         {
-            string fullPath = Path.Combine(Application.streamingAssetsPath, fileName);
+            string fullPath = ResolveExistingPath(fileName);
             if (!File.Exists(fullPath))
             {
                 Debug.LogError($"CatalogResourceLoader: Missing catalog file at '{fullPath}'.");
@@ -95,6 +102,25 @@ namespace Windy.Srpg.Game.Catalogs
         public static string NormalizeOptionalString(string value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value;
+        }
+
+        private static string ResolveExistingPath(string fileName)
+        {
+            foreach (string directory in CatalogSearchDirectories)
+            {
+                if (string.IsNullOrWhiteSpace(directory))
+                {
+                    continue;
+                }
+
+                string candidate = Path.Combine(directory, fileName);
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return Path.Combine(CatalogSearchDirectories[0], fileName);
         }
     }
 

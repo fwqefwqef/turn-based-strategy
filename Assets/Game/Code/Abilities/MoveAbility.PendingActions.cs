@@ -411,7 +411,10 @@ namespace Windy.Srpg.Game.Abilities
         private void CancelPendingMoveAndRestoreSelection(CellGrid cellGrid)
         {
             UnitReference.CancelPendingMove();
-            GameplayCameraController.SetFocusedCell(UnitReference.Cell);
+            if (GameplayCameraController.UnitAutoFocusEnabled)
+            {
+                GameplayCameraController.SetFocusedCell(UnitReference.Cell);
+            }
             FindActionMenuUI()?.Hide();
             FindAttackPreviewUI()?.Hide();
             FindInventoryMenuUI()?.Hide();

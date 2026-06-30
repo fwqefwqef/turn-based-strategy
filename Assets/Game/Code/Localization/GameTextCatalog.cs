@@ -11,6 +11,12 @@ namespace Windy.Srpg.Game.Localization
     {
         private const string DefaultLanguageCode = "en";
         private const string CsvFileName = "game_text.csv";
+        private static readonly string[] CsvSearchDirectories =
+        {
+            Path.Combine(Application.dataPath, "Game", "Data"),
+            Application.streamingAssetsPath,
+            Path.Combine(Application.dataPath, "StreamingAssets")
+        };
 
         private static readonly Dictionary<string, Dictionary<string, string>> Entries = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         private static bool isLoaded;
@@ -76,7 +82,7 @@ namespace Windy.Srpg.Game.Localization
             isLoaded = true;
             Entries.Clear();
 
-            string csvPath = Path.Combine(Application.streamingAssetsPath, CsvFileName);
+            string csvPath = ResolveCsvPath();
             if (!File.Exists(csvPath))
             {
                 Debug.LogWarning($"GameTextCatalog: Missing CSV at '{csvPath}'.");
@@ -210,6 +216,25 @@ namespace Windy.Srpg.Game.Localization
 
             values.Add(builder.ToString());
             return values;
+        }
+
+        private static string ResolveCsvPath()
+        {
+            foreach (string directory in CsvSearchDirectories)
+            {
+                if (string.IsNullOrWhiteSpace(directory))
+                {
+                    continue;
+                }
+
+                string candidate = Path.Combine(directory, CsvFileName);
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return Path.Combine(CsvSearchDirectories[0], CsvFileName);
         }
     }
 }

@@ -209,6 +209,33 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
+        public virtual void ApplyEnemyRangeOverlay(EnemyRangeOverlayKind overlayKind)
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ApplyEnemyRangeOverlay(this, overlayKind);
+            }
+        }
+
+        public virtual void ApplyEnemyRangeOverlay(EnemyRangeOverlayKind overlayKind, bool top, bool right, bool bottom, bool left)
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ApplyEnemyRangeOverlay(this, overlayKind, top, right, bottom, left);
+            }
+        }
+
+        public virtual void ClearEnemyRangeOverlay()
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ClearEnemyRangeOverlay(this);
+            }
+        }
+
         public virtual void ShowCursorBorder(Color color)
         {
             CacheHighlightersIfNeeded();

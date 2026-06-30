@@ -1,4 +1,6 @@
+using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.UI;
@@ -131,8 +133,18 @@ public class ActionMenuUI : Windy.Srpg.Game.UI.GameplayModalUI, IActionMenuUI
         }
 
         RepositionVisibleButtons();
-        SetDefaultFocusButton(ResolvePreferredFocusButton());
+        ClearSelectedButtonIfInsideMenu();
         SetModalVisible(true);
+        Button preferredFocusButton = ResolvePreferredFocusButton();
+        SetDefaultFocusButton(preferredFocusButton);
+        if (GameplayInputController.IsKeyboardControlSchemeActive
+            && preferredFocusButton != null
+            && EventSystem.current != null)
+        {
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(preferredFocusButton.gameObject);
+        }
+
         PositionPanel(worldPosition);
     }
 
@@ -145,6 +157,7 @@ public class ActionMenuUI : Windy.Srpg.Game.UI.GameplayModalUI, IActionMenuUI
         _onTrade = null;
         _onWait = null;
         _onCancel = null;
+        ClearSelectedButtonIfInsideMenu();
         SetModalVisible(false);
     }
 
@@ -195,6 +208,19 @@ public class ActionMenuUI : Windy.Srpg.Game.UI.GameplayModalUI, IActionMenuUI
     protected override void OnModalVisibilityChanged(bool isVisible)
     {
         VisibilityChanged?.Invoke(isVisible);
+    }
+
+    private void ClearSelectedButtonIfInsideMenu()
+    {
+        if (EventSystem.current?.currentSelectedGameObject == null || panel == null)
+        {
+            return;
+        }
+
+        if (EventSystem.current.currentSelectedGameObject.transform.IsChildOf(panel.transform))
+        {
+            EventSystem.current.SetSelectedGameObject(null);
+        }
     }
 
     private Button ResolvePreferredFocusButton()

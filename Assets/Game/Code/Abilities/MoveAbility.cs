@@ -91,6 +91,7 @@ namespace Windy.Srpg.Game.Abilities
         private int skillPreviewIndex = -1;
         private bool resolvingPendingAttack;
         private int cachedOccupancyRevision = -1;
+        [SerializeField] private float aiAreaSkillTelegraphSeconds = 0.35f;
 
         private readonly struct AreaLineProjection
         {

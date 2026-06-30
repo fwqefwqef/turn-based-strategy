@@ -46,7 +46,7 @@ sysinfo.txt
 /Tools/**/bin/
 /Tools/**/obj/
 
-# Private framework comparison notes (keep local, not in repo)
-framework_compare_code*.csv
+# Non-publishable local assets
+/Assets/Game/Non-Publishable/
 
 /Docs/

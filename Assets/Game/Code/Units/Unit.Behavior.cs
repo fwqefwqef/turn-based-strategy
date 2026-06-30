@@ -2529,6 +2529,8 @@ namespace Windy.Srpg.Game.Units
                 FromLocalPos = transform.localPosition
             };
 
+            FindSceneCellGrid()?.NotifyOccupancyChanged();
+
             // Do NOT touch Cell/occupancy or MovementPoints here.
             if (MovementAnimationSpeed > 0)
             {
@@ -2590,6 +2592,7 @@ namespace Windy.Srpg.Game.Units
 
             _pendingMove = null;
             PreviewMoveCameraFollowReleased?.Invoke();
+            FindSceneCellGrid()?.NotifyOccupancyChanged();
             return true;
         }
         public virtual bool BeginPendingMoveInPlace()
@@ -2611,6 +2614,8 @@ namespace Windy.Srpg.Game.Units
                 MovementCost = 0f,
                 FromLocalPos = transform.localPosition
             };
+
+            FindSceneCellGrid()?.NotifyOccupancyChanged();
 
             return true;
         }

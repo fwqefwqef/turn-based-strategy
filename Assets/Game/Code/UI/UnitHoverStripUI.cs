@@ -5,6 +5,7 @@ using Windy.Srpg.Game.Localization;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Windy.Srpg.Game.UI
 {
@@ -51,6 +52,7 @@ namespace Windy.Srpg.Game.UI
             if (root != null)
             {
                 rootRectTransform = root.GetComponent<RectTransform>();
+                DisableRaycastTargets(root);
             }
 
             if (positionTarget == null)
@@ -298,6 +300,28 @@ namespace Windy.Srpg.Game.UI
             if (root != null)
             {
                 root.SetActive(false);
+            }
+        }
+
+        private static void DisableRaycastTargets(GameObject targetRoot)
+        {
+            if (targetRoot == null)
+            {
+                return;
+            }
+
+            CanvasGroup canvasGroup = targetRoot.GetComponent<CanvasGroup>();
+            if (canvasGroup == null)
+            {
+                canvasGroup = targetRoot.AddComponent<CanvasGroup>();
+            }
+
+            canvasGroup.interactable = false;
+            canvasGroup.blocksRaycasts = false;
+
+            foreach (Graphic graphic in targetRoot.GetComponentsInChildren<Graphic>(true))
+            {
+                graphic.raycastTarget = false;
             }
         }
 

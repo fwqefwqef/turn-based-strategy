@@ -10,9 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ace21ec449e06334282cf2e6f670b6e5, type: 3}
-  m_Name: Wall
+  m_Name: Square
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Grid.CellTilePreset
-  PresetId: wall
-  TileSprite: {fileID: 0}
-  IsTraversable: 0
+  PresetId: square
+  TileSprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6,
+    type: 3}
+  IsTraversable: 1
   TraversalCost: 1

@@ -9,8 +9,6 @@ namespace Windy.Srpg.Game.Editor
     [InitializeOnLoad]
     internal static class CellTilePresetBootstrap
     {
-        internal const string SquarePrefabPath = "Assets/Scenes/Square.prefab";
-        internal const string WallPrefabPath = "Assets/Scenes/Wall.prefab";
         internal const string SquarePresetPath = "Assets/Game/Tiles/Square.asset";
         internal const string WallPresetPath = "Assets/Game/Tiles/Wall.asset";
 
@@ -50,9 +48,6 @@ namespace Windy.Srpg.Game.Editor
                 isTraversable: false,
                 traversalCost: 1f,
                 forceRebuild);
-
-            UpgradeLegacyPrefab(SquarePrefabPath, squarePreset, destroyChildren: false);
-            UpgradeLegacyPrefab(WallPrefabPath, wallPreset, destroyChildren: true);
             AssetDatabase.SaveAssets();
         }
 
@@ -95,74 +90,16 @@ namespace Windy.Srpg.Game.Editor
             return preset;
         }
 
-        private static void UpgradeLegacyPrefab(string prefabPath, CellTilePreset preset, bool destroyChildren)
-        {
-            if (preset == null)
-            {
-                return;
-            }
-
-            GameObject prefabRoot = PrefabUtility.LoadPrefabContents(prefabPath);
-            if (prefabRoot == null)
-            {
-                return;
-            }
-
-            try
-            {
-                if (destroyChildren)
-                {
-                    foreach (Transform child in prefabRoot.transform.Cast<Transform>().ToList())
-                    {
-                        Object.DestroyImmediate(child.gameObject);
-                    }
-                }
-
-                if (prefabRoot.TryGetComponent(out Cell cell))
-                {
-                    cell.SetTilePreset(preset);
-                }
-
-                if (prefabRoot.TryGetComponent(out SpriteRenderer spriteRenderer))
-                {
-                    spriteRenderer.sprite = preset.TileSprite;
-                    spriteRenderer.color = Color.white;
-                }
-
-                PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
-            }
-            finally
-            {
-                PrefabUtility.UnloadPrefabContents(prefabRoot);
-            }
-        }
-
         private static Sprite ResolveSquareSprite()
         {
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SquarePrefabPath);
-            return prefab != null && prefab.TryGetComponent(out SpriteRenderer spriteRenderer)
-                ? spriteRenderer.sprite
-                : null;
+            CellTilePreset existingPreset = AssetDatabase.LoadAssetAtPath<CellTilePreset>(SquarePresetPath);
+            return existingPreset != null ? existingPreset.TileSprite : null;
         }
 
         private static Sprite ResolveWallSprite()
         {
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(WallPrefabPath);
-            if (prefab == null)
-            {
-                return null;
-            }
-
-            SpriteRenderer childRenderer = prefab.GetComponentsInChildren<SpriteRenderer>(true)
-                .FirstOrDefault(renderer => renderer != null && renderer.gameObject != prefab);
-            if (childRenderer != null)
-            {
-                return childRenderer.sprite;
-            }
-
-            return prefab.TryGetComponent(out SpriteRenderer spriteRenderer)
-                ? spriteRenderer.sprite
-                : null;
+            CellTilePreset existingPreset = AssetDatabase.LoadAssetAtPath<CellTilePreset>(WallPresetPath);
+            return existingPreset != null ? existingPreset.TileSprite : null;
         }
 
         private static void EnsureFolder(string path)

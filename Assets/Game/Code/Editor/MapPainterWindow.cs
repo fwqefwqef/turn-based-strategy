@@ -15,9 +15,9 @@ namespace Windy.Srpg.Game.Editor
     public sealed class MapPainterWindow : EditorWindow
     {
         private const string TemplateScenePath = "Assets/Scenes/test.unity";
-        private const string FriendlyUnitPrefabPath = "Assets/Scenes/FriendlyUnit.prefab";
-        private const string EnemyUnitPrefabPath = "Assets/Scenes/EnemyUnit.prefab";
-        private const string DeploymentSlotPrefabPath = "Assets/Scenes/DeploymentSlot.prefab";
+        private const string FriendlyUnitPrefabPath = "Assets/Game/Prefabs/FriendlyUnit.prefab";
+        private const string EnemyUnitPrefabPath = "Assets/Game/Prefabs/EnemyUnit.prefab";
+        private const string DeploymentSlotPrefabPath = "Assets/Game/Prefabs/DeploymentSlot.prefab";
 
         private static readonly FieldInfo UnitPresetField = typeof(Unit).GetField("preset", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         private static readonly FieldInfo UnitPresetOverrideField = typeof(Unit).GetField("presetOverride", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -59,7 +59,6 @@ namespace Windy.Srpg.Game.Editor
         {
             templateScene ??= AssetDatabase.LoadAssetAtPath<SceneAsset>(TemplateScenePath);
             CellTilePresetBootstrap.EnsureDefaults();
-            baseCellPrefab ??= AssetDatabase.LoadAssetAtPath<GameObject>(CellTilePresetBootstrap.SquarePrefabPath);
             defaultTraversableTilePreset ??= CellTilePresetBootstrap.LoadSquarePreset();
             selectedTilePreset ??= defaultTraversableTilePreset;
             RefreshAvailableTilePresets();
@@ -500,7 +499,7 @@ namespace Windy.Srpg.Game.Editor
 
         private bool PaintTilePresetAt(MapPainterSceneContext context, CellTilePreset tilePreset, Vector2Int coordinate)
         {
-            if (context == null || baseCellPrefab == null || tilePreset == null)
+            if (context == null || tilePreset == null)
             {
                 return false;
             }
@@ -514,7 +513,9 @@ namespace Windy.Srpg.Game.Editor
             RemoveDeploymentSlotAtCoordinate(context, coordinate);
             RemoveCellAtCoordinate(context, coordinate);
 
-            GameObject cellObject = (GameObject)PrefabUtility.InstantiatePrefab(baseCellPrefab, context.gameObject.scene);
+            GameObject cellObject = baseCellPrefab != null
+                ? (GameObject)PrefabUtility.InstantiatePrefab(baseCellPrefab, context.gameObject.scene)
+                : CreateCellFallbackObject(tilePreset);
             if (cellObject == null)
             {
                 return false;
@@ -905,11 +906,9 @@ namespace Windy.Srpg.Game.Editor
             SpriteRenderer renderer = slotObject.AddComponent<SpriteRenderer>();
             DeploymentSlot slot = slotObject.AddComponent<DeploymentSlot>();
 
-            GameObject squarePrefab = baseCellPrefab != null ? baseCellPrefab : AssetDatabase.LoadAssetAtPath<GameObject>(CellTilePresetBootstrap.SquarePrefabPath);
-            if (squarePrefab != null && squarePrefab.TryGetComponent(out SpriteRenderer squareRenderer))
+            if (defaultTraversableTilePreset != null && defaultTraversableTilePreset.TileSprite != null)
             {
-                renderer.sprite = squareRenderer.sprite;
-                renderer.sharedMaterial = squareRenderer.sharedMaterial;
+                renderer.sprite = defaultTraversableTilePreset.TileSprite;
             }
 
             renderer.color = new Color(0.55f, 0.85f, 1f, 0.72f);
@@ -919,6 +918,29 @@ namespace Windy.Srpg.Game.Editor
             serializedSlot.FindProperty("highlightRenderer").objectReferenceValue = renderer;
             serializedSlot.ApplyModifiedPropertiesWithoutUndo();
             return slotObject;
+        }
+
+        private GameObject CreateCellFallbackObject(CellTilePreset tilePreset)
+        {
+            GameObject cellObject = new GameObject(tilePreset != null ? tilePreset.name : "Cell");
+            SpriteRenderer renderer = cellObject.AddComponent<SpriteRenderer>();
+            renderer.sortingOrder = 0;
+            cellObject.AddComponent<BoxCollider>();
+            Cell cell = cellObject.AddComponent<Cell>();
+            cellObject.AddComponent<CellHighlighter>();
+
+            if (tilePreset != null)
+            {
+                renderer.sprite = tilePreset.TileSprite;
+                renderer.color = Color.white;
+                cell.SetTilePreset(tilePreset);
+            }
+            else
+            {
+                renderer.color = Color.white;
+            }
+
+            return cellObject;
         }
 
         private static void ClearChildren(Transform parent)

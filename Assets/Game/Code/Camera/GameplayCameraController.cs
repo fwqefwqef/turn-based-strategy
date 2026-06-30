@@ -15,6 +15,8 @@ namespace Windy.Srpg.Game.CameraControl
         private static GameplayCameraController activeInstance;
 
         public static bool HasActiveInstance { get; private set; }
+        public static bool UnitAutoFocusEnabled => activeInstance == null || activeInstance.autoFocusEnabled;
+        public static bool UiMovementLocksEnabled => UnitAutoFocusEnabled;
 
         [Header("References")]
         [SerializeField] private Camera controlledCamera;
@@ -35,6 +37,7 @@ namespace Windy.Srpg.Game.CameraControl
         [SerializeField] private float dragMoveMultiplier = 3.5f;
 
         [Header("Focus")]
+        [SerializeField] private bool autoFocusEnabled = true;
         [SerializeField] private float focusMoveSpeed = 10f;
         [SerializeField] private float minimumFocusDuration = 0.12f;
         [SerializeField] private float focusCenterTolerancePixels = 48f;
@@ -724,6 +727,11 @@ namespace Windy.Srpg.Game.CameraControl
 
         private bool IsCameraMovementLocked()
         {
+            if (!autoFocusEnabled)
+            {
+                return false;
+            }
+
             return actionMenuVisible
                 || attackPreviewVisible
                 || combatSequenceVisible
@@ -774,7 +782,7 @@ namespace Windy.Srpg.Game.CameraControl
 
         private void OnSelectionTargetChanged(Unit unit)
         {
-            if (unit != null)
+            if (autoFocusEnabled && unit != null)
             {
                 SetFocusTarget(ResolveUnitFocusPosition(unit));
             }
@@ -782,7 +790,7 @@ namespace Windy.Srpg.Game.CameraControl
 
         private void OnInspectTargetChanged(Unit unit)
         {
-            if (unit != null)
+            if (autoFocusEnabled && unit != null)
             {
                 SetFocusTarget(ResolveUnitFocusPosition(unit));
             }
@@ -815,6 +823,11 @@ namespace Windy.Srpg.Game.CameraControl
 
         private void OnCombatCameraFocusRequested(Vector3 worldPosition)
         {
+            if (!autoFocusEnabled)
+            {
+                return;
+            }
+
             combatFocusActive = true;
             SetFocusTarget(worldPosition);
         }

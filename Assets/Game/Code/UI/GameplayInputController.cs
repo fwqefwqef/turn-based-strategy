@@ -50,11 +50,13 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private float holdRepeatDelay = 0.3f;
         [SerializeField] private float holdRepeatInterval = 0.08f;
         [SerializeField] private float mouseSchemeSwitchThresholdPixels = 2f;
+        [SerializeField] private float mouseHoverSeamPadding = 0.08f;
 
         private readonly ControlProfile controls = new ControlProfile();
         private readonly Dictionary<Vector2Int, Cell> cellByCoordinates = new Dictionary<Vector2Int, Cell>();
-        private readonly HashSet<string> enemyRangeToggles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<Unit> enemyRangeToggles = new HashSet<Unit>();
         private readonly Dictionary<Button, ColorBlock> originalButtonColors = new Dictionary<Button, ColorBlock>();
+        private readonly HashSet<Cell> activeEnemyRangeOverlayCells = new HashSet<Cell>();
 
         private ControlScheme currentScheme = ControlScheme.Mouse;
         private Cell hoveredCell;
@@ -67,13 +69,17 @@ namespace Windy.Srpg.Game.UI
         private bool levelUpUiVisible;
         private bool collectiveEnemyRangeVisible;
         private bool initialized;
+        private bool enemyRangeOverlayDirty;
+        private int lastKnownOccupancyRevision = -1;
         private Vector3 lastMousePosition;
         private bool? originalSendNavigationEvents;
         private float lastTurnInfoSelectUnscaledTime = float.NegativeInfinity;
         private Unit lastTurnInfoSelectUnit;
         private Cell lastTurnInfoSelectCell;
+        private bool pendingActionMenuKeyboardFocusReset;
 
         public static bool IsCentralizedSceneInputActive => activeInstance != null && activeInstance.enabled && activeInstance.initialized;
+        public static bool IsKeyboardControlSchemeActive => activeInstance != null && activeInstance.currentScheme == ControlScheme.Keyboard;
 
         public void Initialize(CellGrid grid)
         {
@@ -105,6 +111,8 @@ namespace Windy.Srpg.Game.UI
 
             RebuildCellLookup();
             lastMousePosition = Input.mousePosition;
+            enemyRangeOverlayDirty = true;
+            lastKnownOccupancyRevision = cellGrid != null ? cellGrid.OccupancyRevision : -1;
             initialized = true;
         }
 
@@ -112,6 +120,7 @@ namespace Windy.Srpg.Game.UI
         {
             activeInstance = this;
             SubscribeUiEvents();
+            SubscribeGridEvents();
         }
 
         private void OnDisable()
@@ -122,7 +131,9 @@ namespace Windy.Srpg.Game.UI
             }
 
             UnsubscribeUiEvents();
+            UnsubscribeGridEvents();
             ClearHoverState();
+            ClearEnemyRangeOverlays();
         }
 
         private void Update()
@@ -138,6 +149,12 @@ namespace Windy.Srpg.Game.UI
 
             DetectControlSchemeChanges();
             ApplyFocusColorsToRelevantButtons();
+            if (cellGrid != null && lastKnownOccupancyRevision != cellGrid.OccupancyRevision)
+            {
+                lastKnownOccupancyRevision = cellGrid.OccupancyRevision;
+                enemyRangeOverlayDirty = true;
+            }
+            RefreshEnemyRangeOverlaysIfDirty();
 
             UpdateEventSystemNavigationMode();
 
@@ -159,7 +176,12 @@ namespace Windy.Srpg.Game.UI
                     return;
                 }
 
-                if (UnitInspectPanelUI.HasOpenInspect && (IsCancelPressed() || IsInspectPressed()))
+                if (TryHandleKeyboardUiCancelCommand())
+                {
+                    return;
+                }
+
+                if (UnitInspectPanelUI.HasOpenInspect && IsInspectPressed())
                 {
                     UnitInspectPanelUI.TryClearInspectFromInput();
                     return;
@@ -235,6 +257,7 @@ namespace Windy.Srpg.Game.UI
 
         private void SubscribeUiEvents()
         {
+            ActionMenuUI.VisibilityChanged += OnActionMenuVisibilityChanged;
             CombatSequenceUI.VisibilityChanged += OnCombatSequenceVisibilityChanged;
             ExperienceGainHUD.VisibilityChanged += OnExperienceHudVisibilityChanged;
             LevelUpUI.VisibilityChanged += OnLevelUpUiVisibilityChanged;
@@ -242,9 +265,36 @@ namespace Windy.Srpg.Game.UI
 
         private void UnsubscribeUiEvents()
         {
+            ActionMenuUI.VisibilityChanged -= OnActionMenuVisibilityChanged;
             CombatSequenceUI.VisibilityChanged -= OnCombatSequenceVisibilityChanged;
             ExperienceGainHUD.VisibilityChanged -= OnExperienceHudVisibilityChanged;
             LevelUpUI.VisibilityChanged -= OnLevelUpUiVisibilityChanged;
+        }
+
+        private void SubscribeGridEvents()
+        {
+            if (cellGrid == null)
+            {
+                return;
+            }
+
+            cellGrid.TurnStarted += OnGridRangeStateChanged;
+            cellGrid.BattleStarted += OnGridRangeStateChanged;
+            cellGrid.BattleEnded += OnGridBattleEnded;
+            cellGrid.UnitAdded += OnGridUnitAdded;
+        }
+
+        private void UnsubscribeGridEvents()
+        {
+            if (cellGrid == null)
+            {
+                return;
+            }
+
+            cellGrid.TurnStarted -= OnGridRangeStateChanged;
+            cellGrid.BattleStarted -= OnGridRangeStateChanged;
+            cellGrid.BattleEnded -= OnGridBattleEnded;
+            cellGrid.UnitAdded -= OnGridUnitAdded;
         }
 
         private void DetectControlSchemeChanges()
@@ -267,10 +317,18 @@ namespace Windy.Srpg.Game.UI
             bool mouseMoved = (currentMousePosition - lastMousePosition).sqrMagnitude >= mouseSchemeSwitchThresholdPixels * mouseSchemeSwitchThresholdPixels;
             lastMousePosition = currentMousePosition;
 
-            return Input.mouseScrollDelta.sqrMagnitude > 0.0001f
-                || Input.GetMouseButtonDown(0)
+            bool mouseButtonClicked =
+                Input.GetMouseButtonDown(0)
                 || Input.GetMouseButtonDown(1)
-                || Input.GetMouseButtonDown(2)
+                || Input.GetMouseButtonDown(2);
+
+            if (currentScheme == ControlScheme.Keyboard || currentScheme == ControlScheme.Controller)
+            {
+                return mouseButtonClicked;
+            }
+
+            return Input.mouseScrollDelta.sqrMagnitude > 0.0001f
+                || mouseButtonClicked
                 || mouseMoved;
         }
 
@@ -345,11 +403,22 @@ namespace Windy.Srpg.Game.UI
                 return false;
             }
 
+            GameplayModalUI activeModal = GameplayModalUI.GetTopmostActiveModal(requireKeyboardNavigation: true);
             Button selectedButton = GetCurrentSelectedButton(activeButtons);
-            if (selectedButton == null)
+            bool shouldPickPreferredButton = selectedButton == null;
+            if (pendingActionMenuKeyboardFocusReset && activeModal is global::ActionMenuUI)
             {
-                selectedButton = ResolvePreferredKeyboardUiButton(activeButtons);
+                shouldPickPreferredButton = true;
+            }
+
+            if (shouldPickPreferredButton)
+            {
+                selectedButton = ResolvePreferredKeyboardUiButton(activeButtons, activeModal);
                 SelectButton(selectedButton);
+                if (pendingActionMenuKeyboardFocusReset && activeModal is global::ActionMenuUI)
+                {
+                    pendingActionMenuKeyboardFocusReset = false;
+                }
             }
 
             if (TryMoveKeyboardUiSelection(activeButtons, selectedButton))
@@ -367,14 +436,19 @@ namespace Windy.Srpg.Game.UI
             return true;
         }
 
-        private Button ResolvePreferredKeyboardUiButton(IReadOnlyList<Button> activeButtons)
+        private Button ResolvePreferredKeyboardUiButton(IReadOnlyList<Button> activeButtons, GameplayModalUI activeModal = null)
         {
             if (activeButtons == null || activeButtons.Count == 0)
             {
                 return null;
             }
 
-            GameplayModalUI activeModal = GameplayModalUI.GetTopmostActiveModal(requireKeyboardNavigation: true);
+            if (activeModal is global::ActionMenuUI)
+            {
+                return activeButtons[0];
+            }
+
+            activeModal ??= GameplayModalUI.GetTopmostActiveModal(requireKeyboardNavigation: true);
             Button preferredButton = activeModal?.GetPreferredFocusButton();
             if (preferredButton != null && activeButtons.Contains(preferredButton))
             {
@@ -576,6 +650,12 @@ namespace Windy.Srpg.Game.UI
                 activeButtons,
                 direction,
                 useStrictInspectAlignment: UnitInspectPanelUI.HasOpenInspect && currentButton.GetComponentInParent<UnitInspectPanelUI>() != null);
+            if ((nextButton == null || nextButton == currentButton)
+                && (pressedDirectionKey == KeyCode.UpArrow || pressedDirectionKey == KeyCode.DownArrow))
+            {
+                nextButton = FindWrappedVerticalButton(activeButtons, currentButton, pressedDirectionKey);
+            }
+
             if (nextButton == null || nextButton == currentButton)
             {
                 return true;
@@ -583,6 +663,41 @@ namespace Windy.Srpg.Game.UI
 
             SelectButton(nextButton);
             return true;
+        }
+
+        private static Button FindWrappedVerticalButton(IReadOnlyList<Button> activeButtons, Button currentButton, KeyCode pressedDirectionKey)
+        {
+            if (activeButtons == null || activeButtons.Count == 0 || currentButton == null)
+            {
+                return null;
+            }
+
+            int currentIndex = -1;
+            for (int i = 0; i < activeButtons.Count; i++)
+            {
+                if (activeButtons[i] == currentButton)
+                {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            if (currentIndex < 0)
+            {
+                return null;
+            }
+
+            if (pressedDirectionKey == KeyCode.UpArrow)
+            {
+                return activeButtons[activeButtons.Count - 1];
+            }
+
+            if (pressedDirectionKey == KeyCode.DownArrow)
+            {
+                return activeButtons[0];
+            }
+
+            return null;
         }
 
         private bool TryMoveInspectListSelection(Button currentButton, KeyCode pressedDirectionKey, out Button nextButton)
@@ -722,12 +837,11 @@ namespace Windy.Srpg.Game.UI
 
         private void ClearKeyboardUiSelection()
         {
-            if (EventSystem.current == null)
+            pendingActionMenuKeyboardFocusReset = false;
+            if (EventSystem.current != null)
             {
-                return;
+                EventSystem.current.SetSelectedGameObject(null);
             }
-
-            EventSystem.current.SetSelectedGameObject(null);
         }
 
         private void UpdateEventSystemNavigationMode()
@@ -904,25 +1018,222 @@ namespace Windy.Srpg.Game.UI
 
             if (hoveredUnit != null && hoveredUnit.PlayerNumber != 0)
             {
-                string unitId = !string.IsNullOrWhiteSpace(hoveredUnit.UnitId) ? hoveredUnit.UnitId : hoveredUnit.name;
-                if (!string.IsNullOrWhiteSpace(unitId))
+                if (hoveredUnit != null)
                 {
-                    if (!enemyRangeToggles.Add(unitId))
+                    if (!enemyRangeToggles.Add(hoveredUnit))
                     {
-                        enemyRangeToggles.Remove(unitId);
+                        enemyRangeToggles.Remove(hoveredUnit);
                     }
                 }
+
+                MarkEnemyRangeOverlaysDirty();
 
                 return true;
             }
 
-            if (hoveredCell != null)
+            if (hoveredCell != null && hoveredUnit == null)
             {
                 collectiveEnemyRangeVisible = !collectiveEnemyRangeVisible;
+                MarkEnemyRangeOverlaysDirty();
                 return true;
             }
 
             return false;
+        }
+
+        private void RefreshEnemyRangeOverlaysIfDirty()
+        {
+            if (!enemyRangeOverlayDirty)
+            {
+                return;
+            }
+
+            if (cellGrid == null)
+            {
+                ClearEnemyRangeOverlays();
+                enemyRangeOverlayDirty = false;
+                return;
+            }
+
+            if (!collectiveEnemyRangeVisible && enemyRangeToggles.Count == 0)
+            {
+                ClearEnemyRangeOverlays();
+                enemyRangeOverlayDirty = false;
+                return;
+            }
+
+            RefreshEnemyRangeOverlaysNow();
+        }
+
+        private void RefreshEnemyRangeOverlaysNow()
+        {
+            ClearEnemyRangeOverlays();
+            if (cellGrid == null)
+            {
+                enemyRangeOverlayDirty = false;
+                return;
+            }
+
+            Dictionary<Cell, EnemyRangeOverlayKind> overlayByCell = new Dictionary<Cell, EnemyRangeOverlayKind>();
+            List<Unit> enemyUnits = cellGrid.GetAllUnits()
+                .Where(unit => unit != null && unit.PlayerNumber != 0 && unit.HitPoints > 0)
+                .ToList();
+            Dictionary<Unit, HashSet<Cell>> threatenedCellsByUnit = EnemyRangeOverlayUtility.GetThreatenedCellsByUnit(enemyUnits, cellGrid);
+
+            if (collectiveEnemyRangeVisible)
+            {
+                foreach (Unit enemyUnit in enemyUnits)
+                {
+                    if (!threatenedCellsByUnit.TryGetValue(enemyUnit, out HashSet<Cell> threatenedCells))
+                    {
+                        continue;
+                    }
+
+                    foreach (Cell threatenedCell in threatenedCells)
+                    {
+                        if (threatenedCell != null)
+                        {
+                            overlayByCell[threatenedCell] = EnemyRangeOverlayKind.Collective;
+                        }
+                    }
+                }
+            }
+
+            HashSet<Unit> staleToggleUnits = new HashSet<Unit>(enemyRangeToggles);
+            foreach (Unit enemyUnit in enemyUnits)
+            {
+                if (enemyUnit == null || !enemyRangeToggles.Contains(enemyUnit))
+                {
+                    continue;
+                }
+
+                staleToggleUnits.Remove(enemyUnit);
+                if (!threatenedCellsByUnit.TryGetValue(enemyUnit, out HashSet<Cell> threatenedCells))
+                {
+                    continue;
+                }
+
+                foreach (Cell threatenedCell in threatenedCells)
+                {
+                    if (threatenedCell != null)
+                    {
+                        overlayByCell[threatenedCell] = EnemyRangeOverlayKind.Individual;
+                    }
+                }
+            }
+
+            if (staleToggleUnits.Count > 0)
+            {
+                enemyRangeToggles.ExceptWith(staleToggleUnits);
+            }
+
+            foreach ((Cell cell, EnemyRangeOverlayKind kind) in overlayByCell)
+            {
+                if (cell == null || kind == EnemyRangeOverlayKind.None)
+                {
+                    continue;
+                }
+
+                Vector2Int coordinates = cell.Coordinates;
+                bool showTop = !HasMatchingEnemyRangeNeighbor(overlayByCell, coordinates + Vector2Int.up, kind);
+                bool showRight = !HasMatchingEnemyRangeNeighbor(overlayByCell, coordinates + Vector2Int.right, kind);
+                bool showBottom = !HasMatchingEnemyRangeNeighbor(overlayByCell, coordinates + Vector2Int.down, kind);
+                bool showLeft = !HasMatchingEnemyRangeNeighbor(overlayByCell, coordinates + Vector2Int.left, kind);
+                cell.ApplyEnemyRangeOverlay(kind, showTop, showRight, showBottom, showLeft);
+                activeEnemyRangeOverlayCells.Add(cell);
+            }
+
+            RefreshEnemyRangeUnitTints(enemyUnits, threatenedCellsByUnit);
+
+            enemyRangeOverlayDirty = false;
+        }
+
+        private void ClearEnemyRangeOverlays()
+        {
+            if (activeEnemyRangeOverlayCells.Count == 0)
+            {
+                return;
+            }
+
+            foreach (Cell cell in activeEnemyRangeOverlayCells)
+            {
+                cell?.ClearEnemyRangeOverlay();
+            }
+
+            activeEnemyRangeOverlayCells.Clear();
+            RefreshEnemyRangeUnitTints(Array.Empty<Unit>(), null);
+        }
+
+        private static bool HasMatchingEnemyRangeNeighbor(IReadOnlyDictionary<Cell, EnemyRangeOverlayKind> overlayByCell, Vector2Int neighborCoordinates, EnemyRangeOverlayKind kind)
+        {
+            if (overlayByCell == null)
+            {
+                return false;
+            }
+
+            foreach ((Cell neighborCell, EnemyRangeOverlayKind neighborKind) in overlayByCell)
+            {
+                if (neighborCell == null || neighborKind != kind)
+                {
+                    continue;
+                }
+
+                if (neighborCell.Coordinates == neighborCoordinates)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void MarkEnemyRangeOverlaysDirty()
+        {
+            enemyRangeOverlayDirty = true;
+        }
+
+        private void OnGridRangeStateChanged(object sender, EventArgs e)
+        {
+            lastKnownOccupancyRevision = cellGrid != null ? cellGrid.OccupancyRevision : lastKnownOccupancyRevision;
+            MarkEnemyRangeOverlaysDirty();
+        }
+
+        private void OnGridBattleEnded(object sender, BattleEndedEventArgs e)
+        {
+            collectiveEnemyRangeVisible = false;
+            enemyRangeToggles.Clear();
+            MarkEnemyRangeOverlaysDirty();
+        }
+
+        private void OnGridUnitAdded(object sender, UnitAddedEventArgs e)
+        {
+            lastKnownOccupancyRevision = cellGrid != null ? cellGrid.OccupancyRevision : lastKnownOccupancyRevision;
+            MarkEnemyRangeOverlaysDirty();
+        }
+
+        private void RefreshEnemyRangeUnitTints(IReadOnlyList<Unit> enemyUnits, IReadOnlyDictionary<Unit, HashSet<Cell>> threatenedCellsByUnit)
+        {
+            Color collectiveColor = new Color(1f, 0.56f, 0.78f, 1f);
+            Color individualColor = new Color(1f, 0.56f, 0.56f, 1f);
+
+            foreach (Unit enemyUnit in cellGrid != null ? cellGrid.GetAllUnits().Where(unit => unit != null && unit.PlayerNumber != 0).ToList() : new List<Unit>())
+            {
+                bool isIndividual = enemyRangeToggles.Contains(enemyUnit);
+                bool isCollective = collectiveEnemyRangeVisible && (enemyUnits?.Contains(enemyUnit) ?? false);
+
+                if (isIndividual)
+                {
+                    enemyUnit.SetColor(individualColor);
+                }
+                else if (isCollective)
+                {
+                    enemyUnit.SetColor(collectiveColor);
+                }
+                else
+                {
+                    enemyUnit.UnMark();
+                }
+            }
         }
 
         private bool TryHandleInspectClearOnPointerClick()
@@ -958,6 +1269,26 @@ namespace Windy.Srpg.Game.UI
         private bool TryHandleBlockedCancelCommand()
         {
             if (!IsGameplayInputBlocked() || !IsCancelPressed())
+            {
+                return false;
+            }
+
+            if (UnitInspectPanelUI.HasOpenInspect && UnitInspectPanelUI.TryClearInspectFromInput())
+            {
+                return true;
+            }
+
+            if (GameplayModalUI.TryCancelTopmostActiveModal())
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryHandleKeyboardUiCancelCommand()
+        {
+            if (currentScheme != ControlScheme.Keyboard || !IsKeyboardUiNavigationActive() || !IsCancelPressed())
             {
                 return false;
             }
@@ -1097,6 +1428,11 @@ namespace Windy.Srpg.Game.UI
 
         private bool IsGameplayInputBlocked()
         {
+            if (!GameplayCameraController.UiMovementLocksEnabled)
+            {
+                return false;
+            }
+
             if (GameplayModalUI.HasAnyBlockingModal())
             {
                 return true;
@@ -1141,7 +1477,9 @@ namespace Windy.Srpg.Game.UI
                 Unit hitUnit = hit.collider.GetComponentInParent<Unit>();
                 if (hitUnit != null)
                 {
-                    cell = hitUnit.Cell;
+                    cell = hitUnit.HasPendingMove && hitUnit.PreviewCell != null
+                        ? hitUnit.PreviewCell
+                        : hitUnit.Cell;
                     unit = hitUnit;
                     return cell != null;
                 }
@@ -1163,7 +1501,105 @@ namespace Windy.Srpg.Game.UI
                 }
             }
 
-            return false;
+            return TryGetHoveredBoardTargetFromBoardPlane(ray, out cell, out unit);
+        }
+
+        private bool TryGetHoveredBoardTargetFromBoardPlane(Ray ray, out Cell cell, out Unit unit)
+        {
+            cell = null;
+            unit = null;
+
+            if (!TryGetBoardPlanePoint(ray, out Vector2 boardPoint))
+            {
+                return false;
+            }
+
+            Cell stableCell = hoveredCell;
+            if (stableCell != null && IsPointInsideCellFootprint(boardPoint, stableCell, mouseHoverSeamPadding))
+            {
+                cell = stableCell;
+                unit = GetPrimaryUnitOnCell(cell);
+                return true;
+            }
+
+            Cell nearestCell = FindCellContainingBoardPoint(boardPoint);
+            if (nearestCell == null)
+            {
+                return false;
+            }
+
+            cell = nearestCell;
+            unit = GetPrimaryUnitOnCell(nearestCell);
+            return true;
+        }
+
+        private bool TryGetBoardPlanePoint(Ray ray, out Vector2 boardPoint)
+        {
+            boardPoint = default;
+
+            float boardZ = hoveredCell != null
+                ? hoveredCell.transform.position.z
+                : cellGrid != null ? cellGrid.transform.position.z : 0f;
+            Plane boardPlane = new Plane(Vector3.forward, new Vector3(0f, 0f, boardZ));
+            if (!boardPlane.Raycast(ray, out float enter))
+            {
+                return false;
+            }
+
+            Vector3 worldPoint = ray.GetPoint(enter);
+            boardPoint = new Vector2(worldPoint.x, worldPoint.y);
+            return true;
+        }
+
+        private Cell FindCellContainingBoardPoint(Vector2 boardPoint)
+        {
+            List<Cell> allCells = cellGrid != null ? cellGrid.GetAllCells() : null;
+            if (allCells == null || allCells.Count == 0)
+            {
+                return null;
+            }
+
+            float paddedHalfExtent = 0.5f + Mathf.Max(0f, mouseHoverSeamPadding);
+            Cell bestCell = null;
+            float bestDistanceSq = float.PositiveInfinity;
+
+            foreach (Cell candidate in allCells)
+            {
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                Vector3 candidatePosition = candidate.transform.position;
+                float dx = Mathf.Abs(boardPoint.x - candidatePosition.x);
+                float dy = Mathf.Abs(boardPoint.y - candidatePosition.y);
+                if (dx > paddedHalfExtent || dy > paddedHalfExtent)
+                {
+                    continue;
+                }
+
+                float distanceSq = (boardPoint - new Vector2(candidatePosition.x, candidatePosition.y)).sqrMagnitude;
+                if (distanceSq < bestDistanceSq)
+                {
+                    bestDistanceSq = distanceSq;
+                    bestCell = candidate;
+                }
+            }
+
+            return bestCell;
+        }
+
+        private static bool IsPointInsideCellFootprint(Vector2 boardPoint, Cell cell, float padding)
+        {
+            if (cell == null)
+            {
+                return false;
+            }
+
+            Vector3 cellPosition = cell.transform.position;
+            float paddedHalfExtent = 0.5f + Mathf.Max(0f, padding);
+            return Mathf.Abs(boardPoint.x - cellPosition.x) <= paddedHalfExtent
+                && Mathf.Abs(boardPoint.y - cellPosition.y) <= paddedHalfExtent;
         }
 
         private void EnsureCursorBorderVisible()
@@ -1353,12 +1789,30 @@ namespace Windy.Srpg.Game.UI
 
         private static Unit GetPrimaryUnitOnCell(Cell cell)
         {
-            if (cell == null || cell.CurrentUnits == null || cell.CurrentUnits.Count == 0)
+            if (cell == null)
             {
                 return null;
             }
 
-            return cell.CurrentUnits.FirstOrDefault(unit => unit != null);
+            if (cell.CurrentUnits != null)
+            {
+                Unit occupiedUnit = cell.CurrentUnits.FirstOrDefault(unit => unit != null);
+                if (occupiedUnit != null)
+                {
+                    return occupiedUnit;
+                }
+            }
+
+            CellGrid grid = activeInstance != null ? activeInstance.cellGrid : FindAnyObjectByType<CellGrid>();
+            if (grid == null)
+            {
+                return null;
+            }
+
+            return grid.GetAllUnits().FirstOrDefault(unit =>
+                unit != null
+                && unit.HasPendingMove
+                && unit.PreviewCell == cell);
         }
 
         private bool ShouldOpenTurnInfoForHoveredCell(Cell cell)
@@ -1443,6 +1897,21 @@ namespace Windy.Srpg.Game.UI
         }
 
         private void OnCombatSequenceVisibilityChanged(bool isVisible) => combatSequenceVisible = isVisible;
+        private void OnActionMenuVisibilityChanged(bool isVisible)
+        {
+            if (isVisible && currentScheme == ControlScheme.Keyboard)
+            {
+                pendingActionMenuKeyboardFocusReset = true;
+                if (EventSystem.current != null)
+                {
+                    EventSystem.current.SetSelectedGameObject(null);
+                }
+            }
+            else if (!isVisible)
+            {
+                pendingActionMenuKeyboardFocusReset = false;
+            }
+        }
         private void OnExperienceHudVisibilityChanged(bool isVisible) => experienceHudVisible = isVisible;
         private void OnLevelUpUiVisibilityChanged(bool isVisible) => levelUpUiVisible = isVisible;
     }

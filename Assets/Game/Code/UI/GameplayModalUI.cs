@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Windy.Srpg.Game.UI
@@ -149,6 +150,10 @@ namespace Windy.Srpg.Game.UI
             {
                 activeModalStack.Remove(this);
                 activeModalStack.Add(this);
+                if (EventSystem.current != null)
+                {
+                    EventSystem.current.SetSelectedGameObject(null);
+                }
             }
             else
             {
