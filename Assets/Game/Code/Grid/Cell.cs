@@ -18,6 +18,7 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private bool deriveCoordinatesFromTransform = true;
         [SerializeField] private float traversalCost = 1f;
         [SerializeField] private bool isTraversable = true;
+        [SerializeField] private CellTilePreset tilePreset;
         [SerializeField] private List<Cell> explicitNeighbours = new List<Cell>();
         [SerializeField] private List<CellHighlighterBehaviour> highlighters = new List<CellHighlighterBehaviour>();
 
@@ -33,6 +34,7 @@ namespace Windy.Srpg.Game.Grid
         public Vector2Int Coordinates => GetResolvedCoordinates();
         public float TraversalCost => Mathf.Max(0f, traversalCost);
         public bool IsTraversable => isTraversable;
+        public CellTilePreset TilePreset => tilePreset;
         public CellHighlightKind ActiveHighlight { get; private set; }
 
         public bool IsTaken
@@ -55,14 +57,37 @@ namespace Windy.Srpg.Game.Grid
             traversalCost = Mathf.Max(0f, cost);
         }
 
+        public void SetTraversable(bool traversable)
+        {
+            isTraversable = traversable;
+        }
+
+        public void SetTilePreset(CellTilePreset preset)
+        {
+            tilePreset = preset;
+            ApplyTilePresetIfAssigned();
+        }
+
+        internal void RefreshTilePresetFromAssetInEditor(CellTilePreset preset)
+        {
+            if (preset == null || tilePreset != preset)
+            {
+                return;
+            }
+
+            ApplyTilePresetIfAssigned();
+        }
+
         protected virtual void Awake()
         {
             CacheHighlightersIfNeeded();
+            ApplyTilePresetIfAssigned();
         }
 
         protected virtual void OnValidate()
         {
             CacheHighlightersIfNeeded();
+            ApplyTilePresetIfAssigned();
         }
 
         protected virtual void OnMouseDown()
@@ -273,6 +298,68 @@ namespace Windy.Srpg.Game.Grid
             }
 
             debugTintColor = null;
+        }
+
+        private void ApplyTilePresetIfAssigned()
+        {
+            if (tilePreset == null)
+            {
+                return;
+            }
+
+            isTraversable = tilePreset.IsTraversable;
+            traversalCost = Mathf.Max(0f, tilePreset.TraversalCost);
+
+            if (TryGetComponent(out SpriteRenderer spriteRenderer))
+            {
+                spriteRenderer.sprite = tilePreset.TileSprite;
+                spriteRenderer.color = Color.white;
+                FitTileSpriteWithinCell(spriteRenderer);
+            }
+        }
+
+        private void FitTileSpriteWithinCell(SpriteRenderer spriteRenderer)
+        {
+            if (spriteRenderer == null)
+            {
+                return;
+            }
+
+            Sprite sprite = spriteRenderer.sprite;
+            if (sprite == null)
+            {
+                transform.localScale = Vector3.one;
+                RestoreColliderToSingleCellFootprint();
+                return;
+            }
+
+            Vector2 spriteSize = sprite.bounds.size;
+            if (spriteSize.x <= 0f || spriteSize.y <= 0f)
+            {
+                transform.localScale = Vector3.one;
+                RestoreColliderToSingleCellFootprint();
+                return;
+            }
+
+            float scaleFactor = Mathf.Min(1f / spriteSize.x, 1f / spriteSize.y);
+            transform.localScale = new Vector3(scaleFactor, scaleFactor, 1f);
+            RestoreColliderToSingleCellFootprint();
+        }
+
+        private void RestoreColliderToSingleCellFootprint()
+        {
+            if (!TryGetComponent(out BoxCollider boxCollider))
+            {
+                return;
+            }
+
+            Vector3 lossyScale = transform.lossyScale;
+            float scaleX = Mathf.Abs(lossyScale.x) > 0.0001f ? Mathf.Abs(lossyScale.x) : 1f;
+            float scaleY = Mathf.Abs(lossyScale.y) > 0.0001f ? Mathf.Abs(lossyScale.y) : 1f;
+            float scaleZ = Mathf.Abs(lossyScale.z) > 0.0001f ? Mathf.Abs(lossyScale.z) : 1f;
+
+            boxCollider.size = new Vector3(1f / scaleX, 1f / scaleY, 0.2f / scaleZ);
+            boxCollider.center = Vector3.zero;
         }
 
         private Vector2Int GetResolvedCoordinates()

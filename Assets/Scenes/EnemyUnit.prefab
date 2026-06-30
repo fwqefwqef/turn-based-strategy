@@ -81,7 +81,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 10
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: e7a1b2c3d4e5f6789012345678a1b011, type: 3}
+  m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -89,7 +89,7 @@ SpriteRenderer:
   m_Size: {x: 3.13, y: 2.93}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_SpriteSortPoint: 0
 --- !u!1 &1129404423885965542
 GameObject:
@@ -141,17 +141,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7cc7b7081f0865146a46e3c1ca21631d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  UnitHighlighterAggregator: {fileID: 0}
-  Obstructable: 1
-  cell: {fileID: 0}
-  HitPoints: 0
-  AttackRange: 0
-  AttackFactor: 0
-  DefenceFactor: 0
-  movementPoints: 7
-  MovementAnimationSpeed: 10
-  actionPoints: 1
-  PlayerNumber: 1
   baseHitPoints: 10
   baseManaPoints: 9
   level: 1
@@ -163,9 +152,12 @@ MonoBehaviour:
     UnitNameOverride: 
     OverrideLevel: 0
     FinalLevel: 1
+    OverrideMovementPoints: 0
+    FinalMovementPoints: 5
     StatOffsets:
       HitPoints: 0
       ManaPoints: 0
+      MovementPoints: 0
       Strength: 0
       Defense: 0
       Magic: 0
@@ -181,6 +173,8 @@ MonoBehaviour:
     ExtraSkills: []
     ExtraUniquePassives: []
     ExtraEquipPassives: []
+  unitId: enemy
+  visualId: 
   startingInventory: []
   startingSkills: []
   startingUniquePassives: []
@@ -198,6 +192,17 @@ MonoBehaviour:
   growthResistance: 17
   growthSpeed: 16
   growthLuck: 16
+  spriteLayoutBaselineCaptured: 0
+  spriteLayoutBaselineLocalScale: {x: 1, y: 1, z: 1}
+  spriteLayoutBaselineLocalPosition: {x: 0, y: 0, z: -0.1}
+  Obstructable: 1
+  excludedFromBattle: 0
+  participatesInDeploymentRoster: 1
+  includeInOwnedUnitSave: 1
+  cell: {fileID: 0}
+  movementPointsStorage: 0
+  PlayerNumber: 1
+  MovementAnimationSpeed: 10
 --- !u!114 &401687305997682816
 MonoBehaviour:
   m_ObjectHideFlags: 0

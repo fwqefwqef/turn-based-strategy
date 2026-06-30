@@ -307,8 +307,7 @@ namespace Windy.Srpg.Game.AI.Actions
                     continue;
                 }
 
-                bool attacksAnyEnemy = enemies.Any(enemy => customUnit.IsUnitAttackable(enemy, candidateCell));
-                if (!attacksAnyEnemy)
+                if (!AiCombatPlanner.HasAnyPlan(customUnit, player, cellGrid, candidateCell))
                 {
                     continue;
                 }

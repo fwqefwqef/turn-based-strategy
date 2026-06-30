@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 using UnityEngine;
 
@@ -259,6 +260,8 @@ namespace Windy.Srpg.Game.Inventory
                 return false;
             }
 
+            string itemName = !string.IsNullOrWhiteSpace(entry?.Data?.Name) ? entry.Data.Name : entry?.ItemId ?? "Item";
+            BattleLog.Log("Action", $"{DescribeUnit(owner)} uses {itemName} on {DescribeUnit(target)}.");
             effect.Use(owner, target);
             if (!entry.ConsumeCharge())
             {
@@ -305,6 +308,24 @@ namespace Windy.Srpg.Game.Inventory
             }
 
             return effect.CanUse(owner, target);
+        }
+
+        private static string DescribeUnit(Unit unit)
+        {
+            if (unit == null)
+            {
+                return "None";
+            }
+
+            string side = unit.PlayerNumber switch
+            {
+                0 => "Friendly",
+                1 => "Enemy",
+                _ => $"Player {unit.PlayerNumber}"
+            };
+
+            string nameLabel = string.IsNullOrWhiteSpace(unit.unitName) ? unit.name : unit.unitName;
+            return $"{side} {nameLabel}";
         }
 
         public void Clear()

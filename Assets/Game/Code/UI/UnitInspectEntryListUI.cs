@@ -186,6 +186,7 @@ namespace Windy.Srpg.Game.UI
                     {
                         EntryData capturedEntry = entry;
                         rowButton.onClick.AddListener(() => this.onEntryClicked?.Invoke(capturedEntry));
+                        RegisterPointerClickCallbacks(rowButton, capturedEntry);
                     }
 
                     Image background = rowButton.GetComponent<Image>();
@@ -372,6 +373,40 @@ namespace Windy.Srpg.Game.UI
                 RefreshRowVisualStates();
             });
             AddEventTriggerEntry(trigger, EventTriggerType.Deselect, RefreshRowVisualStates);
+        }
+
+        private void RegisterPointerClickCallbacks(Button rowButton, EntryData entry)
+        {
+            if (rowButton == null)
+            {
+                return;
+            }
+
+            RegisterPointerClickCallback(rowButton.gameObject, entry);
+
+            Image background = rowButton.GetComponent<Image>();
+            if (background != null)
+            {
+                RegisterPointerClickCallback(background.gameObject, entry);
+            }
+
+            TMP_Text label = rowButton.GetComponentInChildren<TMP_Text>(true);
+            if (label != null)
+            {
+                RegisterPointerClickCallback(label.gameObject, entry);
+            }
+        }
+
+        private void RegisterPointerClickCallback(GameObject target, EntryData entry)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            EventTrigger trigger = GetOrCreateEventTrigger(target);
+            RemoveEventTriggerEntries(trigger, EventTriggerType.PointerClick);
+            AddEventTriggerEntry(trigger, EventTriggerType.PointerClick, () => onEntryClicked?.Invoke(entry));
         }
 
         private void RegisterHoverCallbacks(GameObject target, Button owningButton)

@@ -1345,6 +1345,7 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
+            LogBattleAction($"attacks {DescribeUnit(unitToAttack)} with {GetEquippedWeaponDisplayName()}.");
             StartCoroutine(AttackSequenceRoutine(unitToAttack, BuildDefaultAttackProfile()));
         }
         public void AttackHandler(Unit unitToAttack, ResolvedAttackProfile attackProfile)
@@ -1363,6 +1364,8 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
+            string skillName = skill != null && !string.IsNullOrWhiteSpace(skill.Name) ? skill.Name : "Support Skill";
+            LogBattleAction($"uses {skillName} on {DescribeUnit(primaryTarget)}.");
             StartCoroutine(SupportSkillRoutine(primaryTarget, endsTurn, resolveEffect, skill, cellGrid));
         }
         public void UseAreaSkill(IReadOnlyList<Unit> targets, bool endsTurn, Action<Unit> resolvePerTarget, SkillData skill = null, CellGrid cellGrid = null)
@@ -1372,6 +1375,9 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
+            string skillName = skill != null && !string.IsNullOrWhiteSpace(skill.Name) ? skill.Name : "Area Skill";
+            string targetSummary = DescribeUnitList(targets);
+            LogBattleAction($"uses {skillName} on area targets: {targetSummary}.");
             StartCoroutine(AreaSkillRoutine(targets, endsTurn, resolvePerTarget, skill, cellGrid));
         }
         protected virtual AttackAction DealDamage(Unit unitToAttack)
@@ -1436,7 +1442,7 @@ namespace Windy.Srpg.Game.Units
                 InvokeBeforeCombatSequenceAsDefender(unitToAttack, preCombatContext);
 
                 int baseDamage = attackProfile.Damage;
-                Debug.Log($"[Combat] {name} starts a {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
+                BattleLog.Log("Combat", $"{name} starts a {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
 
                 int initialHits = Mathf.Max(1, attackProfile.NumHits);
                 for (int i = 0; i < initialHits; i++)
@@ -1476,7 +1482,7 @@ namespace Windy.Srpg.Game.Units
 
                 if (pursuitAttack && HitPoints > 0 && unitToAttack != null && unitToAttack.HitPoints > 0)
                 {
-                    Debug.Log($"[Combat] {name} starts a pursuit {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
+                    BattleLog.Log("Combat", $"{name} starts a pursuit {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
                     int pursuitHits = Mathf.Max(1, attackProfile.NumHits);
                     for (int i = 0; i < pursuitHits; i++)
                     {
@@ -1536,7 +1542,6 @@ namespace Windy.Srpg.Game.Units
                         counterExperienceAward));
                 }
 
-                Debug.Log($"[Combat] {name}'s attack sequence is complete. (attackerId={UnitID}, finishedAfter={IsFinishedForTurn})");
             }
             finally
             {
@@ -1601,11 +1606,6 @@ namespace Windy.Srpg.Game.Units
             int simulatedHitPoints = HitPoints;
             int damageTaken = 0;
 
-            if (!simulateOnly)
-            {
-                Debug.Log($"[Combat] {name} is defending against {aggressor.name}'s {(isMagicAttack ? "magic" : "physical")} attack. (defenderId={UnitID}, aggressorId={aggressor.UnitID}, incomingDamage={damage})");
-            }
-
             if (simulatedHitPoints > 0 && aggressor.HitPoints > 0)
             {
                 if (!simulateOnly)
@@ -1660,13 +1660,13 @@ namespace Windy.Srpg.Game.Units
 
                     if (!simulateOnly)
                     {
-                        Debug.Log($"[Combat] Strike hits {name}{(damageContext.IsCrit ? " and crits" : "")}, dealing {damageTaken} damage. (defenderId={UnitID}, hitChance={hitChance}%, critChance={critChance}%, crit={damageContext.IsCrit}, mitigationStat={(isMagicAttack ? "Resistance" : "Defence")}, mitigationValue={defenseStat})");
+                        BattleLog.Log("Combat", $"Strike hits {name}{(damageContext.IsCrit ? " and crits" : "")}, dealing {damageTaken} damage. (defenderId={UnitID}, hitChance={hitChance}%, critChance={critChance}%, crit={damageContext.IsCrit}, mitigationStat={(isMagicAttack ? "Resistance" : "Defence")}, mitigationValue={defenseStat})");
                     }
                 }
 
                 if (!damageContext.IsHit && !simulateOnly)
                 {
-                    Debug.Log($"[Combat] Strike misses {name}. (defenderId={UnitID}, hitChance={hitChance}%, damageTaken=0)");
+                    BattleLog.Log("Combat", $"Strike misses {name}. (defenderId={UnitID}, hitChance={hitChance}%, damageTaken=0)");
                 }
 
                 simulatedHitPoints -= damageTaken;
@@ -1790,15 +1790,53 @@ namespace Windy.Srpg.Game.Units
         {
             UnitProgressionChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        private void LogBattleAction(string actionDescription)
+        {
+            BattleLog.Log("Action", $"{DescribeUnit(this)} {actionDescription}");
+        }
+
+        private static string DescribeUnit(Unit unit)
+        {
+            if (unit == null)
+            {
+                return "None";
+            }
+
+            string side = unit.PlayerNumber switch
+            {
+                0 => "Friendly",
+                1 => "Enemy",
+                _ => $"Player {unit.PlayerNumber}"
+            };
+
+            string nameLabel = string.IsNullOrWhiteSpace(unit.unitName) ? unit.name : unit.unitName;
+            return $"{side} {nameLabel}";
+        }
+
+        private string GetEquippedWeaponDisplayName()
+        {
+            return !string.IsNullOrWhiteSpace(EquippedWeapon?.Name) ? EquippedWeapon.Name : "basic attack";
+        }
+
+        private static string DescribeUnitList(IReadOnlyList<Unit> units)
+        {
+            if (units == null || units.Count == 0)
+            {
+                return "none";
+            }
+
+            return string.Join(", ", units
+                .Where(unit => unit != null)
+                .Select(DescribeUnit)
+                .Distinct());
+        }
         private IEnumerator CounterAttack(Unit aggressor, bool counterPrevented = false)
         {
             if (!ShouldTriggerCounterAttack(aggressor, counterPrevented))
             {
-                Debug.Log($"[Combat] {name} does not counterattack after attack resolution. (defenderId={UnitID}, canCounter={CanCounterAttack}, defenderDead={HitPoints <= 0}, aggressorDead={(aggressor == null || aggressor.HitPoints <= 0)}, aggressorInRange={IsAggressorInCounterRange(aggressor)}, counterPrevented={counterPrevented})");
                 yield break;
             }
-
-            Debug.Log($"[Combat] {name} counterattacks {aggressor.name} after attack resolution. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
 
             Unit experienceTarget = aggressor;
             int experienceTargetLevel = experienceTarget != null ? experienceTarget.Level : 0;
@@ -1819,6 +1857,7 @@ namespace Windy.Srpg.Game.Units
                     experienceTarget.CombatDestroyed += destroyedHandler;
                 }
 
+                BattleLog.Log("Combat", $"{name} counterattacks {aggressor.name} after attack resolution. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
                 MarkAsAttacking(aggressor);
                 yield return StartCoroutine(PlayAttackLungeAnimation(aggressor));
                 var counterDamage = Attack;

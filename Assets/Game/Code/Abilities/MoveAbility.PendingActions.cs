@@ -1632,6 +1632,11 @@ namespace Windy.Srpg.Game.Abilities
                 yield break;
             }
 
+            if (!CanUseSkillAgainstTarget(skill, target, cellGrid))
+            {
+                yield break;
+            }
+
             resolvingPendingAttack = true;
             try
             {
@@ -1668,6 +1673,10 @@ namespace Windy.Srpg.Game.Abilities
                     if (TryPrepareAttackSkillEffect(skill, context, ref attackProfile, out ISkillEffect effect)
                         && UnitReference.MarkSkillUsed(skill))
                     {
+                        string weaponSuffix = !string.IsNullOrWhiteSpace(backingWeaponEntry?.Weapon?.Name)
+                            ? $" with {backingWeaponEntry.Weapon.Name}"
+                            : string.Empty;
+                        BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name}{weaponSuffix} on {DescribeActionUnit(target)}.");
                         effect?.Use(UnitReference, context);
                         UnitReference.AttackHandler(target, attackProfile);
                         executed = true;
@@ -1699,6 +1708,7 @@ namespace Windy.Srpg.Game.Abilities
                             CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
                         }
 
+                        BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name} on {DescribeActionUnit(target)}.");
                         UnitReference.UseSupportSkill(
                             target,
                             skill.Data.EndsTurn,
@@ -1771,6 +1781,7 @@ namespace Windy.Srpg.Game.Abilities
                                 CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
                             }
 
+                            BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name} on area at {centerCell.Coordinates} targeting {DescribeActionUnits(orderedTargets)}.");
                             effect?.Use(UnitReference, castContext);
 
                             UnitReference.UseAreaSkill(
@@ -1809,6 +1820,7 @@ namespace Windy.Srpg.Game.Abilities
                             CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
                         }
 
+                        BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name} on area at {centerCell.Coordinates} targeting {DescribeActionUnits(orderedTargets)}.");
                         UnitReference.UseAreaSkill(
                             orderedTargets,
                             skill.Data.EndsTurn,
@@ -2905,6 +2917,37 @@ namespace Windy.Srpg.Game.Abilities
             // DefendHandler subtracts Evade from the incoming hit stat.
             // Use an intentionally oversized value so offensive area spells always hit.
             return 10000;
+        }
+
+        private static string DescribeActionUnit(Unit unit)
+        {
+            if (unit == null)
+            {
+                return "None";
+            }
+
+            string side = unit.PlayerNumber switch
+            {
+                0 => "Friendly",
+                1 => "Enemy",
+                _ => $"Player {unit.PlayerNumber}"
+            };
+
+            string nameLabel = string.IsNullOrWhiteSpace(unit.unitName) ? unit.name : unit.unitName;
+            return $"{side} {nameLabel}";
+        }
+
+        private static string DescribeActionUnits(IReadOnlyList<Unit> units)
+        {
+            if (units == null || units.Count == 0)
+            {
+                return "none";
+            }
+
+            return string.Join(", ", units
+                .Where(unit => unit != null)
+                .Select(DescribeActionUnit)
+                .Distinct());
         }
 
         private static int CalculatePerHitDamage(ResolvedAttackProfile profile, Unit defender)

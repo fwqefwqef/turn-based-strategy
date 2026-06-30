@@ -107,6 +107,7 @@ namespace Windy.Srpg.Game.Grid
             if (overlayRenderer != null || baseSpriteRenderer == null)
             {
                 overlaySpriteRenderer = overlayRenderer as SpriteRenderer;
+                ConfigureOverlayTransform();
                 return;
             }
 
@@ -120,17 +121,18 @@ namespace Windy.Srpg.Game.Grid
             overlayObject.transform.localPosition = new Vector3(0f, 0f, -0.01f);
 
             overlaySpriteRenderer = overlayObject.AddComponent<SpriteRenderer>();
-            overlaySpriteRenderer.sprite = baseSpriteRenderer.sprite;
+            overlaySpriteRenderer.sprite = GetBorderSprite();
             overlaySpriteRenderer.color = HiddenOverlayColor;
             overlaySpriteRenderer.flipX = baseSpriteRenderer.flipX;
             overlaySpriteRenderer.flipY = baseSpriteRenderer.flipY;
-            overlaySpriteRenderer.drawMode = baseSpriteRenderer.drawMode;
-            overlaySpriteRenderer.size = baseSpriteRenderer.size;
+            overlaySpriteRenderer.drawMode = SpriteDrawMode.Simple;
+            overlaySpriteRenderer.size = Vector2.one;
             overlaySpriteRenderer.maskInteraction = baseSpriteRenderer.maskInteraction;
             overlaySpriteRenderer.sortingLayerID = baseSpriteRenderer.sortingLayerID;
             overlaySpriteRenderer.sortingOrder = baseSpriteRenderer.sortingOrder + 1;
             overlaySpriteRenderer.spriteSortPoint = baseSpriteRenderer.spriteSortPoint;
             overlayRenderer = overlaySpriteRenderer;
+            ConfigureOverlayTransform();
         }
 
         private bool BindExistingOverlayRenderer()
@@ -145,6 +147,7 @@ namespace Windy.Srpg.Game.Grid
 
             overlayRenderer = existingOverlay.GetComponent<Renderer>();
             overlaySpriteRenderer = overlayRenderer as SpriteRenderer;
+            ConfigureOverlayTransform();
             return overlayRenderer != null;
         }
 
@@ -224,9 +227,23 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            renderer.transform.localPosition = localPosition;
+            Vector3 inverseParentScale = ResolveInverseParentScale(renderer.transform.parent);
+            renderer.transform.localPosition = Vector3.Scale(localPosition, inverseParentScale);
             renderer.transform.localRotation = Quaternion.identity;
-            renderer.transform.localScale = localScale;
+            renderer.transform.localScale = Vector3.Scale(localScale, inverseParentScale);
+        }
+
+        private void ConfigureOverlayTransform()
+        {
+            if (overlaySpriteRenderer == null)
+            {
+                return;
+            }
+
+            Vector3 inverseParentScale = ResolveInverseParentScale(overlaySpriteRenderer.transform.parent);
+            overlaySpriteRenderer.transform.localPosition = Vector3.Scale(new Vector3(0f, 0f, -0.01f), inverseParentScale);
+            overlaySpriteRenderer.transform.localRotation = Quaternion.identity;
+            overlaySpriteRenderer.transform.localScale = inverseParentScale;
         }
 
         private static Sprite GetBorderSprite()
@@ -254,6 +271,20 @@ namespace Windy.Srpg.Game.Grid
 
             renderer.gameObject.SetActive(visible);
             renderer.color = color;
+        }
+
+        private static Vector3 ResolveInverseParentScale(Transform parent)
+        {
+            if (parent == null)
+            {
+                return Vector3.one;
+            }
+
+            Vector3 scale = parent.localScale;
+            return new Vector3(
+                Mathf.Abs(scale.x) > 0.0001f ? 1f / scale.x : 1f,
+                Mathf.Abs(scale.y) > 0.0001f ? 1f / scale.y : 1f,
+                Mathf.Abs(scale.z) > 0.0001f ? 1f / scale.z : 1f);
         }
 
         private void SetOverlayColor(Color color)

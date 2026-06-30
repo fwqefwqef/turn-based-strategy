@@ -331,6 +331,20 @@ namespace Windy.Srpg.Game.Grid
             return unit != null && registeredUnits.Contains(unit);
         }
 
+        internal void RegisterDeploymentUnitForBattleInternal(Unit unit, Cell targetCell)
+        {
+            if (unit == null
+                || targetCell == null
+                || !Application.isPlaying
+                || !CanModifyRegisteredSceneUnits()
+                || IsUnitRegistered(unit))
+            {
+                return;
+            }
+
+            RegisterSceneUnit(unit, targetCell);
+        }
+
         protected void UnregisterSceneUnit(Unit unit)
         {
             if (unit == null || !registeredUnits.Remove(unit))
@@ -342,6 +356,22 @@ namespace Windy.Srpg.Game.Grid
             unit.UnitHighlighted -= OnSceneUnitHighlighted;
             unit.UnitDehighlighted -= OnSceneUnitDehighlighted;
             unit.UnitDestroyed -= OnSceneUnitDestroyed;
+        }
+
+        internal void UnregisterDeploymentUnitFromBattleInternal(Unit unit)
+        {
+            if (unit == null
+                || !Application.isPlaying
+                || !CanModifyRegisteredSceneUnits()
+                || !IsUnitRegistered(unit))
+            {
+                return;
+            }
+
+            unit.CombatDestroyed -= OnCombatDestroyed;
+            unit.DestroyedInCombat -= OnUnitDestroyed;
+            subscribedUnits.Remove(unit);
+            UnregisterSceneUnit(unit);
         }
 
         private void EnsureSceneCellAnchors()
@@ -360,10 +390,15 @@ namespace Windy.Srpg.Game.Grid
         private void EnsureDeploymentSlotCellBindings()
         {
             Cell[] tiles = GetComponentsInChildren<Cell>(true);
-            foreach (DeploymentSlot slot in GetDeploymentSlots())
+            foreach (DeploymentSlot slot in DeploymentScene.GetDeploymentSlots())
             {
                 slot?.EnsureRegistryCellBinding(tiles);
             }
+        }
+
+        internal Transform ResolveDeploymentSlotsParent()
+        {
+            return deploymentSlotsParent;
         }
 
         internal Cell ResolveCanonicalCell(Cell cell)
@@ -380,6 +415,16 @@ namespace Windy.Srpg.Game.Grid
         internal void NotifyOccupancyChanged()
         {
             occupancyRevision++;
+        }
+
+        internal void RebuildSceneCellOccupancyForDeploymentInternal()
+        {
+            RebuildSceneCellOccupancy();
+        }
+
+        internal bool CanModifyRegisteredSceneUnits()
+        {
+            return Players != null && Cells != null && Units != null;
         }
 
         internal IEnumerable<Unit> GetOccupancyTrackedUnits()
@@ -589,7 +634,7 @@ namespace Windy.Srpg.Game.Grid
 
             currentPlayerNumber = plan.NextPlayer.PlayerId;
             SceneGameStarted?.Invoke(this, EventArgs.Empty);
-            Debug.Log($"[BattleFlow] Battle started. First player: {currentPlayerNumber}.");
+            BattleLog.Log("BattleFlow", $"Battle started. First player: {currentPlayerNumber}.");
 
             if (syncUnitTurnHooks)
             {
@@ -628,7 +673,7 @@ namespace Windy.Srpg.Game.Grid
 
             currentPlayerNumber = plan.NextPlayer.PlayerId;
             SceneTurnEnded?.Invoke(this, isNetworkInvoked);
-            Debug.Log($"[BattleFlow] Turn advanced. Current player: {currentPlayerNumber}.");
+            BattleLog.Log("BattleFlow", $"Turn advanced. Current player: {currentPlayerNumber}.");
 
             if (syncUnitTurnHooks)
             {

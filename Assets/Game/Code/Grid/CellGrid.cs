@@ -43,6 +43,7 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private bool enablePreBattleUi = true;
         [SerializeField] private bool startBattleImmediatelyWithCurrentRoster;
         [SerializeField] private List<UnitPreset> starterOwnedUnitPresets = new List<UnitPreset>();
+        [SerializeField] private Transform deploymentSlotsParent;
         private bool battleStarted;
         private bool isPreBattleDeploymentSwapMode;
         private int selectedPreBattleDeploymentSlotIndex = -1;
@@ -50,6 +51,7 @@ namespace Windy.Srpg.Game.Grid
         private int preBattleDeploymentSelectionFrame = -1;
         private CellGridState currentState;
         private SceneUnitGenerator sceneUnitGenerator;
+        private DeploymentSceneService deploymentSceneService;
         private CampaignSaveData cachedCampaignSave;
         private bool campaignSaveDirty;
         private Coroutine pendingCampaignSaveFlushCoroutine;
@@ -67,6 +69,7 @@ namespace Windy.Srpg.Game.Grid
         public int CurrentPlayerNumber => currentPlayerNumber;
         public bool IsHumanTurn => CurrentPlayer is HumanPlayer;
         public bool CanRequestEndTurn => CurrentState?.BlocksEndTurn != true;
+        private DeploymentSceneService DeploymentScene => deploymentSceneService ??= new DeploymentSceneService(this);
 
         public List<Player> GetOrderedPlayers()
         {
@@ -124,6 +127,21 @@ namespace Windy.Srpg.Game.Grid
         public Transform GetSceneUnitsParent()
         {
             return GetSceneUnitGenerator()?.UnitsParent;
+        }
+
+        internal Unit GetDeploymentRosterUnitPrefab()
+        {
+            return GetSceneUnitGenerator()?.DeploymentRosterUnitPrefab;
+        }
+
+        public Transform GetDeploymentSlotsParent()
+        {
+            return deploymentSlotsParent;
+        }
+
+        public void SetDeploymentSlotsParent(Transform parent)
+        {
+            deploymentSlotsParent = parent;
         }
 
         public void RequestFrameworkInitialize()

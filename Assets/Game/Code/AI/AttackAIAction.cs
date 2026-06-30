@@ -1,11 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Text;
+using Windy.Srpg.Game.AI;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Game.Abilities;
-using Windy.Srpg.Game.AI.Evaluators;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Players;
@@ -15,108 +13,124 @@ namespace Windy.Srpg.Game.AI.Actions
 {
     public class AttackAIAction : AIAction
     {
-        private Unit target;
+        private AiCombatPlan selectedPlan;
         private Dictionary<Unit, string> unitDebugInfo;
-        private List<(Unit unit, float value)> unitScores;
-
-        private Dictionary<string, Dictionary<string, float>> executionTime;
-        private Stopwatch stopWatch = new Stopwatch();
 
         public override void InitializeAction(Player player, Unit unit, CellGrid cellGrid)
         {
             unit.GetComponent<AttackAbility>()?.OnActionSelected(cellGrid);
-
-            executionTime = new Dictionary<string, Dictionary<string, float>>();
-            executionTime.Add("precalculate", new Dictionary<string, float>());
-            executionTime.Add("evaluate", new Dictionary<string, float>());
         }
 
         public override bool ShouldExecute(Player player, Unit unit, CellGrid cellGrid)
         {
-            if (unit == null || unit.GetComponent<AttackAbility>() == null)
+            if (unit == null || cellGrid == null || !unit.CanStartActionThisTurn)
             {
                 return false;
             }
 
-            var enemyUnits = cellGrid.GetEnemyUnits(player);
-            var isEnemyinRange = enemyUnits.Select(u => unit.IsUnitAttackable(u, unit.Cell))
-                                           .Aggregate((result, next) => result || next);
-
-            return isEnemyinRange && unit.CanStartActionThisTurn;
+            return AiCombatPlanner.HasAnyPlan(unit, player, cellGrid, unit.Cell);
         }
 
         public override void Precalculate(Player player, Unit unit, CellGrid cellGrid)
         {
-            if (unit == null)
+            selectedPlan = null;
+            unitDebugInfo = null;
+
+            if (unit == null || player == null || cellGrid == null)
             {
                 return;
             }
-
-            var enemyUnits = cellGrid.GetEnemyUnits(player);
-            var enemiesInRange = enemyUnits.Where(e => unit.IsUnitAttackable(e, unit.Cell)).ToList();
 
             unitDebugInfo = new Dictionary<Unit, string>();
-            enemyUnits.ForEach(u => unitDebugInfo[u] = "");
+            foreach (Unit enemy in cellGrid.GetEnemyUnits(player))
+            {
+                if (enemy != null)
+                {
+                    unitDebugInfo[enemy] = string.Empty;
+                }
+            }
 
-            if (enemiesInRange.Count == 0)
+            if (!AiCombatPlanner.TryFindBestPlan(unit, player, cellGrid, unit.Cell, out selectedPlan))
             {
                 return;
             }
 
-            var evaluators = GetComponents<UnitEvaluator>();
-            foreach (var evaluator in evaluators)
+            if (selectedPlan.PrimaryTarget != null)
             {
-                stopWatch.Start();
-                evaluator.Precalculate(unit, player, cellGrid);
-                stopWatch.Stop();
-
-                executionTime["precalculate"].Add(evaluator.GetType().Name, stopWatch.ElapsedMilliseconds);
-                executionTime["evaluate"].Add(evaluator.GetType().Name, 0);
-                stopWatch.Reset();
+                unitDebugInfo[selectedPlan.PrimaryTarget] =
+                    $"{selectedPlan.DebugLabel}\n" +
+                    $"Expected: {selectedPlan.ExpectedDamage:0.00}\n" +
+                    $"Score: {selectedPlan.Score:0.00}\n" +
+                    $"Kill: {(selectedPlan.ProjectsKill ? "Yes" : "No")}\n" +
+                    $"Counter: {(selectedPlan.AvoidsCounterattack ? "No" : "Yes")}\n" +
+                    $"MP: {(selectedPlan.CostsNoMp ? "0" : selectedPlan.Skill?.Data?.MpCost.ToString() ?? "0")}";
             }
 
-            unitScores = enemiesInRange.Select(enemy =>
+            if (selectedPlan.AreaTargets != null)
             {
-                float totalScore = evaluators.Select(evaluator =>
+                foreach (Unit target in selectedPlan.AreaTargets)
                 {
-                    stopWatch.Start();
-                    var score = evaluator.Evaluate(enemy, unit, player, cellGrid);
-                    stopWatch.Stop();
-                    executionTime["evaluate"][evaluator.GetType().Name] += stopWatch.ElapsedMilliseconds;
-                    stopWatch.Reset();
+                    if (target == null || !unitDebugInfo.ContainsKey(target))
+                    {
+                        continue;
+                    }
 
-                    var weightedScore = score * evaluator.Weight;
-                    unitDebugInfo[enemy] += string.Format("{0:+0.00;-0.00} * {1:+0.00;-0.00} = {2:+0.00;-0.00} : {3}\n", evaluator.Weight, score, weightedScore, evaluator.GetType());
-                    return weightedScore;
-                }).DefaultIfEmpty(0f).Aggregate((result, next) => result + next);
-
-                return (enemy, totalScore);
-            }).ToList();
-
-            unitScores.ForEach(score => unitDebugInfo[score.unit] += string.Format("Total: {0:0.00}", score.value));
-            target = unitScores.OrderByDescending(o => o.value).First().unit;
+                    if (string.IsNullOrWhiteSpace(unitDebugInfo[target]))
+                    {
+                        unitDebugInfo[target] = selectedPlan.DebugLabel;
+                    }
+                }
+            }
         }
 
         public override IEnumerator Execute(Player player, Unit unit, CellGrid cellGrid)
         {
-            var attackAbility = unit.GetComponent<AttackAbility>();
-            if (attackAbility == null || target == null || unit == null)
+            if (unit == null || cellGrid == null || selectedPlan == null)
             {
                 yield break;
             }
 
-            attackAbility.UnitToAttack = target;
-            attackAbility.UnitToAttackID = target.UnitID;
-
-            unit.AttackHandler(target);
-            yield return Unit.WaitForAttackSequenceCompletion(unit);
-
-            if (unit == null)
+            MoveAbility moveAbility = unit.GetComponent<MoveAbility>();
+            switch (selectedPlan.Kind)
             {
-                yield break;
+                case AiCombatActionKind.WeaponAttack:
+                    if (selectedPlan.PrimaryTarget == null)
+                    {
+                        yield break;
+                    }
+
+                    if (selectedPlan.WeaponEntry?.Weapon != null)
+                    {
+                        unit.EquipWeapon(selectedPlan.WeaponEntry);
+                    }
+
+                    unit.AttackHandler(selectedPlan.PrimaryTarget);
+                    yield return Unit.WaitForAttackSequenceCompletion(unit);
+                    break;
+
+                case AiCombatActionKind.Skill:
+                    if (moveAbility == null || selectedPlan.Skill == null || selectedPlan.PrimaryTarget == null)
+                    {
+                        yield break;
+                    }
+
+                    yield return moveAbility.ExecuteAiSkill(selectedPlan.Skill, selectedPlan.PrimaryTarget, cellGrid, selectedPlan.WeaponEntry);
+                    break;
+
+                case AiCombatActionKind.AreaSkill:
+                    if (moveAbility == null || selectedPlan.Skill == null || selectedPlan.AreaCenterCell == null)
+                    {
+                        yield break;
+                    }
+
+                    yield return moveAbility.ExecuteAiAreaSkill(selectedPlan.Skill, selectedPlan.AreaCenterCell, selectedPlan.AreaTargets, cellGrid);
+                    break;
             }
 
-            yield return new WaitForSeconds(0.5f);
+            if (unit != null)
+            {
+                yield return new WaitForSeconds(0.15f);
+            }
         }
 
         public override void CleanUp(Player player, Unit unit, CellGrid cellGrid)
@@ -126,8 +140,8 @@ namespace Windy.Srpg.Game.AI.Actions
                 enemy.UnMark();
             }
 
-            target = null;
-            unitScores = null;
+            selectedPlan = null;
+            unitDebugInfo = null;
         }
 
         public override void ShowDebugInfo(Player player, Unit unit, CellGrid cellGrid)
@@ -137,51 +151,32 @@ namespace Windy.Srpg.Game.AI.Actions
                 aiTurnState.UnitDebugInfo = unitDebugInfo;
             }
 
-            if (unitScores == null)
+            if (selectedPlan == null)
             {
                 return;
             }
 
-            var minScore = unitScores.DefaultIfEmpty().Min(e => e.value);
-            var maxScore = unitScores.DefaultIfEmpty().Max(e => e.value);
-            foreach (var (evaluatedUnit, value) in unitScores)
+            if (selectedPlan.AreaTargets != null)
             {
-                var color = Color.Lerp(Color.red, Color.green, value >= 0 ? value / maxScore : value / minScore * (-1));
-                evaluatedUnit.SetColor(color);
+                foreach (Unit target in selectedPlan.AreaTargets)
+                {
+                    target?.SetColor(Color.magenta);
+                }
             }
 
-            if (target != null)
+            if (selectedPlan.PrimaryTarget != null)
             {
-                target.SetColor(Color.blue);
+                selectedPlan.PrimaryTarget.SetColor(Color.blue);
             }
 
-            var evaluators = GetComponents<UnitEvaluator>();
-            float totalDuration = 0f;
             StringBuilder logBuilder = new StringBuilder();
-            logBuilder.AppendLine($"{GetType().Name} evaluation timings");
-
-            foreach (UnitEvaluator evaluator in evaluators)
-            {
-                string evaluatorName = evaluator.GetType().Name;
-                float precalculateTime = executionTime["precalculate"][evaluatorName];
-                float evaluateTime = executionTime["evaluate"][evaluatorName];
-                float combinedTime = precalculateTime + evaluateTime;
-                totalDuration += combinedTime;
-
-                logBuilder.Append(" - ");
-                logBuilder.Append(evaluatorName);
-                logBuilder.Append(": total=");
-                logBuilder.Append(combinedTime.ToString("0"));
-                logBuilder.Append("ms, precalc=");
-                logBuilder.Append(precalculateTime.ToString("0"));
-                logBuilder.Append("ms, eval=");
-                logBuilder.Append(evaluateTime.ToString("0"));
-                logBuilder.AppendLine("ms");
-            }
-
-            logBuilder.Append(" overall=");
-            logBuilder.Append(totalDuration.ToString("0"));
-            logBuilder.Append("ms");
+            logBuilder.AppendLine($"{GetType().Name} selected combat plan");
+            logBuilder.Append(" - Action: ").AppendLine(selectedPlan.DebugLabel);
+            logBuilder.Append(" - Expected damage: ").AppendLine(selectedPlan.ExpectedDamage.ToString("0.00"));
+            logBuilder.Append(" - Score: ").AppendLine(selectedPlan.Score.ToString("0.00"));
+            logBuilder.Append(" - Kill bonus: ").AppendLine(selectedPlan.ProjectsKill ? "Yes" : "No");
+            logBuilder.Append(" - Avoids counter: ").AppendLine(selectedPlan.AvoidsCounterattack ? "Yes" : "No");
+            logBuilder.Append(" - MP free: ").AppendLine(selectedPlan.CostsNoMp ? "Yes" : "No");
             UnityEngine.Debug.Log(logBuilder.ToString());
         }
     }

@@ -10,6 +10,14 @@ namespace Windy.Srpg.Game.Grid
     {
         public Transform UnitsParent;
         public Transform CellsParent;
+        [SerializeField] private Unit deploymentRosterUnitPrefab;
+
+        public Unit DeploymentRosterUnitPrefab => deploymentRosterUnitPrefab;
+
+        public void SetDeploymentRosterUnitPrefab(Unit prefab)
+        {
+            deploymentRosterUnitPrefab = prefab;
+        }
 
         public List<Unit> GetSceneUnits(bool includeExcludedFromBattle = false)
         {

@@ -958,10 +958,28 @@ namespace Windy.Srpg.Game.Units
         [SerializeField, HideInInspector]
         internal bool excludedFromBattle;
 
+        [SerializeField]
+        internal bool participatesInDeploymentRoster = true;
+
+        [SerializeField]
+        internal bool includeInOwnedUnitSave = true;
+
         public bool ExcludedFromBattle
         {
             get => excludedFromBattle;
             set => excludedFromBattle = value;
+        }
+
+        public bool ParticipatesInDeploymentRoster
+        {
+            get => participatesInDeploymentRoster;
+            set => participatesInDeploymentRoster = value;
+        }
+
+        public bool IncludeInOwnedUnitSave
+        {
+            get => includeInOwnedUnitSave;
+            set => includeInOwnedUnitSave = value;
         }
 
         [SerializeField, HideInInspector]
