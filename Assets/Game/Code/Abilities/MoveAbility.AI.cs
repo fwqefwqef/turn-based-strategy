@@ -61,7 +61,7 @@ namespace Windy.Srpg.Game.Abilities
                     continue;
                 }
 
-                CellTilePreviewUtility.ApplySkillPreviewHighlight(cell, CellHighlightKind.Attack);
+                CellTilePreviewUtility.ApplySkillPreviewHighlight(cell, ResolveAiAreaTelegraphHighlight(skill));
                 highlightedCells.Add(cell);
             }
 
@@ -71,6 +71,18 @@ namespace Windy.Srpg.Game.Abilities
             {
                 CellTilePreviewUtility.ClearSkillPreviewHighlight(cell);
             }
+        }
+
+        private static CellHighlightKind ResolveAiAreaTelegraphHighlight(Skill skill)
+        {
+            if (skill?.Data == null || string.IsNullOrWhiteSpace(skill.Data.EffectId))
+            {
+                return CellHighlightKind.Attack;
+            }
+
+            return SkillEffectRegistry.TryCreate(skill.Data.EffectId, out ISkillEffect effect) && effect is IHealingSkillEffect
+                ? CellHighlightKind.Support
+                : CellHighlightKind.Attack;
         }
     }
 }

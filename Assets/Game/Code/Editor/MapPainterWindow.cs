@@ -248,22 +248,10 @@ namespace Windy.Srpg.Game.Editor
 
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Enemy Preset Override", EditorStyles.miniBoldLabel);
-            enemyUnitPresetOverride.OverrideUnitName = EditorGUILayout.Toggle("Override Name", enemyUnitPresetOverride.OverrideUnitName);
-            if (enemyUnitPresetOverride.OverrideUnitName)
+            enemyUnitPresetOverride.OverrideWaitGroupId = EditorGUILayout.Toggle("Override Wait Group", enemyUnitPresetOverride.OverrideWaitGroupId);
+            if (enemyUnitPresetOverride.OverrideWaitGroupId)
             {
-                enemyUnitPresetOverride.UnitNameOverride = EditorGUILayout.TextField("Unit Name", enemyUnitPresetOverride.UnitNameOverride);
-            }
-
-            enemyUnitPresetOverride.OverrideLevel = EditorGUILayout.Toggle("Override Level", enemyUnitPresetOverride.OverrideLevel);
-            if (enemyUnitPresetOverride.OverrideLevel)
-            {
-                enemyUnitPresetOverride.FinalLevel = EditorGUILayout.IntField("Final Level", enemyUnitPresetOverride.FinalLevel);
-            }
-
-            enemyUnitPresetOverride.OverrideMovementPoints = EditorGUILayout.Toggle("Override Move", enemyUnitPresetOverride.OverrideMovementPoints);
-            if (enemyUnitPresetOverride.OverrideMovementPoints)
-            {
-                enemyUnitPresetOverride.FinalMovementPoints = EditorGUILayout.FloatField("Movement Points", enemyUnitPresetOverride.FinalMovementPoints);
+                enemyUnitPresetOverride.WaitGroupId = Mathf.Max(0, EditorGUILayout.IntField("Wait Group Id", enemyUnitPresetOverride.WaitGroupId));
             }
         }
 

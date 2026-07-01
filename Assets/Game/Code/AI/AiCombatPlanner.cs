@@ -30,6 +30,7 @@ namespace Windy.Srpg.Game.AI
         public bool ProjectsKill;
         public bool AvoidsCounterattack;
         public bool CostsNoMp;
+        public bool IsHealingPlan;
         public string DebugLabel;
     }
 
@@ -40,7 +41,52 @@ namespace Windy.Srpg.Game.AI
         private const float NoMpBoost = 1.1f;
         private const float ScoreTieTolerance = 0.0001f;
 
-        public static bool TryFindBestPlan(Unit actor, Player player, CellGrid grid, Cell actingCell, out AiCombatPlan plan, bool breakTiesRandomly = true)
+        public static bool TryFindBestPlan(Unit actor, Player player, CellGrid grid, Cell actingCell, out AiCombatPlan plan, bool breakTiesRandomly = false)
+        {
+            UnitActionAiMode actionMode = actor != null ? actor.ActionAiMode : UnitActionAiMode.Attack;
+            return TryFindBestPlan(actor, player, grid, actingCell, actionMode, out plan, breakTiesRandomly);
+        }
+
+        public static bool TryFindBestOffensivePlan(Unit actor, Player player, CellGrid grid, Cell actingCell, out AiCombatPlan plan)
+        {
+            return TryFindBestPlan(actor, player, grid, actingCell, UnitActionAiMode.Attack, out plan, breakTiesRandomly: false);
+        }
+
+        public static bool HasAnyOffensivePlan(Unit actor, Player player, CellGrid grid, Cell actingCell)
+        {
+            return TryFindBestOffensivePlan(actor, player, grid, actingCell, out _);
+        }
+
+        public static bool HasAnyOffensivePlanFromReachableCells(Unit actor, Player player, CellGrid grid, out Cell bestThreatCell)
+        {
+            bestThreatCell = actor?.Cell;
+            if (actor == null || player == null || grid == null)
+            {
+                return false;
+            }
+
+            List<Cell> allCells = grid.GetAllCells();
+            HashSet<Cell> reachableCells = actor.GetAvailableDestinations(allCells) ?? new HashSet<Cell>();
+            if (actor.Cell != null)
+            {
+                reachableCells.Add(actor.Cell);
+            }
+
+            foreach (Cell candidateCell in reachableCells.Where(cell => cell != null))
+            {
+                if (!HasAnyOffensivePlan(actor, player, grid, candidateCell))
+                {
+                    continue;
+                }
+
+                bestThreatCell = candidateCell;
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool TryFindBestPlan(Unit actor, Player player, CellGrid grid, Cell actingCell, UnitActionAiMode actionMode, out AiCombatPlan plan, bool breakTiesRandomly = false)
         {
             plan = null;
             if (actor == null || player == null || grid == null || actingCell == null || actor.HitPoints <= 0)
@@ -48,7 +94,7 @@ namespace Windy.Srpg.Game.AI
                 return false;
             }
 
-            List<AiCombatPlan> options = BuildPlans(actor, player, grid, actingCell);
+            List<AiCombatPlan> options = BuildPlans(actor, player, grid, actingCell, actionMode);
             if (options.Count == 0)
             {
                 return false;
@@ -67,7 +113,13 @@ namespace Windy.Srpg.Game.AI
 
         public static float EvaluateBestPlanScore(Unit actor, Player player, CellGrid grid, Cell actingCell)
         {
-            return TryFindBestPlan(actor, player, grid, actingCell, out AiCombatPlan plan, breakTiesRandomly: false)
+            UnitActionAiMode actionMode = actor != null ? actor.ActionAiMode : UnitActionAiMode.Attack;
+            return EvaluateBestPlanScore(actor, player, grid, actingCell, actionMode);
+        }
+
+        public static float EvaluateBestPlanScore(Unit actor, Player player, CellGrid grid, Cell actingCell, UnitActionAiMode actionMode)
+        {
+            return TryFindBestPlan(actor, player, grid, actingCell, actionMode, out AiCombatPlan plan, breakTiesRandomly: false)
                 ? Mathf.Max(0f, plan.Score)
                 : 0f;
         }
@@ -77,21 +129,62 @@ namespace Windy.Srpg.Game.AI
             return TryFindBestPlan(actor, player, grid, actingCell, out _, breakTiesRandomly: false);
         }
 
-        private static List<AiCombatPlan> BuildPlans(Unit actor, Player player, CellGrid grid, Cell actingCell)
+        private static List<AiCombatPlan> BuildPlans(Unit actor, Player player, CellGrid grid, Cell actingCell, UnitActionAiMode actionMode)
         {
             List<Unit> enemyUnits = grid.GetEnemyUnits(player)
                 .Where(unit => unit != null && unit.HitPoints > 0 && unit.Cell != null && !unit.ExcludedFromBattle)
                 .ToList();
 
             List<AiCombatPlan> options = new List<AiCombatPlan>();
-            if (enemyUnits.Count == 0)
+            if (enemyUnits.Count == 0 && actionMode != UnitActionAiMode.Heal)
             {
                 return options;
+            }
+
+            if (actionMode == UnitActionAiMode.Heal)
+            {
+                List<Unit> alliedUnits = grid.GetUnitsForPlayer(player)
+                    .Where(unit => unit != null && unit.HitPoints > 0 && unit.Cell != null && !unit.ExcludedFromBattle)
+                    .ToList();
+
+                AddHealingPlans(actor, actingCell, grid, alliedUnits, options);
+                if (options.Count > 0)
+                {
+                    return options;
+                }
             }
 
             AddWeaponAttackPlans(actor, actingCell, enemyUnits, options);
             AddSkillPlans(actor, actingCell, grid, enemyUnits, options);
             return options;
+        }
+
+        private static void AddHealingPlans(Unit actor, Cell actingCell, CellGrid grid, IReadOnlyList<Unit> allies, ICollection<AiCombatPlan> options)
+        {
+            IReadOnlyList<Skill> skills = actor.SkillList?.Entries ?? Array.Empty<Skill>();
+            foreach (Skill skill in skills)
+            {
+                if (skill?.Data == null || !actor.CanUseSkill(skill) || !IsHealingSkill(skill))
+                {
+                    continue;
+                }
+
+                if (skill.Data.AreaProfile.Enabled)
+                {
+                    AddAreaHealingPlans(actor, actingCell, grid, skill, allies, options);
+                    continue;
+                }
+
+                foreach (Unit ally in allies)
+                {
+                    if (!TryBuildHealingSkillPlan(actor, actingCell, grid, skill, ally, out AiCombatPlan plan))
+                    {
+                        continue;
+                    }
+
+                    options.Add(plan);
+                }
+            }
         }
 
         private static void AddWeaponAttackPlans(Unit actor, Cell actingCell, IReadOnlyList<Unit> enemies, ICollection<AiCombatPlan> options)
@@ -210,6 +303,45 @@ namespace Windy.Srpg.Game.AI
             }
         }
 
+        private static void AddAreaHealingPlans(Unit actor, Cell actingCell, CellGrid grid, Skill skill, IReadOnlyList<Unit> allies, ICollection<AiCombatPlan> options)
+        {
+            foreach (Cell centerCell in GetAreaSkillCandidateCenters(skill, actingCell, grid))
+            {
+                List<Unit> affectedTargets = GetAreaSkillTargets(actor, skill, centerCell, grid);
+                List<Unit> affectedAllies = affectedTargets
+                    .Where(target => target != null && target.PlayerNumber == actor.PlayerNumber)
+                    .ToList();
+                if (affectedAllies.Count == 0)
+                {
+                    continue;
+                }
+
+                if (!TryGetAreaHealingAmount(actor, skill, centerCell, affectedAllies, grid, out int healingAmount))
+                {
+                    continue;
+                }
+
+                bool healsAnotherAlly = affectedAllies.Any(target => target != null && target != actor && target.HitPoints < target.MaxHitPoints);
+                if (!healsAnotherAlly || healingAmount <= 0)
+                {
+                    continue;
+                }
+
+                options.Add(BuildPlan(
+                    AiCombatActionKind.AreaSkill,
+                    healingAmount,
+                    projectsKill: false,
+                    avoidsCounter: true,
+                    costsNoMp: skill.Data.MpCost <= 0,
+                    primaryTarget: affectedAllies.FirstOrDefault(target => target != null && target != actor) ?? affectedAllies[0],
+                    skill: skill,
+                    areaCenterCell: centerCell,
+                    areaTargets: affectedTargets,
+                    debugLabel: $"HealArea:{skill.Data.Name}@{centerCell.Coordinates}->{affectedAllies.Count}",
+                    isHealingPlan: true));
+            }
+        }
+
         private static bool TryBuildSkillPlan(Unit actor, Cell actingCell, CellGrid grid, Skill skill, Unit target, out AiCombatPlan plan)
         {
             plan = null;
@@ -250,6 +382,37 @@ namespace Windy.Srpg.Game.AI
             return true;
         }
 
+        private static bool TryBuildHealingSkillPlan(Unit actor, Cell actingCell, CellGrid grid, Skill skill, Unit target, out AiCombatPlan plan)
+        {
+            plan = null;
+            if (actor == null || skill?.Data == null || target == null || target == actor || target.HitPoints <= 0)
+            {
+                return false;
+            }
+
+            if (!CanUseSingleTargetHealingSkill(actor, skill, target, actingCell, grid))
+            {
+                return false;
+            }
+
+            if (!TryGetHealingAmount(actor, skill, target, grid, out int healingAmount) || healingAmount <= 0)
+            {
+                return false;
+            }
+
+            plan = BuildPlan(
+                AiCombatActionKind.Skill,
+                healingAmount,
+                projectsKill: false,
+                avoidsCounter: true,
+                costsNoMp: skill.Data.MpCost <= 0,
+                primaryTarget: target,
+                skill: skill,
+                debugLabel: $"Heal:{skill.Data.Name}->{target.unitName}",
+                isHealingPlan: true);
+            return true;
+        }
+
         private static AiCombatPlan BuildPlan(
             AiCombatActionKind kind,
             float expectedDamage,
@@ -261,7 +424,8 @@ namespace Windy.Srpg.Game.AI
             Item weaponEntry = null,
             Cell areaCenterCell = null,
             IReadOnlyList<Unit> areaTargets = null,
-            string debugLabel = null)
+            string debugLabel = null,
+            bool isHealingPlan = false)
         {
             float adjustedScore = Mathf.Max(0f, expectedDamage);
             if (projectsKill)
@@ -292,6 +456,7 @@ namespace Windy.Srpg.Game.AI
                 ProjectsKill = projectsKill,
                 AvoidsCounterattack = avoidsCounter,
                 CostsNoMp = costsNoMp,
+                IsHealingPlan = isHealingPlan,
                 DebugLabel = debugLabel ?? kind.ToString()
             };
         }
@@ -309,6 +474,14 @@ namespace Windy.Srpg.Game.AI
                 && data.AreaProfile.Enabled
                 && data.AttackProfile.Enabled
                 && data.AreaProfile.AffectsEnemies;
+        }
+
+        private static bool IsHealingSkill(Skill skill)
+        {
+            return skill?.Data != null
+                && !string.IsNullOrWhiteSpace(skill.Data.EffectId)
+                && SkillEffectRegistry.TryCreate(skill.Data.EffectId, out ISkillEffect effect)
+                && effect is IHealingSkillEffect;
         }
 
         private static bool CanUseSingleTargetSkill(Unit actor, Skill skill, Unit target, Cell actingCell, CellGrid grid)
@@ -348,6 +521,46 @@ namespace Windy.Srpg.Game.AI
             SkillContext context = BuildSkillContext(actor, skill, target, grid);
             return string.IsNullOrWhiteSpace(skill.Data.EffectId)
                 || (SkillEffectRegistry.TryCreate(skill.Data.EffectId, out ISkillEffect effect) && effect.CanUse(actor, context));
+        }
+
+        private static bool CanUseSingleTargetHealingSkill(Unit actor, Skill skill, Unit target, Cell actingCell, CellGrid grid)
+        {
+            if (actor == null || skill?.Data == null || target == null || actingCell == null)
+            {
+                return false;
+            }
+
+            if (target == actor || target.PlayerNumber != actor.PlayerNumber)
+            {
+                return false;
+            }
+
+            SkillTargetingType targetingType = skill.Data.TargetingType;
+            if (targetingType != SkillTargetingType.AllyUnit && targetingType != SkillTargetingType.AnyUnit)
+            {
+                return false;
+            }
+
+            if (!TryResolveSkillRange(actor, skill, actingCell, target, grid, out int minRange, out int maxRange))
+            {
+                return false;
+            }
+
+            if (target.Cell == null)
+            {
+                return false;
+            }
+
+            int distance = actingCell.GetDistance(target.Cell);
+            if (distance < minRange || distance > maxRange)
+            {
+                return false;
+            }
+
+            SkillContext context = BuildSkillContext(actor, skill, target, grid);
+            return SkillEffectRegistry.TryCreate(skill.Data.EffectId, out ISkillEffect effect)
+                && effect is IHealingSkillEffect
+                && effect.CanUse(actor, context);
         }
 
         private static bool TryBuildSkillAttackProfile(Unit actor, Skill skill, Unit target, Cell actingCell, CellGrid grid, out ResolvedAttackProfile profile, out Item selectedWeaponEntry, out bool ignoresDefense)
@@ -486,6 +699,75 @@ namespace Windy.Srpg.Game.AI
                 AreaTargets = areaTargets,
                 Skill = skill?.Data
             };
+        }
+
+        private static bool TryGetHealingAmount(Unit actor, Skill skill, Unit target, CellGrid grid, out int healingAmount)
+        {
+            healingAmount = 0;
+            if (actor == null || skill?.Data == null || target == null || target.HitPoints <= 0)
+            {
+                return false;
+            }
+
+            if (!SkillEffectRegistry.TryCreate(skill.Data.EffectId, out ISkillEffect effect) || effect is not IHealingSkillEffect healingEffect)
+            {
+                return false;
+            }
+
+            SkillContext context = BuildSkillContext(actor, skill, target, grid);
+            if (!effect.CanUse(actor, context))
+            {
+                return false;
+            }
+
+            int missingHitPoints = Mathf.Max(0, target.MaxHitPoints - target.HitPoints);
+            if (missingHitPoints <= 0)
+            {
+                return false;
+            }
+
+            healingAmount = Mathf.Min(missingHitPoints, Mathf.Max(0, healingEffect.GetHealingAmount(actor, context)));
+            return healingAmount > 0;
+        }
+
+        private static bool TryGetAreaHealingAmount(Unit actor, Skill skill, Cell centerCell, IReadOnlyList<Unit> targets, CellGrid grid, out int totalHealingAmount)
+        {
+            totalHealingAmount = 0;
+            if (actor == null || skill?.Data == null || centerCell == null || targets == null || targets.Count == 0)
+            {
+                return false;
+            }
+
+            if (!SkillEffectRegistry.TryCreate(skill.Data.EffectId, out ISkillEffect effect) || effect is not IHealingSkillEffect healingEffect)
+            {
+                return false;
+            }
+
+            bool canUse = false;
+            foreach (Unit target in targets)
+            {
+                if (target == null || target.HitPoints <= 0)
+                {
+                    continue;
+                }
+
+                SkillContext context = BuildAreaSkillContext(actor, skill, centerCell, target, grid, targets);
+                if (!effect.CanUse(actor, context))
+                {
+                    continue;
+                }
+
+                int missingHitPoints = Mathf.Max(0, target.MaxHitPoints - target.HitPoints);
+                if (missingHitPoints <= 0)
+                {
+                    continue;
+                }
+
+                canUse = true;
+                totalHealingAmount += Mathf.Min(missingHitPoints, Mathf.Max(0, healingEffect.GetHealingAmount(actor, context)));
+            }
+
+            return canUse && totalHealingAmount > 0;
         }
 
         private static List<Cell> GetAreaSkillCandidateCenters(Skill skill, Cell actingCell, CellGrid grid)

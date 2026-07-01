@@ -56,6 +56,21 @@ namespace Windy.Srpg.Game.Units
             MovementPoints = ComputedTotalMovementPoints;
             SetTurnStateKind(UnitTurnStateKind.Normal);
         }
+        internal void ResetAiWaitState()
+        {
+            aiWaitTriggered = false;
+        }
+        internal void ActivateAiWaitState()
+        {
+            aiWaitTriggered = true;
+        }
+        internal void ResetAiBehaviorDefaults()
+        {
+            actionAiMode = UnitActionAiMode.Attack;
+            movementAiMode = UnitMovementAiMode.Move;
+            waitGroupId = 0;
+            aiWaitTriggered = false;
+        }
         private void NormalizeProgressionState(bool notifyListeners = false)
         {
             int previousLevel = level;
@@ -84,6 +99,8 @@ namespace Windy.Srpg.Game.Units
         }
         public virtual void Initialize()
         {
+            ResetAiWaitState();
+
             if (pendingOwnedUnitSaveData != null)
             {
                 InitializeFromSavedOwnedUnitData();
@@ -164,6 +181,7 @@ namespace Windy.Srpg.Game.Units
             presetAppliedAtRuntime = true;
             useResolvedPresetLoadout = false;
             resolvedSecondaryStatOffsets = default;
+            ResetAiBehaviorDefaults();
 
             ApplySavedIdentityAndBaseStats(saveData);
             ApplySavedGrowthRates(saveData);
@@ -659,6 +677,10 @@ namespace Windy.Srpg.Game.Units
             }
 
             weaponProficiencies = preset.WeaponProficiencies;
+            actionAiMode = preset.ActionAiMode;
+            movementAiMode = preset.MovementAiMode;
+            waitGroupId = Mathf.Max(0, preset.WaitGroupId);
+            aiWaitTriggered = false;
             float presetMovementPoints = preset.BaseStats.MovementPoints > 0f
                 ? preset.BaseStats.MovementPoints
                 : preset.LegacyBaseMovementPoints;
@@ -667,6 +689,16 @@ namespace Windy.Srpg.Game.Units
             if (presetOverride != null && presetOverride.OverrideMovementPoints)
             {
                 MovementPoints = Mathf.Max(0f, presetOverride.FinalMovementPoints);
+            }
+
+            if (presetOverride != null && presetOverride.OverrideWaitGroupId)
+            {
+                waitGroupId = Mathf.Max(0, presetOverride.WaitGroupId);
+            }
+
+            if (movementAiMode == UnitMovementAiMode.NotMove)
+            {
+                MovementPoints = 0f;
             }
 
             baseHitPoints = Mathf.Max(1, preset.BaseStats.HitPoints);
@@ -1773,9 +1805,48 @@ namespace Windy.Srpg.Game.Units
         }
         private void RaiseHealthChanged(int previousHitPoints, int currentHitPoints, Unit source)
         {
+            if (currentHitPoints < previousHitPoints)
+            {
+                WakeWaitingAiOnDamage();
+            }
+
             if (UnitHealthChanged != null)
             {
                 UnitHealthChanged.Invoke(this, new UnitHealthChangedEventArgs(source, this, previousHitPoints, currentHitPoints));
+            }
+        }
+
+        private void WakeWaitingAiOnDamage()
+        {
+            if (MovementAiMode != UnitMovementAiMode.Wait && MovementAiMode != UnitMovementAiMode.WaitGroup)
+            {
+                return;
+            }
+
+            if (MovementAiMode == UnitMovementAiMode.Wait)
+            {
+                ActivateAiWaitState();
+                return;
+            }
+
+            CellGrid cellGrid = FindSceneCellGrid();
+            if (cellGrid == null)
+            {
+                ActivateAiWaitState();
+                return;
+            }
+
+            foreach (Unit unit in cellGrid.GetUnitsForPlayer(PlayerNumber))
+            {
+                if (unit == null
+                    || unit.ExcludedFromBattle
+                    || unit.MovementAiMode != UnitMovementAiMode.WaitGroup
+                    || unit.WaitGroupId != WaitGroupId)
+                {
+                    continue;
+                }
+
+                unit.ActivateAiWaitState();
             }
         }
         private void RaiseBuffsChanged()

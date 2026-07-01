@@ -28,6 +28,11 @@ namespace Windy.Srpg.Game.AI.Actions
                 return false;
             }
 
+            if (!AiBehaviorUtility.ShouldAllowAction(unit, player, cellGrid))
+            {
+                return false;
+            }
+
             return AiCombatPlanner.HasAnyPlan(unit, player, cellGrid, unit.Cell);
         }
 
@@ -57,11 +62,13 @@ namespace Windy.Srpg.Game.AI.Actions
 
             if (selectedPlan.PrimaryTarget != null)
             {
+                string valueLabel = selectedPlan.IsHealingPlan ? "Healing" : "Expected";
+                string killLabel = selectedPlan.IsHealingPlan ? "Heal" : "Kill";
                 unitDebugInfo[selectedPlan.PrimaryTarget] =
                     $"{selectedPlan.DebugLabel}\n" +
-                    $"Expected: {selectedPlan.ExpectedDamage:0.00}\n" +
+                    $"{valueLabel}: {selectedPlan.ExpectedDamage:0.00}\n" +
                     $"Score: {selectedPlan.Score:0.00}\n" +
-                    $"Kill: {(selectedPlan.ProjectsKill ? "Yes" : "No")}\n" +
+                    $"{killLabel}: {(selectedPlan.ProjectsKill ? "Yes" : "No")}\n" +
                     $"Counter: {(selectedPlan.AvoidsCounterattack ? "No" : "Yes")}\n" +
                     $"MP: {(selectedPlan.CostsNoMp ? "0" : selectedPlan.Skill?.Data?.MpCost.ToString() ?? "0")}";
             }
@@ -172,9 +179,11 @@ namespace Windy.Srpg.Game.AI.Actions
             StringBuilder logBuilder = new StringBuilder();
             logBuilder.AppendLine($"{GetType().Name} selected combat plan");
             logBuilder.Append(" - Action: ").AppendLine(selectedPlan.DebugLabel);
-            logBuilder.Append(" - Expected damage: ").AppendLine(selectedPlan.ExpectedDamage.ToString("0.00"));
+            logBuilder.Append(selectedPlan.IsHealingPlan ? " - Expected healing: " : " - Expected damage: ")
+                .AppendLine(selectedPlan.ExpectedDamage.ToString("0.00"));
             logBuilder.Append(" - Score: ").AppendLine(selectedPlan.Score.ToString("0.00"));
-            logBuilder.Append(" - Kill bonus: ").AppendLine(selectedPlan.ProjectsKill ? "Yes" : "No");
+            logBuilder.Append(selectedPlan.IsHealingPlan ? " - Heal bonus: " : " - Kill bonus: ")
+                .AppendLine(selectedPlan.ProjectsKill ? "Yes" : "No");
             logBuilder.Append(" - Avoids counter: ").AppendLine(selectedPlan.AvoidsCounterattack ? "Yes" : "No");
             logBuilder.Append(" - MP free: ").AppendLine(selectedPlan.CostsNoMp ? "Yes" : "No");
             UnityEngine.Debug.Log(logBuilder.ToString());

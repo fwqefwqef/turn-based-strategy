@@ -23,7 +23,7 @@ namespace Windy.Srpg.Game.Grid
         private static readonly Color ReachableColor = new Color(0.08f, 0.2f, 0.7f, 0.45f);
         private static readonly Color PathColor = new Color(0.35f, 0.68f, 1f, 0.4f);
         private static readonly Color AttackColor = new Color(0.92f, 0.2f, 0.2f, 0.4f);
-        private static readonly Color SupportColor = new Color(0.35f, 0.9f, 0.35f, 0.4f);
+        private static readonly Color SupportColor = new Color(0.66f, 0.88f, 1f, 0.4f);
         private static readonly Color DeploymentColor = new Color(0.5f, 0.82f, 1f, 0.4f);
         private static readonly Color SelectedColor = new Color(1f, 0.92f, 0.25f, 0.4f);
         private static Sprite borderSprite;

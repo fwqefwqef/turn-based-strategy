@@ -8,6 +8,20 @@ using UnityEngine.Serialization;
 
 namespace Windy.Srpg.Game.Units
 {
+    public enum UnitActionAiMode
+    {
+        Attack,
+        Heal
+    }
+
+    public enum UnitMovementAiMode
+    {
+        Move,
+        Wait,
+        WaitGroup,
+        NotMove
+    }
+
     [Serializable]
     public struct UnitStatBlock
     {
@@ -80,6 +94,8 @@ namespace Windy.Srpg.Game.Units
         public int FinalLevel = 1;
         public bool OverrideMovementPoints;
         public float FinalMovementPoints = 5f;
+        public bool OverrideWaitGroupId;
+        public int WaitGroupId = 0;
         public UnitStatBlock StatOffsets;
         public SecondaryStatModifiers SecondaryStatOffsets;
         public List<StartingInventoryItem> ExtraInventory = new List<StartingInventoryItem>();
@@ -95,6 +111,9 @@ namespace Windy.Srpg.Game.Units
         public string UnitName = "Enemy";
         public Sprite UnitSprite;
         public UnitSpriteLayoutSettings SpriteLayout;
+        public UnitActionAiMode ActionAiMode = UnitActionAiMode.Attack;
+        public UnitMovementAiMode MovementAiMode = UnitMovementAiMode.Move;
+        public int WaitGroupId = 0;
         public int BaseLevel = 1;
         public WeaponType WeaponProficiencies = WeaponType.Sword | WeaponType.Lance | WeaponType.Blunt | WeaponType.Ranged | WeaponType.Magic;
         public UnitStatBlock BaseStats;

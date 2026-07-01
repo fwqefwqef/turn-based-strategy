@@ -77,6 +77,12 @@ namespace Windy.Srpg.Game.AI.Actions
                 return false;
             }
 
+            if (!AiBehaviorUtility.ShouldAllowMovement(unit, player, cellGrid))
+            {
+                topDestination = unit.Cell;
+                return false;
+            }
+
             var evaluators = GetComponents<CellEvaluator>();
             foreach (var evaluator in evaluators)
             {

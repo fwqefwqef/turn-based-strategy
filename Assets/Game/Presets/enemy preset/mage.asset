@@ -27,6 +27,9 @@ MonoBehaviour:
     LegacyMaxScaleFactor: 0
     LegacyVerticalAnchor: 0
     LegacyLocalOffset: {x: 0, y: 0}
+  ActionAiMode: 1
+  MovementAiMode: 2
+  WaitGroupId: 0
   BaseLevel: 1
   WeaponProficiencies: -1
   BaseStats:
@@ -47,20 +50,11 @@ MonoBehaviour:
     Speed: 10
     Luck: 10
   StartingInventory:
-  - ItemId: iron_sword
-    InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
-    ChargesInitialized: 1
   - ItemId: magic_sword
     InitialCharges: -1
     LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
-  - ItemId: potion
-    InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
-    ChargesInitialized: 1
-  StartingSkills:
-  - SkillId: fireball
+  StartingSkills: []
   StartingUniquePassives: []
   StartingEquipPassives:
   - PassiveId: arcana_knowledge

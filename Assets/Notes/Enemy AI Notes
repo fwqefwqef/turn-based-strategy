@@ -1,0 +1,25 @@
+# AI behavior
+
+There are 2 types of AI behavior: Action & Movement
+
+Action AI
+
+AI_Attack = The default AI, Attacks friendly units within range.
+AI_Heal = Heals another enemy within range, and if there are no healable targets, Attack instead.
+
+AI_Heal heuristic: Prioritize healing the most possible HP points. Area Healing Spells should consider the sum of heal values for all targets.
+
+First index target on a final tie. Also revise the Attack Heuristic so that it chooses the first index move on a final tie, I want deterministic behavior. Also, make sure AI_Attack doesn't break if the enemy does not have a weapon and any usable skills. Just make them not attack anything and wait the turn.
+
+
+Movement AI
+
+AI_Move = The default AI, moves towards friendly units.
+AI_Wait = Waits until a friendly unit enters its attack range, or until the unit takes damage, then behaves like AI_Move. 
+Moving to heal an ally will not trigger transition from AI_Wait to AI_Move. 
+
+AI_WaitGroup = Waits until a friendly unit enters 2 units with the same WaitGroup id, or any unit within the WaitGroup takes damage, then behaves like AI_Move.
+id = 0,1,2,...
+This should trigger even when the unit itself is not in range within a friendly, but 2 units with the same WaitGroup id are. If there is exactly 1 unit that is AI_WaitGroup, it just behaves like AI_Wait.
+
+AI_NotMove = Does not move. Sets the unit's movement points to 0 to accurately reflect attack range.

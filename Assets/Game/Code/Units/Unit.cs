@@ -98,6 +98,14 @@ namespace Windy.Srpg.Game.Units
         [SerializeField]
         internal WeaponType weaponProficiencies = WeaponType.Sword | WeaponType.Lance | WeaponType.Blunt | WeaponType.Ranged | WeaponType.Magic;
         [SerializeField]
+        internal UnitActionAiMode actionAiMode = UnitActionAiMode.Attack;
+        [SerializeField]
+        internal UnitMovementAiMode movementAiMode = UnitMovementAiMode.Move;
+        [SerializeField]
+        internal int waitGroupId;
+        [NonSerialized]
+        internal bool aiWaitTriggered;
+        [SerializeField]
         internal int baseStrength;
         [SerializeField]
         internal int baseDefense;
@@ -132,6 +140,10 @@ namespace Windy.Srpg.Game.Units
         public WeaponData EquippedWeapon => GetActiveWeapon();
         public AccessoryData EquippedAccessory => Inventory?.EquippedAccessory;
         public virtual WeaponType WeaponProficiencies => weaponProficiencies;
+        public UnitActionAiMode ActionAiMode => actionAiMode;
+        public UnitMovementAiMode MovementAiMode => movementAiMode;
+        public int WaitGroupId => Mathf.Max(0, waitGroupId);
+        public bool IsAiWaitTriggered => aiWaitTriggered;
         public virtual bool HasUsableWeapon => GetActiveWeapon() != null;
         public virtual bool IsMagic => GetActiveWeapon()?.DamageType == DamageType.Magic;
         public virtual int Might => GetActiveWeapon()?.Might ?? 0;
