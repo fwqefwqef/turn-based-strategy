@@ -4,8 +4,10 @@ using System.Linq;
 using TMPro;
 using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Localization;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Windy.Srpg.Game.UI
@@ -35,6 +37,8 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private Button saveButton;
         [SerializeField] private Button selectUnitsButton;
         [SerializeField] private Button switchDeploymentButton;
+        [FormerlySerializedAs("inventoryButton")]
+        [SerializeField] private Button inventoryManagementButton;
         [SerializeField] private TMP_Text statusText;
 
         [Header("Select Units UI")]
@@ -52,10 +56,79 @@ namespace Windy.Srpg.Game.UI
         // Runtime switch deployment now uses the board slots directly instead of generating a button list here.
         [SerializeField] private RectTransform switchSlotContainer;
 
+        [Header("Inventory Management UI")]
+        [FormerlySerializedAs("inventoryPanel")]
+        [SerializeField] private RectTransform inventoryManagementPanel;
+        [FormerlySerializedAs("inventoryBackButton")]
+        [SerializeField] private Button inventoryManagementBackButton;
+        [FormerlySerializedAs("inventoryInstructionText")]
+        [SerializeField] private TMP_Text inventoryManagementInstructionText;
+        [FormerlySerializedAs("inventoryUnitContainer")]
+        [SerializeField] private RectTransform inventoryManagementUnitContainer;
+        [FormerlySerializedAs("inventoryUnitButtonTemplate")]
+        [SerializeField] private Button inventoryManagementUnitButtonTemplate;
+        [FormerlySerializedAs("inventoryOwnItemsContainer")]
+        [SerializeField] private RectTransform inventoryManagementOwnItemsContainer;
+        [FormerlySerializedAs("inventoryOwnItemButtonTemplate")]
+        [SerializeField] private Button inventoryManagementOwnItemButtonTemplate;
+        [FormerlySerializedAs("inventoryOtherItemsContainer")]
+        [SerializeField] private RectTransform inventoryManagementOtherItemsContainer;
+        [FormerlySerializedAs("inventoryOtherItemButtonTemplate")]
+        [SerializeField] private Button inventoryManagementOtherItemButtonTemplate;
+        [FormerlySerializedAs("inventoryWeaponFilterButton")]
+        [SerializeField] private Button inventoryManagementWeaponFilterButton;
+        [FormerlySerializedAs("inventoryAccessoryFilterButton")]
+        [SerializeField] private Button inventoryManagementAccessoryFilterButton;
+        [FormerlySerializedAs("inventoryConsumableFilterButton")]
+        [SerializeField] private Button inventoryManagementConsumableFilterButton;
+        [FormerlySerializedAs("inventoryAllFilterButton")]
+        [SerializeField] private Button inventoryManagementAllFilterButton;
+        [FormerlySerializedAs("inventoryActionPanel")]
+        [SerializeField] private RectTransform inventoryManagementActionPanel;
+        [FormerlySerializedAs("inventoryActionText")]
+        [SerializeField] private TMP_Text inventoryManagementActionText;
+        [FormerlySerializedAs("inventoryConfirmActionButton")]
+        [SerializeField] private Button inventoryManagementConfirmActionButton;
+        [FormerlySerializedAs("inventoryCancelActionButton")]
+        [SerializeField] private Button inventoryManagementCancelActionButton;
+
         private TMP_FontAsset fontAsset;
         private string preferredSelectUnitId;
+        private string selectedInventoryManagementUnitId;
+        private InventoryManagementFilterKind inventoryManagementFilter = InventoryManagementFilterKind.Weapon;
+        private PendingInventoryManagementAction pendingInventoryManagementAction;
         private bool initialized;
         private bool generatedFallbackUi;
+
+        private enum InventoryManagementFilterKind
+        {
+            Weapon,
+            Accessory,
+            Consumable,
+            All
+        }
+
+        private sealed class PendingInventoryManagementAction
+        {
+            public string TargetUnitId;
+            public string SourceUnitId;
+            public int SourceItemIndex;
+            public bool SourceIsStorage;
+            public bool GiveToStorage;
+            public string ItemLabel;
+        }
+
+        private readonly struct IndexedInventoryEntry
+        {
+            public IndexedInventoryEntry(int index, SavedInventoryEntryData entry)
+            {
+                Index = index;
+                Entry = entry;
+            }
+
+            public int Index { get; }
+            public SavedInventoryEntryData Entry { get; }
+        }
 
         public void Initialize(CellGrid grid)
         {
@@ -195,6 +268,10 @@ namespace Windy.Srpg.Game.UI
             {
                 saveButton = CreateSceneAuthoredSaveButton();
             }
+
+            PrepareInventoryButtonTemplate(inventoryManagementUnitButtonTemplate);
+            PrepareInventoryButtonTemplate(inventoryManagementOwnItemButtonTemplate);
+            PrepareInventoryButtonTemplate(inventoryManagementOtherItemButtonTemplate);
         }
 
         private void HookButtonEvents()
@@ -203,8 +280,16 @@ namespace Windy.Srpg.Game.UI
             saveButton?.onClick.AddListener(SaveRosterChanges);
             selectUnitsButton?.onClick.AddListener(OpenSelectUnitsPanelFromButton);
             switchDeploymentButton?.onClick.AddListener(OpenSwitchDeploymentPanelFromButton);
+            inventoryManagementButton?.onClick.AddListener(OpenInventoryPanelFromButton);
             selectUnitsBackButton?.onClick.AddListener(ReturnToMainPanel);
             switchDeploymentBackButton?.onClick.AddListener(ReturnToMainPanel);
+            inventoryManagementBackButton?.onClick.AddListener(ReturnToMainPanel);
+            inventoryManagementWeaponFilterButton?.onClick.AddListener(SetInventoryFilterWeapon);
+            inventoryManagementAccessoryFilterButton?.onClick.AddListener(SetInventoryFilterAccessory);
+            inventoryManagementConsumableFilterButton?.onClick.AddListener(SetInventoryFilterConsumable);
+            inventoryManagementAllFilterButton?.onClick.AddListener(SetInventoryFilterAll);
+            inventoryManagementConfirmActionButton?.onClick.AddListener(ConfirmPendingInventoryAction);
+            inventoryManagementCancelActionButton?.onClick.AddListener(ClearPendingInventoryAction);
         }
 
         private void UnhookButtonEvents()
@@ -213,8 +298,16 @@ namespace Windy.Srpg.Game.UI
             saveButton?.onClick.RemoveListener(SaveRosterChanges);
             selectUnitsButton?.onClick.RemoveListener(OpenSelectUnitsPanelFromButton);
             switchDeploymentButton?.onClick.RemoveListener(OpenSwitchDeploymentPanelFromButton);
+            inventoryManagementButton?.onClick.RemoveListener(OpenInventoryPanelFromButton);
             selectUnitsBackButton?.onClick.RemoveListener(ReturnToMainPanel);
             switchDeploymentBackButton?.onClick.RemoveListener(ReturnToMainPanel);
+            inventoryManagementBackButton?.onClick.RemoveListener(ReturnToMainPanel);
+            inventoryManagementWeaponFilterButton?.onClick.RemoveListener(SetInventoryFilterWeapon);
+            inventoryManagementAccessoryFilterButton?.onClick.RemoveListener(SetInventoryFilterAccessory);
+            inventoryManagementConsumableFilterButton?.onClick.RemoveListener(SetInventoryFilterConsumable);
+            inventoryManagementAllFilterButton?.onClick.RemoveListener(SetInventoryFilterAll);
+            inventoryManagementConfirmActionButton?.onClick.RemoveListener(ConfirmPendingInventoryAction);
+            inventoryManagementCancelActionButton?.onClick.RemoveListener(ClearPendingInventoryAction);
         }
 
         private void HookGridEvents()
@@ -261,10 +354,11 @@ namespace Windy.Srpg.Game.UI
             bool showPreBattle = cellGrid != null && cellGrid.IsPreBattlePhase;
             bool showSelectUnitsPanel = selectUnitsPanel != null && selectUnitsPanel.gameObject.activeSelf;
             bool showSwitchDeploymentPanel = switchDeploymentPanel != null && switchDeploymentPanel.gameObject.activeSelf;
+            bool showInventoryPanel = inventoryManagementPanel != null && inventoryManagementPanel.gameObject.activeSelf;
 
             if (rootPanel != null)
             {
-                rootPanel.gameObject.SetActive(showPreBattle && !showSelectUnitsPanel && !showSwitchDeploymentPanel);
+                rootPanel.gameObject.SetActive(showPreBattle && !showSelectUnitsPanel && !showSwitchDeploymentPanel && !showInventoryPanel);
             }
 
             if (!showPreBattle)
@@ -282,18 +376,19 @@ namespace Windy.Srpg.Game.UI
                 string baseStatus = deploymentSlotLimit > 0
                     ? GameTextCatalog.Format("ui.pre_battle.status_roster", "Roster: {0}/{1}", filledSlotCount, deploymentSlotLimit)
                     : GameTextCatalog.Get("ui.pre_battle.status_no_slots", "No deployment slots.");
-                statusText.text = cellGrid.HasUnsavedDeploymentRosterChanges
+                statusText.text = cellGrid.HasUnsavedPreBattleChanges
                     ? GameTextCatalog.Format("ui.pre_battle.status_unsaved", "{0} (Unsaved)", baseStatus)
                     : baseStatus;
             }
 
             if (saveButton != null)
             {
-                saveButton.interactable = cellGrid.HasUnsavedDeploymentRosterChanges;
+                saveButton.interactable = cellGrid.HasUnsavedPreBattleChanges;
             }
 
             RefreshSelectUnitsPanel();
             RefreshSwitchDeploymentPanel();
+            RefreshInventoryPanel();
         }
 
         private void OpenSelectUnitsPanelFromButton()
@@ -310,6 +405,13 @@ namespace Windy.Srpg.Game.UI
             RefreshSwitchDeploymentPanel();
         }
 
+        private void OpenInventoryPanelFromButton()
+        {
+            cellGrid?.ExitPreBattleDeploymentSwapMode();
+            OpenInventoryPanel();
+            RefreshInventoryPanel();
+        }
+
         private void OpenSelectUnitsPanel()
         {
             if (selectUnitsPanel == null)
@@ -321,6 +423,11 @@ namespace Windy.Srpg.Game.UI
             if (switchDeploymentPanel != null)
             {
                 switchDeploymentPanel.gameObject.SetActive(false);
+            }
+
+            if (inventoryManagementPanel != null)
+            {
+                inventoryManagementPanel.gameObject.SetActive(false);
             }
 
             selectUnitsPanel.gameObject.SetActive(true);
@@ -339,7 +446,34 @@ namespace Windy.Srpg.Game.UI
                 selectUnitsPanel.gameObject.SetActive(false);
             }
 
+            if (inventoryManagementPanel != null)
+            {
+                inventoryManagementPanel.gameObject.SetActive(false);
+            }
+
             switchDeploymentPanel.gameObject.SetActive(true);
+            preferredSelectUnitId = null;
+        }
+
+        private void OpenInventoryPanel()
+        {
+            if (inventoryManagementPanel == null)
+            {
+                return;
+            }
+
+            rootPanel?.gameObject.SetActive(false);
+            if (selectUnitsPanel != null)
+            {
+                selectUnitsPanel.gameObject.SetActive(false);
+            }
+
+            if (switchDeploymentPanel != null)
+            {
+                switchDeploymentPanel.gameObject.SetActive(false);
+            }
+
+            inventoryManagementPanel.gameObject.SetActive(true);
             preferredSelectUnitId = null;
         }
 
@@ -362,7 +496,8 @@ namespace Windy.Srpg.Game.UI
 
             bool hasOpenSubPanel =
                 (selectUnitsPanel != null && selectUnitsPanel.gameObject.activeSelf)
-                || (switchDeploymentPanel != null && switchDeploymentPanel.gameObject.activeSelf);
+                || (switchDeploymentPanel != null && switchDeploymentPanel.gameObject.activeSelf)
+                || (inventoryManagementPanel != null && inventoryManagementPanel.gameObject.activeSelf);
             if (!hasOpenSubPanel)
             {
                 return false;
@@ -397,6 +532,13 @@ namespace Windy.Srpg.Game.UI
             {
                 switchDeploymentPanel.gameObject.SetActive(false);
             }
+
+            if (inventoryManagementPanel != null)
+            {
+                inventoryManagementPanel.gameObject.SetActive(false);
+            }
+
+            ClearPendingInventoryAction();
         }
 
         private void RefreshSelectUnitsPanel()
@@ -456,6 +598,310 @@ namespace Windy.Srpg.Game.UI
             {
                 switchSlotContainer.gameObject.SetActive(false);
             }
+        }
+
+        private void RefreshInventoryPanel()
+        {
+            if (inventoryManagementPanel == null || !inventoryManagementPanel.gameObject.activeSelf || cellGrid == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<OwnedUnitSaveData> ownedUnits = cellGrid.GetOwnedUnitsForPreBattle();
+            EnsureSelectedInventoryUnit(ownedUnits);
+            OwnedUnitSaveData selectedUnit = FindOwnedUnit(ownedUnits, selectedInventoryManagementUnitId);
+            string selectedName = GetUnitDisplayName(selectedUnit);
+
+            if (inventoryManagementInstructionText != null)
+            {
+                string slotText = selectedUnit != null
+                    ? $"{CountInventoryEntries(selectedUnit.Inventory)}/{UnitInventory.MaxSlots}"
+                    : $"0/{UnitInventory.MaxSlots}";
+                inventoryManagementInstructionText.text = selectedUnit == null
+                    ? "Select a unit."
+                    : $"{selectedName} inventory {slotText}";
+            }
+
+            SetFilterButtonVisuals();
+            RebuildInventoryUnitButtons(ownedUnits);
+            RebuildInventoryOwnItems(selectedUnit);
+            RebuildInventoryOtherItems(ownedUnits, selectedUnit);
+            RefreshInventoryActionPanel();
+        }
+
+        private void EnsureSelectedInventoryUnit(IReadOnlyList<OwnedUnitSaveData> ownedUnits)
+        {
+            if (FindOwnedUnit(ownedUnits, selectedInventoryManagementUnitId) != null)
+            {
+                return;
+            }
+
+            selectedInventoryManagementUnitId = ownedUnits?
+                .FirstOrDefault(unit => unit != null && !string.IsNullOrWhiteSpace(unit.UnitId))
+                ?.UnitId;
+            ClearPendingInventoryAction();
+        }
+
+        private void RebuildInventoryUnitButtons(IReadOnlyList<OwnedUnitSaveData> ownedUnits)
+        {
+            RectTransform unitContainer = ResolveInventoryListContainer(inventoryManagementUnitContainer, inventoryManagementUnitButtonTemplate);
+            if (unitContainer == null || inventoryManagementUnitButtonTemplate == null)
+            {
+                return;
+            }
+
+            ClearDynamicChildrenExcept(unitContainer, inventoryManagementUnitButtonTemplate);
+            int buttonIndex = 0;
+            foreach (OwnedUnitSaveData unit in ownedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (unit == null || string.IsNullOrWhiteSpace(unit.UnitId))
+                {
+                    continue;
+                }
+
+                string unitId = unit.UnitId;
+                bool isSelected = string.Equals(unitId, selectedInventoryManagementUnitId, StringComparison.OrdinalIgnoreCase);
+                Button button = CreateInventoryTemplateButton(
+                    inventoryManagementUnitButtonTemplate,
+                    unitContainer,
+                    GetUnitDisplayName(unit),
+                    () =>
+                    {
+                        selectedInventoryManagementUnitId = unitId;
+                        ClearPendingInventoryAction();
+                        RefreshAll();
+                    });
+                button.name = $"PreBattleInventoryUnit:{unitId}";
+                SetButtonColor(button, isSelected ? new Color(0.34f, 0.57f, 0.9f, 0.95f) : new Color(0.88f, 0.88f, 0.9f, 0.95f));
+                buttonIndex++;
+            }
+
+            if (buttonIndex == 0)
+            {
+                CreateInventoryTemplateButton(inventoryManagementUnitButtonTemplate, unitContainer, "No owned units found.", null, false);
+            }
+        }
+
+        private void RebuildInventoryOwnItems(OwnedUnitSaveData selectedUnit)
+        {
+            RectTransform ownItemsContainer = ResolveInventoryListContainer(inventoryManagementOwnItemsContainer, inventoryManagementOwnItemButtonTemplate);
+            if (ownItemsContainer == null || inventoryManagementOwnItemButtonTemplate == null)
+            {
+                return;
+            }
+
+            ClearDynamicChildrenExcept(ownItemsContainer, inventoryManagementOwnItemButtonTemplate);
+            int buttonIndex = 0;
+            foreach (IndexedInventoryEntry indexedEntry in GetFilteredIndexedInventoryEntries(selectedUnit?.Inventory))
+            {
+                int sourceIndex = indexedEntry.Index;
+                string itemLabel = BuildItemDisplayLabel(indexedEntry.Entry);
+                Button button = CreateInventoryTemplateButton(
+                    inventoryManagementOwnItemButtonTemplate,
+                    ownItemsContainer,
+                    itemLabel,
+                    () => BeginGiveInventoryAction(selectedUnit?.UnitId, sourceIndex, itemLabel));
+                button.name = $"PreBattleInventoryOwn:{sourceIndex}";
+                buttonIndex++;
+            }
+
+            if (buttonIndex == 0)
+            {
+                CreateInventoryTemplateButton(inventoryManagementOwnItemButtonTemplate, ownItemsContainer, "No matching items.", null, false);
+            }
+        }
+
+        private void RebuildInventoryOtherItems(IReadOnlyList<OwnedUnitSaveData> ownedUnits, OwnedUnitSaveData selectedUnit)
+        {
+            RectTransform otherItemsContainer = ResolveInventoryListContainer(inventoryManagementOtherItemsContainer, inventoryManagementOtherItemButtonTemplate);
+            if (otherItemsContainer == null || inventoryManagementOtherItemButtonTemplate == null)
+            {
+                return;
+            }
+
+            ClearDynamicChildrenExcept(otherItemsContainer, inventoryManagementOtherItemButtonTemplate);
+            bool targetInventoryFull = CountInventoryEntries(selectedUnit?.Inventory) >= UnitInventory.MaxSlots;
+            int buttonIndex = 0;
+            foreach (OwnedUnitSaveData unit in ownedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (unit == null || string.IsNullOrWhiteSpace(unit.UnitId))
+                {
+                    continue;
+                }
+
+                bool isOwnUnit = selectedUnit != null && string.Equals(unit.UnitId, selectedUnit.UnitId, StringComparison.OrdinalIgnoreCase);
+                foreach (IndexedInventoryEntry indexedEntry in GetFilteredIndexedInventoryEntries(unit.Inventory))
+                {
+                    int sourceIndex = indexedEntry.Index;
+                    string itemLabel = $"{GetUnitDisplayName(unit)}: {BuildItemDisplayLabel(indexedEntry.Entry)}";
+                    bool canTake = !isOwnUnit && !targetInventoryFull;
+                    Button button = CreateInventoryTemplateButton(
+                        inventoryManagementOtherItemButtonTemplate,
+                        otherItemsContainer,
+                        itemLabel,
+                        () => BeginTakeInventoryAction(selectedUnit?.UnitId, unit.UnitId, sourceIndex, sourceIsStorage: false, itemLabel),
+                        canTake);
+                    button.name = $"PreBattleInventoryOther:{unit.UnitId}:{sourceIndex}";
+                    buttonIndex++;
+                }
+            }
+
+            IReadOnlyList<SavedInventoryEntryData> storageItems = cellGrid.GetStorageItemsForPreBattle();
+            foreach (IndexedInventoryEntry indexedEntry in GetFilteredIndexedInventoryEntries(storageItems))
+            {
+                int sourceIndex = indexedEntry.Index;
+                string itemLabel = $"Storage: {BuildItemDisplayLabel(indexedEntry.Entry)}";
+                Button button = CreateInventoryTemplateButton(
+                    inventoryManagementOtherItemButtonTemplate,
+                    otherItemsContainer,
+                    itemLabel,
+                    () => BeginTakeInventoryAction(selectedUnit?.UnitId, null, sourceIndex, sourceIsStorage: true, itemLabel),
+                    !targetInventoryFull);
+                button.name = $"PreBattleInventoryStorage:{sourceIndex}";
+                buttonIndex++;
+            }
+
+            if (buttonIndex == 0)
+            {
+                CreateInventoryTemplateButton(inventoryManagementOtherItemButtonTemplate, otherItemsContainer, "No matching items.", null, false);
+            }
+        }
+
+        private void SetInventoryFilter(InventoryManagementFilterKind filter)
+        {
+            inventoryManagementFilter = filter;
+            ClearPendingInventoryAction();
+            RefreshAll();
+        }
+
+        private void SetInventoryFilterWeapon()
+        {
+            SetInventoryFilter(InventoryManagementFilterKind.Weapon);
+        }
+
+        private void SetInventoryFilterAccessory()
+        {
+            SetInventoryFilter(InventoryManagementFilterKind.Accessory);
+        }
+
+        private void SetInventoryFilterConsumable()
+        {
+            SetInventoryFilter(InventoryManagementFilterKind.Consumable);
+        }
+
+        private void SetInventoryFilterAll()
+        {
+            SetInventoryFilter(InventoryManagementFilterKind.All);
+        }
+
+        private void BeginTakeInventoryAction(string targetUnitId, string sourceUnitId, int sourceItemIndex, bool sourceIsStorage, string itemLabel)
+        {
+            if (string.IsNullOrWhiteSpace(targetUnitId) || sourceItemIndex < 0)
+            {
+                return;
+            }
+
+            pendingInventoryManagementAction = new PendingInventoryManagementAction
+            {
+                TargetUnitId = targetUnitId,
+                SourceUnitId = sourceUnitId,
+                SourceItemIndex = sourceItemIndex,
+                SourceIsStorage = sourceIsStorage,
+                GiveToStorage = false,
+                ItemLabel = itemLabel
+            };
+            RefreshInventoryActionPanel();
+        }
+
+        private void BeginGiveInventoryAction(string sourceUnitId, int sourceItemIndex, string itemLabel)
+        {
+            if (string.IsNullOrWhiteSpace(sourceUnitId) || sourceItemIndex < 0)
+            {
+                return;
+            }
+
+            pendingInventoryManagementAction = new PendingInventoryManagementAction
+            {
+                SourceUnitId = sourceUnitId,
+                SourceItemIndex = sourceItemIndex,
+                GiveToStorage = true,
+                ItemLabel = itemLabel
+            };
+            RefreshInventoryActionPanel();
+        }
+
+        private void ConfirmPendingInventoryAction()
+        {
+            if (pendingInventoryManagementAction == null || cellGrid == null)
+            {
+                return;
+            }
+
+            bool changed = pendingInventoryManagementAction.GiveToStorage
+                ? cellGrid.GivePreBattleInventoryItemToStorage(pendingInventoryManagementAction.SourceUnitId, pendingInventoryManagementAction.SourceItemIndex)
+                : cellGrid.TakePreBattleInventoryItem(
+                    pendingInventoryManagementAction.TargetUnitId,
+                    pendingInventoryManagementAction.SourceUnitId,
+                    pendingInventoryManagementAction.SourceItemIndex,
+                    pendingInventoryManagementAction.SourceIsStorage);
+
+            ClearPendingInventoryAction();
+            if (changed)
+            {
+                RefreshAll();
+            }
+        }
+
+        private void ClearPendingInventoryAction()
+        {
+            pendingInventoryManagementAction = null;
+            RefreshInventoryActionPanel();
+        }
+
+        private void RefreshInventoryActionPanel()
+        {
+            if (inventoryManagementActionPanel == null)
+            {
+                return;
+            }
+
+            bool hasAction = pendingInventoryManagementAction != null;
+            inventoryManagementActionPanel.gameObject.SetActive(hasAction);
+            if (!hasAction)
+            {
+                return;
+            }
+
+            if (inventoryManagementActionText != null)
+            {
+                inventoryManagementActionText.text = pendingInventoryManagementAction.GiveToStorage
+                    ? $"Give {pendingInventoryManagementAction.ItemLabel} to Storage?"
+                    : $"Take {pendingInventoryManagementAction.ItemLabel}?";
+            }
+
+            TMP_Text confirmText = inventoryManagementConfirmActionButton?.GetComponentInChildren<TMP_Text>();
+            if (confirmText != null)
+            {
+                confirmText.text = pendingInventoryManagementAction.GiveToStorage ? "Give to Storage" : "Take";
+            }
+        }
+
+        private void SetFilterButtonVisuals()
+        {
+            SetFilterButtonVisual(inventoryManagementWeaponFilterButton, InventoryManagementFilterKind.Weapon);
+            SetFilterButtonVisual(inventoryManagementAccessoryFilterButton, InventoryManagementFilterKind.Accessory);
+            SetFilterButtonVisual(inventoryManagementConsumableFilterButton, InventoryManagementFilterKind.Consumable);
+            SetFilterButtonVisual(inventoryManagementAllFilterButton, InventoryManagementFilterKind.All);
+        }
+
+        private void SetFilterButtonVisual(Button button, InventoryManagementFilterKind filter)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            SetButtonColor(button, inventoryManagementFilter == filter ? new Color(0.34f, 0.57f, 0.9f, 0.95f) : new Color(0.88f, 0.88f, 0.9f, 0.95f));
         }
 
         private void RebuildOwnedUnitButtons(RectTransform container, IReadOnlyList<OwnedUnitSaveData> ownedUnits, IReadOnlyList<string> roster)
@@ -633,6 +1079,80 @@ namespace Windy.Srpg.Game.UI
             }
 
             return count;
+        }
+
+        private static OwnedUnitSaveData FindOwnedUnit(IReadOnlyList<OwnedUnitSaveData> ownedUnits, string unitId)
+        {
+            if (ownedUnits == null || string.IsNullOrWhiteSpace(unitId))
+            {
+                return null;
+            }
+
+            return ownedUnits.FirstOrDefault(unit =>
+                unit != null && string.Equals(unit.UnitId, unitId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string GetUnitDisplayName(OwnedUnitSaveData unit)
+        {
+            if (unit == null)
+            {
+                return "None";
+            }
+
+            return string.IsNullOrWhiteSpace(unit.UnitName) ? unit.UnitId : unit.UnitName;
+        }
+
+        private IEnumerable<IndexedInventoryEntry> GetFilteredIndexedInventoryEntries(IEnumerable<SavedInventoryEntryData> entries)
+        {
+            int index = 0;
+            foreach (SavedInventoryEntryData entry in entries ?? Array.Empty<SavedInventoryEntryData>())
+            {
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.ItemId) && MatchesInventoryFilter(entry))
+                {
+                    yield return new IndexedInventoryEntry(index, entry);
+                }
+
+                index++;
+            }
+        }
+
+        private bool MatchesInventoryFilter(SavedInventoryEntryData entry)
+        {
+            if (inventoryManagementFilter == InventoryManagementFilterKind.All)
+            {
+                return true;
+            }
+
+            ItemData data = ItemRegistry.Get(entry?.ItemId);
+            return inventoryManagementFilter switch
+            {
+                InventoryManagementFilterKind.Weapon => data is WeaponData,
+                InventoryManagementFilterKind.Accessory => data is AccessoryData,
+                InventoryManagementFilterKind.Consumable => data is ConsumableData,
+                _ => true
+            };
+        }
+
+        private static int CountInventoryEntries(IEnumerable<SavedInventoryEntryData> entries)
+        {
+            return entries?.Count(entry => entry != null && !string.IsNullOrWhiteSpace(entry.ItemId)) ?? 0;
+        }
+
+        private static string BuildItemDisplayLabel(SavedInventoryEntryData entry)
+        {
+            if (entry == null || string.IsNullOrWhiteSpace(entry.ItemId))
+            {
+                return "Unknown";
+            }
+
+            ItemData data = ItemRegistry.Get(entry.ItemId);
+            string name = string.IsNullOrWhiteSpace(data?.Name) ? entry.ItemId : data.Name;
+            if (data is ConsumableData && entry.RemainingCharges >= 0)
+            {
+                return $"{name} x{entry.RemainingCharges}";
+            }
+
+            return name;
         }
 
         private void ResizeSelectUnitsPanel(int ownedUnitCount)
@@ -937,6 +1457,132 @@ namespace Windy.Srpg.Game.UI
             }
         }
 
+        private static void ClearDynamicChildrenExcept(RectTransform container, Button template)
+        {
+            if (container == null)
+            {
+                return;
+            }
+
+            Transform templateTransform = template != null ? template.transform : null;
+            for (int i = container.childCount - 1; i >= 0; i--)
+            {
+                Transform child = container.GetChild(i);
+                if (child == templateTransform)
+                {
+                    continue;
+                }
+
+                Destroy(child.gameObject);
+            }
+        }
+
+        private static void PrepareInventoryButtonTemplate(Button template)
+        {
+            if (template == null)
+            {
+                return;
+            }
+
+            template.gameObject.SetActive(false);
+        }
+
+        private static RectTransform ResolveInventoryListContainer(RectTransform assignedContainer, Button template)
+        {
+            if (assignedContainer == null)
+            {
+                return null;
+            }
+
+            ScrollRect scrollRect = assignedContainer.GetComponent<ScrollRect>();
+            if (scrollRect == null)
+            {
+                return assignedContainer;
+            }
+
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+
+            RectTransform content = scrollRect.content;
+            if (content == null)
+            {
+                content = FindChildRectTransformByName(assignedContainer, "Content");
+            }
+
+            if (content == null)
+            {
+                Transform contentParent = scrollRect.viewport != null ? scrollRect.viewport : assignedContainer;
+                GameObject contentObject = new GameObject("Content", typeof(RectTransform));
+                contentObject.transform.SetParent(contentParent, false);
+                content = contentObject.GetComponent<RectTransform>();
+                content.anchorMin = new Vector2(0f, 1f);
+                content.anchorMax = new Vector2(1f, 1f);
+                content.pivot = new Vector2(0.5f, 1f);
+                content.anchoredPosition = Vector2.zero;
+                content.sizeDelta = Vector2.zero;
+            }
+
+            scrollRect.content = content;
+            if (template != null && template.transform.parent != content)
+            {
+                template.transform.SetParent(content, false);
+            }
+
+            return content;
+        }
+
+        private static RectTransform FindChildRectTransformByName(Transform root, string childName)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(childName))
+            {
+                return null;
+            }
+
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform child = root.GetChild(i);
+                if (string.Equals(child.name, childName, StringComparison.OrdinalIgnoreCase)
+                    && child is RectTransform rectTransform)
+                {
+                    return rectTransform;
+                }
+
+                RectTransform nested = FindChildRectTransformByName(child, childName);
+                if (nested != null)
+                {
+                    return nested;
+                }
+            }
+
+            return null;
+        }
+
+        private Button CreateInventoryTemplateButton(Button template, RectTransform container, string label, Action onClick, bool interactable = true)
+        {
+            if (template == null || container == null)
+            {
+                return null;
+            }
+
+            Button button = Instantiate(template, container);
+            button.name = $"{template.name}:{label}";
+            button.gameObject.SetActive(true);
+            button.interactable = interactable;
+            button.onClick.RemoveAllListeners();
+            if (onClick != null && interactable)
+            {
+                button.onClick.AddListener(() => onClick.Invoke());
+            }
+
+            TMP_Text text = button.GetComponentInChildren<TMP_Text>(true);
+            if (text != null)
+            {
+                text.text = label;
+            }
+
+            return button;
+        }
+
         private RectTransform CreateRuntimePanel(string name, Transform parent, Vector2 anchoredPosition, Vector2 size, Color backgroundColor)
         {
             GameObject panel = new GameObject(name, typeof(RectTransform), typeof(Image));
@@ -986,6 +1632,35 @@ namespace Windy.Srpg.Game.UI
             return button;
         }
 
+        private static void SetButtonColor(Button button, Color color)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            Image image = button.GetComponent<Image>();
+            if (image != null)
+            {
+                image.color = color;
+            }
+
+            ColorBlock colors = button.colors;
+            colors.normalColor = color;
+            colors.highlightedColor = new Color(
+                Mathf.Min(1f, color.r + 0.08f),
+                Mathf.Min(1f, color.g + 0.08f),
+                Mathf.Min(1f, color.b + 0.08f),
+                Mathf.Min(1f, color.a + 0.08f));
+            colors.pressedColor = new Color(
+                Mathf.Max(0f, color.r - 0.12f),
+                Mathf.Max(0f, color.g - 0.12f),
+                Mathf.Max(0f, color.b - 0.12f),
+                color.a);
+            colors.selectedColor = colors.highlightedColor;
+            button.colors = colors;
+        }
+
         private TMP_Text CreateRuntimeText(Transform parent, string content, Vector2 anchoredPosition, Vector2 size, float fontSize, FontStyles fontStyle, TextAlignmentOptions alignment)
         {
             GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
@@ -1010,4 +1685,3 @@ namespace Windy.Srpg.Game.UI
         }
     }
 }
-

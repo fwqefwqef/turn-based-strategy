@@ -32,6 +32,7 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private GameObject root;
 
         [Header("Summary")]
+        [SerializeField] private RectTransform portrait;
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text levelText;
         [SerializeField] private TMP_Text experienceText;
@@ -431,6 +432,8 @@ namespace Windy.Srpg.Game.UI
                 root.SetActive(true);
             }
 
+            UnitPortraitUiUtility.ApplyPortrait(portrait, displayUnit);
+
             IReadOnlyList<UnitInspectEntryListUI.EntryData> activeBuffEntries = BuildBuffEntries(displayUnit).ToList();
 
             if (nameText != null)
@@ -527,6 +530,8 @@ namespace Windy.Srpg.Game.UI
             {
                 root.SetActive(false);
             }
+
+            UnitPortraitUiUtility.ApplyPortrait(portrait, (Sprite)null);
 
             inventoryList?.ClearEntries();
             skillsList?.ClearEntries();

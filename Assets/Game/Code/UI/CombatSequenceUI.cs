@@ -26,6 +26,7 @@ namespace Windy.Srpg.Game.UI
         public class UnitPanelBindings
         {
             public GameObject Root;
+            public RectTransform Portrait;
             public TMP_Text NameText;
             public TMP_Text HitPointsText;
             public Image BackgroundImage;
@@ -296,8 +297,11 @@ namespace Windy.Srpg.Game.UI
             panel.Root.SetActive(unit != null);
             if (unit == null)
             {
+                UnitPortraitUiUtility.ApplyPortrait(panel.Portrait, (Sprite)null);
                 return;
             }
+
+            UnitPortraitUiUtility.ApplyPortrait(panel.Portrait, unit);
 
             if (panel.NameText != null)
             {
@@ -330,6 +334,8 @@ namespace Windy.Srpg.Game.UI
             {
                 return;
             }
+
+            UnitPortraitUiUtility.ApplyPortrait(panel.Portrait, (Sprite)null);
 
             if (panel.NameText != null)
             {
@@ -591,6 +597,9 @@ namespace Windy.Srpg.Game.UI
             {
                 rightPanel.BackgroundImage.enabled = false;
             }
+
+            UnitPortraitUiUtility.ApplyPortrait(leftPanel?.Portrait, (Sprite)null);
+            UnitPortraitUiUtility.ApplyPortrait(rightPanel?.Portrait, (Sprite)null);
         }
 
         private void PositionRoot(Vector3 worldPosition)

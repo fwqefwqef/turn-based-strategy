@@ -66,6 +66,7 @@ namespace Windy.Srpg.Game.Grid
             cachedCampaignSave = seededSave;
             campaignSaveDirty = false;
             hasUnsavedDeploymentRosterChanges = false;
+            hasUnsavedPreBattleInventoryChanges = false;
             DeploymentSlot[] deploymentSlots = DeploymentScene.GetDeploymentSlots();
             if (deploymentSlots.Length > 0)
             {
@@ -188,6 +189,11 @@ namespace Windy.Srpg.Game.Grid
         public IReadOnlyList<OwnedUnitSaveData> GetOwnedUnitsForPreBattle()
         {
             return (LoadSeededCampaignSave()?.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>()).ToArray();
+        }
+
+        public IReadOnlyList<SavedInventoryEntryData> GetStorageItemsForPreBattle()
+        {
+            return CloneSavedInventoryEntries(LoadSeededCampaignSave()?.StorageItems);
         }
 
         public int GetDeploymentSlotCount()
@@ -433,12 +439,90 @@ namespace Windy.Srpg.Game.Grid
             save.DeploymentRosterUnitIds = roster;
             stagedDeploymentRosterUnitIds = roster.ToArray();
             hasUnsavedDeploymentRosterChanges = false;
-            if (changed)
+            if (changed || hasUnsavedPreBattleInventoryChanges)
             {
                 SaveCampaignDataImmediate(save);
             }
 
+            hasUnsavedPreBattleInventoryChanges = false;
             DeploymentRosterChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        public bool TakePreBattleInventoryItem(string targetUnitId, string sourceUnitId, int sourceItemIndex, bool sourceIsStorage)
+        {
+            if (string.IsNullOrWhiteSpace(targetUnitId) || sourceItemIndex < 0)
+            {
+                return false;
+            }
+
+            CampaignSaveData save = LoadSeededCampaignSave();
+            OwnedUnitSaveData targetUnit = FindOwnedUnit(save, targetUnitId);
+            if (targetUnit == null || CountInventoryEntries(targetUnit.Inventory) >= Windy.Srpg.Game.Inventory.UnitInventory.MaxSlots)
+            {
+                return false;
+            }
+
+            SavedInventoryEntryData item;
+            if (sourceIsStorage)
+            {
+                List<SavedInventoryEntryData> storageItems = CloneSavedInventoryEntries(save.StorageItems).ToList();
+                if (!TryRemoveInventoryEntry(storageItems, sourceItemIndex, out item))
+                {
+                    return false;
+                }
+
+                save.StorageItems = storageItems.ToArray();
+            }
+            else
+            {
+                OwnedUnitSaveData sourceUnit = FindOwnedUnit(save, sourceUnitId);
+                if (sourceUnit == null || string.Equals(sourceUnit.UnitId, targetUnit.UnitId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                List<SavedInventoryEntryData> sourceItems = CloneSavedInventoryEntries(sourceUnit.Inventory).ToList();
+                if (!TryRemoveInventoryEntry(sourceItems, sourceItemIndex, out item))
+                {
+                    return false;
+                }
+
+                sourceUnit.Inventory = sourceItems.ToArray();
+            }
+
+            List<SavedInventoryEntryData> targetItems = CloneSavedInventoryEntries(targetUnit.Inventory).ToList();
+            targetItems.Add(CloneSavedInventoryEntry(item));
+            targetUnit.Inventory = targetItems.ToArray();
+            MarkPreBattleInventoryChanged(save);
+            return true;
+        }
+
+        public bool GivePreBattleInventoryItemToStorage(string sourceUnitId, int sourceItemIndex)
+        {
+            if (string.IsNullOrWhiteSpace(sourceUnitId) || sourceItemIndex < 0)
+            {
+                return false;
+            }
+
+            CampaignSaveData save = LoadSeededCampaignSave();
+            OwnedUnitSaveData sourceUnit = FindOwnedUnit(save, sourceUnitId);
+            if (sourceUnit == null)
+            {
+                return false;
+            }
+
+            List<SavedInventoryEntryData> sourceItems = CloneSavedInventoryEntries(sourceUnit.Inventory).ToList();
+            if (!TryRemoveInventoryEntry(sourceItems, sourceItemIndex, out SavedInventoryEntryData item))
+            {
+                return false;
+            }
+
+            List<SavedInventoryEntryData> storageItems = CloneSavedInventoryEntries(save.StorageItems).ToList();
+            storageItems.Add(CloneSavedInventoryEntry(item));
+            sourceUnit.Inventory = sourceItems.ToArray();
+            save.StorageItems = storageItems.ToArray();
+            MarkPreBattleInventoryChanged(save);
+            return true;
         }
 
         private void ApplyFriendlyDeployment(CampaignSaveData save, IReadOnlyList<string> rosterOverride = null)
@@ -446,6 +530,61 @@ namespace Windy.Srpg.Game.Grid
             Dictionary<string, UnitPreset> presetsById = DeploymentRosterUtility.BuildVisualPresetsById(starterOwnedUnitPresets);
             DeploymentScene.ApplyFriendlyDeployment(save, rosterOverride, presetsById);
         }
+
+        private void MarkPreBattleInventoryChanged(CampaignSaveData save)
+        {
+            hasUnsavedPreBattleInventoryChanges = true;
+            ApplyFriendlyDeployment(save, GetDeploymentRosterForPreBattle());
+            DeploymentRosterChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        private static OwnedUnitSaveData FindOwnedUnit(CampaignSaveData save, string unitId)
+        {
+            return (save?.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+                .FirstOrDefault(unit => unit != null && string.Equals(unit.UnitId, unitId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static int CountInventoryEntries(IEnumerable<SavedInventoryEntryData> entries)
+        {
+            return CloneSavedInventoryEntries(entries).Length;
+        }
+
+        private static bool TryRemoveInventoryEntry(List<SavedInventoryEntryData> entries, int index, out SavedInventoryEntryData item)
+        {
+            item = null;
+            if (entries == null || index < 0 || index >= entries.Count)
+            {
+                return false;
+            }
+
+            item = entries[index];
+            entries.RemoveAt(index);
+            return item != null;
+        }
+
+        private static SavedInventoryEntryData CloneSavedInventoryEntry(SavedInventoryEntryData entry)
+        {
+            if (entry == null || string.IsNullOrWhiteSpace(entry.ItemId))
+            {
+                return null;
+            }
+
+            return new SavedInventoryEntryData
+            {
+                ItemId = entry.ItemId,
+                RemainingCharges = entry.RemainingCharges
+            };
+        }
+
+        private static SavedInventoryEntryData[] CloneSavedInventoryEntries(IEnumerable<SavedInventoryEntryData> entries)
+        {
+            return entries?
+                .Select(CloneSavedInventoryEntry)
+                .Where(entry => entry != null)
+                .ToArray()
+                ?? Array.Empty<SavedInventoryEntryData>();
+        }
+
         private string[] GetResolvedDeploymentRosterForCurrentScene(CampaignSaveData save, int deploymentSlotCount)
         {
             string[] savedRoster = DeploymentRosterUtility.NormalizeRoster(save?.DeploymentRosterUnitIds, save, deploymentSlotCount);

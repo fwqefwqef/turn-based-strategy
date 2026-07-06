@@ -650,6 +650,16 @@ namespace Windy.Srpg.Game.Units
             return ResolveUnitSpriteRenderer(this);
         }
 
+        public Sprite GetPortraitSprite()
+        {
+            if (preset != null && preset.FaceSprite != null)
+            {
+                return preset.FaceSprite;
+            }
+
+            return ResolveUnitSpriteRenderer()?.sprite;
+        }
+
 
 
 

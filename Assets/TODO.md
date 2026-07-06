@@ -2,13 +2,21 @@
 
 ## Next planned features ✔
 
-# Implement enemy sprites showing in Attack Preview, Combat Sequence HUD, Inspect Panel
-A new property in unit preset should be added called face sprite, and this is the face that will be resized and projected onto the empty rect transforms indicating where the face goes within these UIs.
-If no face sprite is set, then just use the unit sprite instead.
+# Implement pre-battle Inventory Management
 
-# Implement passive slots
+Scene wiring mostly done, check for logic
 
-Passive slot and cost should depend on Level. Maybe gain +1 cost per 2 levels, and +1 slot per 5 levels. 
-Base Level is 1 and Max Level is 20 but should be configurable.
+# Implement pre-battle passive management
+
+In Pre-Battle UI, add a Equip Passive Button, where you can equip and unequip passives from units. 
+
+Each unit should have a passive slot and passive cost limit, and equipping passives should respect both limits. 
+
+Passive slot and max passive cost should depend on Level. Gain +1 cost per 2 levels (Lv2, 4, 6, ...), and +1 slot per 5 levels (Lv5, 10, 15, 20). 
+Lv1 4 Cost, 2 Slots
+Lv20  14 Cost, 6 Slots
+
+In the Equip Passive Menu, you can select a unit, and upon selecting, it shows a list of passives the unit is currently equipping, and a list of passives equipped by every unit, with your own passives greyed out and unselectable. Equipping/Unequipping passives should work very similarly to Inventory Management, but limited by Passive Slot and Passive Cost limits instead of Inventory Size. There should also be an equip passive storage where you can store passives and take them to equip on units. This should also be in the save file. 
+Upon saving, the equip passive changes should be applied on the next load.
 
 # Out of battle menu that lets you select a level to enter

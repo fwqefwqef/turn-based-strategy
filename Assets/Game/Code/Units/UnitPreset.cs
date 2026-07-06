@@ -110,6 +110,7 @@ namespace Windy.Srpg.Game.Units
         public string PresetId = "unit_preset";
         public string UnitName = "Enemy";
         public Sprite UnitSprite;
+        public Sprite FaceSprite;
         public UnitSpriteLayoutSettings SpriteLayout;
         public UnitActionAiMode ActionAiMode = UnitActionAiMode.Attack;
         public UnitMovementAiMode MovementAiMode = UnitMovementAiMode.Move;

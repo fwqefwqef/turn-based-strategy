@@ -16,6 +16,7 @@ namespace Windy.Srpg.Game.UI
         public class PreviewPanelBindings
         {
             public GameObject Root;
+            public RectTransform Portrait;
             public TMP_Text NameText;
             public TMP_Text WeaponText;
             public Button NextWeaponButton;
@@ -166,6 +167,8 @@ namespace Windy.Srpg.Game.UI
                 attackerIsOnLeft ? resolvedDefenderActionLabel : resolvedAttackerActionLabel,
                 attackerIsOnLeft ? resolvedDefenderActionDisplay : resolvedAttackerActionDisplay,
                 canCycleAction);
+            UnitPortraitUiUtility.ApplyPortrait(leftPanel?.Portrait, attackerIsOnLeft ? attackerUnit : defenderUnit);
+            UnitPortraitUiUtility.ApplyPortrait(rightPanel?.Portrait, attackerIsOnLeft ? defenderUnit : attackerUnit);
 
             if (confirmButton != null)
             {
@@ -196,11 +199,13 @@ namespace Windy.Srpg.Game.UI
             {
                 leftPanel.Root.SetActive(false);
             }
+            UnitPortraitUiUtility.ApplyPortrait(leftPanel?.Portrait, (Sprite)null);
 
             if (rightPanel?.Root != null)
             {
                 rightPanel.Root.SetActive(false);
             }
+            UnitPortraitUiUtility.ApplyPortrait(rightPanel?.Portrait, (Sprite)null);
 
             if (confirmButton != null)
             {
@@ -226,6 +231,8 @@ namespace Windy.Srpg.Game.UI
             _onCancel = null;
             _attackerUnit = null;
             _defenderUnit = null;
+            UnitPortraitUiUtility.ApplyPortrait(leftPanel?.Portrait, (Sprite)null);
+            UnitPortraitUiUtility.ApplyPortrait(rightPanel?.Portrait, (Sprite)null);
 
             SetModalVisible(false);
             GameplayCameraController.ClearPreviewUiContainment();
