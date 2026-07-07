@@ -17,12 +17,6 @@ namespace Windy.Srpg.Game.Editor
             EditorApplication.delayCall += () => EnsureDefaults();
         }
 
-        [MenuItem("Tools/Windy SRPG/Rebuild Default Tile Presets")]
-        private static void RebuildDefaultsMenu()
-        {
-            EnsureDefaults(forceRebuild: true);
-        }
-
         internal static void EnsureDefaults(bool forceRebuild = false)
         {
             if (Application.isPlaying)

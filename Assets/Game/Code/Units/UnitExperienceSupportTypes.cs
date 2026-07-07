@@ -65,7 +65,7 @@ namespace Windy.Srpg.Game.Units
             }
 
             int baseAmount = isLethal ? EnemyTargetLethalBase : EnemyTargetNonLethalBase;
-            float rawAmount = baseAmount * (1f + enemyLevel - user.Level);
+            float rawAmount = CalculateLevelScaledAmount(baseAmount, user.Level, enemyLevel);
             return ClampExperienceGain(user, rawAmount);
         }
 
@@ -77,7 +77,7 @@ namespace Windy.Srpg.Game.Units
             }
 
             float averageEnemyLevel = GetAverageEnemyLevel(user, cellGrid);
-            float rawAmount = AllySkillBase * (1f + averageEnemyLevel - user.Level);
+            float rawAmount = CalculateLevelScaledAmount(AllySkillBase, user.Level, averageEnemyLevel);
             return ClampExperienceGain(user, rawAmount);
         }
 
@@ -169,7 +169,7 @@ namespace Windy.Srpg.Game.Units
         {
             float averageTargetLevel = GetAverageTargetLevel(targets);
             int baseAmount = killedAtLeastOneTarget ? AreaEnemyBase * 3 : AreaEnemyBase;
-            float rawAmount = baseAmount * (1f + averageTargetLevel - user.Level);
+            float rawAmount = CalculateLevelScaledAmount(baseAmount, user.Level, averageTargetLevel);
             return ClampExperienceGain(user, rawAmount);
         }
 
@@ -177,8 +177,24 @@ namespace Windy.Srpg.Game.Units
         {
             float averageTargetLevel = GetAverageTargetLevel(targets);
             int baseAmount = killedAtLeastOneTarget ? AreaAnyBase * 3 : AreaAnyBase;
-            float rawAmount = baseAmount * (1f + averageTargetLevel - user.Level);
+            float rawAmount = CalculateLevelScaledAmount(baseAmount, user.Level, averageTargetLevel);
             return ClampExperienceGain(user, rawAmount);
+        }
+
+        static float CalculateLevelScaledAmount(float baseAmount, float userLevel, float targetLevel)
+        {
+            float levelDifference = targetLevel - userLevel;
+            if (Mathf.Approximately(levelDifference, 0f))
+            {
+                return baseAmount;
+            }
+
+            if (levelDifference > 0f)
+            {
+                return baseAmount * ((levelDifference + 2f) / 2f);
+            }
+
+            return baseAmount * (2f / (Mathf.Abs(levelDifference) + 2f));
         }
 
         static float GetAverageTargetLevel(IReadOnlyList<Unit> targets)
