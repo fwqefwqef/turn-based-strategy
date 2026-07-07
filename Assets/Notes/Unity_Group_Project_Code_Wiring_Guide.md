@@ -277,6 +277,87 @@ private void OnDestroy()
 
 Always unsubscribe from long-lived objects, especially scene managers, static events, and global UI events.
 
+### Event ownership in plain English
+
+An event is not a bool. It is closer to a list of methods that should be called when something happens.
+
+The object that owns the event is the publisher:
+
+```csharp
+public event EventHandler<BattleEndedEventArgs> BattleEnded;
+```
+
+In this project, `CellGrid` owns `BattleEnded`. Other scripts can subscribe to it or unsubscribe from it, but outside code cannot directly broadcast it.
+
+The method being added is the subscriber callback:
+
+```csharp
+CellGrid.BattleEnded += OnGameEnded;
+```
+
+This does not mean `BattleEnded` subscribes to `OnGameEnded`. It means `OnGameEnded` is added to `BattleEnded`'s call list. When `CellGrid` later broadcasts `BattleEnded`, Unity/C# calls every subscribed method.
+
+The matching unsubscribe removes that method from the call list:
+
+```csharp
+CellGrid.BattleEnded -= OnGameEnded;
+```
+
+Without unsubscribing, a destroyed object can leave behind a stale callback. That can cause duplicate behavior, null reference errors, or callbacks firing on objects that should be gone.
+
+### BattleEnded flow in this project
+
+The battle result chain currently works like this:
+
+1. `CellGrid` detects that the battle has an outcome.
+2. `CellGrid.Scene.cs` calls `TryApplyBattleOutcome(...)`.
+3. `TryApplyBattleOutcome(...)` broadcasts the internal scene event:
+
+```csharp
+SceneGameEnded?.Invoke(this, new BattleEndedEventArgs(winningPlayers, losingPlayers));
+```
+
+4. `CellGrid` has already wired that internal event to `OnSceneGameEnded(...)`.
+5. `OnSceneGameEnded(...)` broadcasts the public event:
+
+```csharp
+private void OnSceneGameEnded(object sender, BattleEndedEventArgs e)
+{
+    BattleEnded?.Invoke(this, e);
+}
+```
+
+6. Any listener subscribed to `CellGrid.BattleEnded` runs its callback.
+
+For the result UI, `GUIController` subscribes in `Awake`:
+
+```csharp
+CellGrid.BattleEnded += OnGameEnded;
+```
+
+Then `GUIController.OnGameEnded(...)` runs when the event is broadcast:
+
+```csharp
+private void OnGameEnded(object sender, BattleEndedEventArgs e)
+{
+    if (EndTurnButton != null)
+    {
+        EndTurnButton.interactable = false;
+    }
+
+    if (e?.WinningPlayerNumbers?.Contains(0) == true)
+    {
+        CellGrid.SaveVictoryProgress();
+    }
+
+    battleResultUi?.Show(e, ExitScene);
+}
+```
+
+The `sender` is the object broadcasting the event, usually `this`. The `e` argument is the event data. For `BattleEnded`, the data says which player numbers won and lost.
+
+The `?.Invoke(...)` syntax means "if anyone is subscribed, call them." If nobody is listening, nothing happens.
+
 ## Save Data Boundaries
 
 Do not store derived values in the save file unless the player can intentionally change them.
