@@ -210,8 +210,8 @@ namespace Windy.Srpg.Game.Units
             EnsureSaveIdentity(visualPreset);
 
             int previousHitPoints = HitPoints;
-            HitPoints = Mathf.Clamp(Mathf.Max(1, saveData.CurrentHitPoints), 1, ComputedTotalHitPoints);
-            CurrentManaPoints = Mathf.Clamp(saveData.CurrentManaPoints, 0, ComputedTotalManaPoints);
+            HitPoints = ComputedTotalHitPoints;
+            CurrentManaPoints = ComputedTotalManaPoints;
             RaiseHealthChanged(previousHitPoints, HitPoints, null);
             RaiseStatsChanged();
             RaiseProgressionChanged();
@@ -527,7 +527,6 @@ namespace Windy.Srpg.Game.Units
             string[] equipPassiveIds = PassiveList?.EquippedEntries?
                 .Where(entry => entry != null && !string.IsNullOrWhiteSpace(entry.PassiveId))
                 .Select(entry => entry.PassiveId)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray()
                 ?? Array.Empty<string>();
 
@@ -543,7 +542,7 @@ namespace Windy.Srpg.Game.Units
                 {
                     HitPoints = BaseHitPoints,
                     ManaPoints = BaseManaPoints,
-                    MovementPoints = ComputedTotalMovementPoints > 0f ? ComputedTotalMovementPoints : MovementPoints,
+                    MovementPoints = Mathf.Max(0, Mathf.RoundToInt(ComputedTotalMovementPoints > 0f ? ComputedTotalMovementPoints : MovementPoints)),
                     Strength = BaseStrength,
                     Defense = BaseDefense,
                     Magic = BaseMagic,
@@ -560,8 +559,6 @@ namespace Windy.Srpg.Game.Units
                     Speed = growthSpeed,
                     Luck = growthLuck
                 },
-                CurrentHitPoints = Mathf.Max(0, HitPoints),
-                CurrentManaPoints = Mathf.Max(0, CurrentManaPoints),
                 Inventory = inventoryEntries,
                 SkillIds = skillIds,
                 UniquePassiveIds = uniquePassiveIds,
@@ -681,7 +678,7 @@ namespace Windy.Srpg.Game.Units
             movementAiMode = preset.MovementAiMode;
             waitGroupId = Mathf.Max(0, preset.WaitGroupId);
             aiWaitTriggered = false;
-            float presetMovementPoints = preset.BaseStats.MovementPoints > 0f
+            float presetMovementPoints = preset.BaseStats.MovementPoints > 0
                 ? preset.BaseStats.MovementPoints
                 : preset.LegacyBaseMovementPoints;
             MovementPoints = Mathf.Max(0f, presetMovementPoints);
@@ -1741,6 +1738,7 @@ namespace Windy.Srpg.Game.Units
             }
 
             HitPoints = Mathf.Min(HitPoints, currentMaxHitPoints);
+
             if (currentMaxManaPoints < previousMaxManaPoints && previousManaPoints == previousMaxManaPoints)
             {
                 CurrentManaPoints = currentMaxManaPoints;

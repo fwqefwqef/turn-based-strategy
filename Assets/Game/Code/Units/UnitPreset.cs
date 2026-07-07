@@ -27,7 +27,7 @@ namespace Windy.Srpg.Game.Units
     {
         public int HitPoints;
         public int ManaPoints;
-        public float MovementPoints;
+        public int MovementPoints;
         public int Strength;
         public int Defense;
         public int Magic;

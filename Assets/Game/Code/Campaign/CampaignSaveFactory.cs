@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Windy.Srpg.Game.Catalogs;
 using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Passives;
 using Windy.Srpg.Game.Skills;
@@ -11,6 +12,9 @@ namespace Windy.Srpg.Game.Campaign
 {
     public static class CampaignSaveFactory
     {
+        public const int CurrentSaveVersion = 4;
+        private const int PassiveStorageSaveVersion = 2;
+
         public static CampaignSaveData CreateFromOwnedUnits(
             IEnumerable<Unit> ownedUnits,
             CampaignSaveData existingSave = null,
@@ -54,7 +58,7 @@ namespace Windy.Srpg.Game.Campaign
 
             if (starterUnits.Length == 0)
             {
-                return existingSave ?? new CampaignSaveData();
+                return EnsurePassiveStorageInitialized(existingSave ?? new CampaignSaveData());
             }
 
             return MergeOwnedUnits(existingSave, starterUnits, existingSave?.DeploymentRosterUnitIds);
@@ -65,7 +69,7 @@ namespace Windy.Srpg.Game.Campaign
             IEnumerable<OwnedUnitSaveData> ownedUnits,
             IEnumerable<string> deploymentRosterUnitIds = null)
         {
-            CampaignSaveData baseSave = existingSave ?? new CampaignSaveData();
+            CampaignSaveData baseSave = EnsurePassiveStorageInitialized(existingSave ?? new CampaignSaveData());
             List<OwnedUnitSaveData> savedUnits = new List<OwnedUnitSaveData>();
             Dictionary<string, int> indexByUnitId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -102,9 +106,10 @@ namespace Windy.Srpg.Game.Campaign
 
             return new CampaignSaveData
             {
-                Version = baseSave.Version,
+                Version = Mathf.Max(CurrentSaveVersion, baseSave.Version),
                 Gold = baseSave.Gold,
                 StorageItems = CloneStorageEntries(baseSave.StorageItems),
+                PassiveStorageIds = ClonePassiveIds(baseSave.PassiveStorageIds),
                 DeploymentRosterUnitIds = NormalizeRoster(deploymentRosterUnitIds ?? baseSave.DeploymentRosterUnitIds),
                 OwnedUnits = savedUnits.ToArray()
             };
@@ -204,14 +209,11 @@ namespace Windy.Srpg.Game.Campaign
                 ? Guid.NewGuid().ToString("N")
                 : preset.PresetId.Trim();
 
-            float movementPoints = preset.BaseStats.MovementPoints > 0f
+            float movementPoints = preset.BaseStats.MovementPoints > 0
                 ? preset.BaseStats.MovementPoints
                 : preset.LegacyBaseMovementPoints;
             int hitPoints = Mathf.Max(1, preset.BaseStats.HitPoints);
             int manaPoints = Mathf.Max(0, preset.BaseStats.ManaPoints);
-            int maxHitPoints = ResolveInitialMaxHitPoints(preset, hitPoints);
-            int maxManaPoints = ResolveInitialMaxManaPoints(preset, manaPoints);
-
             return new OwnedUnitSaveData
             {
                 UnitId = identity,
@@ -224,7 +226,7 @@ namespace Windy.Srpg.Game.Campaign
                 {
                     HitPoints = hitPoints,
                     ManaPoints = manaPoints,
-                    MovementPoints = Mathf.Max(0f, movementPoints),
+                    MovementPoints = Mathf.Max(0, Mathf.RoundToInt(movementPoints)),
                     Strength = preset.BaseStats.Strength,
                     Defense = preset.BaseStats.Defense,
                     Magic = preset.BaseStats.Magic,
@@ -241,8 +243,6 @@ namespace Windy.Srpg.Game.Campaign
                     Speed = Mathf.Max(0, preset.GrowthRates.Speed),
                     Luck = Mathf.Max(0, preset.GrowthRates.Luck)
                 },
-                CurrentHitPoints = maxHitPoints,
-                CurrentManaPoints = maxManaPoints,
                 Inventory = CreateSavedInventoryEntries(preset.StartingInventory),
                 SkillIds = CreateSkillIds(preset.StartingSkills),
                 UniquePassiveIds = CreatePassiveIds(preset.StartingUniquePassives),
@@ -250,104 +250,82 @@ namespace Windy.Srpg.Game.Campaign
             };
         }
 
-        private static int ResolveInitialMaxHitPoints(UnitPreset preset, int baseHitPoints)
+        private static CampaignSaveData EnsurePassiveStorageInitialized(CampaignSaveData save)
         {
-            PrimaryStatModifiers modifiers = ResolveInitialPrimaryStatModifiers(preset);
-            return Mathf.Max(1, baseHitPoints + modifiers.MaxHitPoints + preset.BaseStats.Strength);
-        }
-
-        private static int ResolveInitialMaxManaPoints(UnitPreset preset, int baseManaPoints)
-        {
-            PrimaryStatModifiers modifiers = ResolveInitialPrimaryStatModifiers(preset);
-            int magic = preset.BaseStats.Magic + modifiers.Magic;
-            int resistance = preset.BaseStats.Resistance + modifiers.Resistance;
-            return Mathf.Max(0, baseManaPoints + modifiers.MaxManaPoints + ((magic + resistance) * 3));
-        }
-
-        private static PrimaryStatModifiers ResolveInitialPrimaryStatModifiers(UnitPreset preset)
-        {
-            PrimaryStatModifiers modifiers = default;
-            if (preset == null)
+            save ??= new CampaignSaveData();
+            if (save.Version >= CurrentSaveVersion && save.PassiveStorageIds != null)
             {
-                return modifiers;
+                return save;
             }
 
-            WeaponData equippedWeapon = ResolveInitialEquippedWeapon(preset);
-            if (equippedWeapon != null)
+            List<string> passiveStorageIds = ClonePassiveIds(save.PassiveStorageIds).ToList();
+            int originalVersion = save.Version;
+            if (originalVersion < PassiveStorageSaveVersion)
             {
-                modifiers += equippedWeapon.StatModifiers;
-            }
-
-            AccessoryData equippedAccessory = ResolveInitialEquippedAccessory(preset);
-            if (equippedAccessory != null)
-            {
-                modifiers += equippedAccessory.StatModifiers;
-            }
-
-            foreach (PassiveData passive in ResolveInitialPassiveDefinitions(preset))
-            {
-                if (passive != null)
+                PassiveCatalogResource passiveCatalog = CatalogResourceLoader.LoadPassiveCatalog();
+                foreach (PassiveData passive in passiveCatalog.ToRuntimeDefinitions())
                 {
-                    modifiers += passive.PrimaryStatModifiers;
+                    if (passive == null || string.IsNullOrWhiteSpace(passive.Id))
+                    {
+                        continue;
+                    }
+
+                    passiveStorageIds.Add(passive.Id);
+                    passiveStorageIds.Add(passive.Id);
                 }
             }
 
-            return modifiers;
+            RepairEquippedPassives(save, passiveStorageIds);
+            save.PassiveStorageIds = passiveStorageIds.ToArray();
+            save.Version = Mathf.Max(CurrentSaveVersion, save.Version);
+            return save;
         }
 
-        private static WeaponData ResolveInitialEquippedWeapon(UnitPreset preset)
+        private static void RepairEquippedPassives(CampaignSaveData save, List<string> passiveStorageIds)
         {
-            foreach (StartingInventoryItem entry in preset.StartingInventory ?? Enumerable.Empty<StartingInventoryItem>())
+            if (save?.OwnedUnits == null)
             {
-                if (string.IsNullOrWhiteSpace(entry.ItemId) || !ItemRegistry.TryGet(entry.ItemId, out ItemData data))
+                return;
+            }
+
+            BuiltInItemCatalog.EnsureRegistered();
+            BuiltInPassiveCatalog.EnsureRegistered();
+
+            foreach (OwnedUnitSaveData unit in save.OwnedUnits)
+            {
+                if (unit == null)
                 {
                     continue;
                 }
 
-                if (data is WeaponData weapon && (preset.WeaponProficiencies & weapon.WeaponType) != 0)
-                {
-                    return weapon;
-                }
+                string[] previousEquipPassiveIds = ClonePassiveIds(unit.EquipPassiveIds);
+                unit.UniquePassiveIds = NormalizePassiveIds(unit.UniquePassiveIds);
+                unit.EquipPassiveIds = NormalizeEquipPassiveIds(previousEquipPassiveIds, passiveStorageIds);
             }
-
-            return null;
         }
 
-        private static AccessoryData ResolveInitialEquippedAccessory(UnitPreset preset)
+        private static string[] NormalizePassiveIds(IEnumerable<string> passiveIds)
         {
-            foreach (StartingInventoryItem entry in preset.StartingInventory ?? Enumerable.Empty<StartingInventoryItem>())
+            return ClonePassiveIds(passiveIds);
+        }
+
+        private static string[] NormalizeEquipPassiveIds(IEnumerable<string> passiveIds, List<string> passiveStorageIds)
+        {
+            HashSet<string> seenPassiveIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            List<string> normalizedPassiveIds = new List<string>();
+
+            foreach (string passiveId in ClonePassiveIds(passiveIds))
             {
-                if (string.IsNullOrWhiteSpace(entry.ItemId) || !ItemRegistry.TryGet(entry.ItemId, out ItemData data))
+                if (seenPassiveIds.Add(passiveId))
                 {
+                    normalizedPassiveIds.Add(passiveId);
                     continue;
                 }
 
-                if (data is AccessoryData accessory)
-                {
-                    return accessory;
-                }
+                passiveStorageIds?.Add(passiveId);
             }
 
-            return null;
-        }
-
-        private static IEnumerable<PassiveData> ResolveInitialPassiveDefinitions(UnitPreset preset)
-        {
-            foreach (StartingPassiveEntry entry in preset.StartingUniquePassives ?? new List<StartingPassiveEntry>())
-            {
-                if (!string.IsNullOrWhiteSpace(entry.PassiveId) && PassiveRegistry.TryGet(entry.PassiveId, out PassiveData passive))
-                {
-                    yield return passive;
-                }
-            }
-
-            foreach (StartingPassiveEntry entry in preset.StartingEquipPassives ?? new List<StartingPassiveEntry>())
-            {
-                if (!string.IsNullOrWhiteSpace(entry.PassiveId) && PassiveRegistry.TryGet(entry.PassiveId, out PassiveData passive))
-                {
-                    yield return passive;
-                }
-            }
+            return normalizedPassiveIds.ToArray();
         }
 
         private static bool TryNormalizeIdentity(OwnedUnitSaveData unit, out string unitId)
@@ -490,8 +468,6 @@ namespace Windy.Srpg.Game.Campaign
                 WeaponProficiencyIds = unit.WeaponProficiencyIds?.ToArray() ?? Array.Empty<string>(),
                 BaseStats = unit.BaseStats,
                 GrowthRates = unit.GrowthRates,
-                CurrentHitPoints = unit.CurrentHitPoints,
-                CurrentManaPoints = unit.CurrentManaPoints,
                 Inventory = CloneStorageEntries(unit.Inventory),
                 SkillIds = unit.SkillIds?.ToArray() ?? Array.Empty<string>(),
                 UniquePassiveIds = unit.UniquePassiveIds?.ToArray() ?? Array.Empty<string>(),
@@ -510,6 +486,15 @@ namespace Windy.Srpg.Game.Campaign
                 })
                 .ToArray()
                 ?? Array.Empty<SavedInventoryEntryData>();
+        }
+
+        private static string[] ClonePassiveIds(IEnumerable<string> passiveIds)
+        {
+            return passiveIds?
+                .Where(passiveId => !string.IsNullOrWhiteSpace(passiveId))
+                .Select(passiveId => passiveId.Trim())
+                .ToArray()
+                ?? Array.Empty<string>();
         }
     }
 }

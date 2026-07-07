@@ -103,7 +103,7 @@
       },
       {
         "Id": "invulnerability_potion",
-        "Name": "Invulnerability Potion",
+        "Name": "Invuln. Potion",
         "Description": "Grants invulnerability, reducing all damage taken to 1 for one turn.",
         "Value": 100,
         "Charges": 3,

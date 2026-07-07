@@ -200,7 +200,7 @@ namespace Windy.Srpg.Game.Units
         [SerializeField, HideInInspector] internal Vector3 spriteLayoutBaselineLocalScale = Vector3.one;
         [SerializeField, HideInInspector] internal Vector3 spriteLayoutBaselineLocalPosition = new Vector3(0f, 0f, -0.1f);
         public virtual int BaseStrength => baseStrength;
-        public virtual int Strength => BaseStrength;
+        public virtual int Strength => BaseStrength + GetPrimaryStatModifiers().Strength;
         public virtual int BaseDefense => baseDefense;
         public virtual int Defense => BaseDefense + GetPrimaryStatModifiers().Defense;
         public virtual int BaseMagic => baseMagic;

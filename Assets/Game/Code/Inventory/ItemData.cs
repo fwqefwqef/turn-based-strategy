@@ -40,6 +40,7 @@ namespace Windy.Srpg.Game.Inventory
         public int MaxHitPoints;
         public int MaxManaPoints;
         public int Attack;
+        public int Strength;
         public int Defense;
         public int Magic;
         public int Resistance;
@@ -53,6 +54,7 @@ namespace Windy.Srpg.Game.Inventory
                 MaxHitPoints = left.MaxHitPoints + right.MaxHitPoints,
                 MaxManaPoints = left.MaxManaPoints + right.MaxManaPoints,
                 Attack = left.Attack + right.Attack,
+                Strength = left.Strength + right.Strength,
                 Defense = left.Defense + right.Defense,
                 Magic = left.Magic + right.Magic,
                 Resistance = left.Resistance + right.Resistance,

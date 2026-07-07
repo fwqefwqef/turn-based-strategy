@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using Windy.Srpg.Game.Grid;
@@ -13,54 +14,56 @@ namespace Windy.Srpg.Game.UI
         public Button EndTurnButton;
         [SerializeField] private PreBattleUIController preBattleUiController;
         [SerializeField] private GameplayInputController gameplayInputController;
+        [SerializeField] private SceneButtonTextOverflowFitter buttonTextOverflowFitter;
+        [SerializeField] private BattleResultUI battleResultUi;
 
         private void Awake()
         {
-            if (CellGrid == null)
-            {
-                CellGrid = FindAnyObjectByType<CellGrid>();
-            }
-
+            CellGrid = ResolveSceneReference(CellGrid);
             if (CellGrid == null)
             {
                 enabled = false;
                 return;
             }
 
-            if (preBattleUiController == null)
-            {
-                preBattleUiController = GetComponent<PreBattleUIController>();
-            }
+            preBattleUiController = ResolveSceneReference(preBattleUiController);
+            preBattleUiController?.Initialize(CellGrid);
 
-            if (preBattleUiController == null)
-            {
-                preBattleUiController = FindAnyObjectByType<PreBattleUIController>();
-            }
-
-            if (preBattleUiController == null)
-            {
-                preBattleUiController = gameObject.AddComponent<PreBattleUIController>();
-            }
-
-            preBattleUiController.Initialize(CellGrid);
-
-            if (gameplayInputController == null)
-            {
-                gameplayInputController = GetComponent<GameplayInputController>();
-            }
-
-            if (gameplayInputController == null)
-            {
-                gameplayInputController = gameObject.AddComponent<GameplayInputController>();
-            }
-
+            gameplayInputController = EnsureLocalComponent(gameplayInputController);
             gameplayInputController.Initialize(CellGrid);
+
+            buttonTextOverflowFitter = EnsureLocalComponent(buttonTextOverflowFitter);
+            buttonTextOverflowFitter.FitAllButtons();
+
+            battleResultUi = ResolveSceneReference(battleResultUi);
 
             CellGrid.LevelLoading += OnLevelLoading;
             CellGrid.LevelInitialized += OnLevelLoadingDone;
             CellGrid.BattleEnded += OnGameEnded;
             CellGrid.BattleTurnEnded += OnTurnEnded;
             CellGrid.BattleStarted += OnGameStarted;
+        }
+
+        private T EnsureLocalComponent<T>(T component) where T : Component
+        {
+            return component != null
+                ? component
+                : GetComponent<T>() ?? gameObject.AddComponent<T>();
+        }
+
+        private static T ResolveSceneReference<T>(T component, bool includeInactive = false) where T : UnityEngine.Object
+        {
+            if (component != null)
+            {
+                return component;
+            }
+
+            if (!includeInactive)
+            {
+                return FindAnyObjectByType<T>();
+            }
+
+            return FindObjectsByType<T>(FindObjectsInactive.Include).FirstOrDefault(found => found != null);
         }
 
         private void OnDestroy()
@@ -99,6 +102,22 @@ namespace Windy.Srpg.Game.UI
             {
                 EndTurnButton.interactable = false;
             }
+
+            if (e?.WinningPlayerNumbers?.Contains(0) == true)
+            {
+                CellGrid.SaveVictoryProgress();
+            }
+
+            battleResultUi?.Show(e, ExitScene);
+        }
+
+        private void ExitScene()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         private void OnLevelLoading(object sender, EventArgs e)
@@ -123,4 +142,3 @@ namespace Windy.Srpg.Game.UI
         }
     }
 }
-

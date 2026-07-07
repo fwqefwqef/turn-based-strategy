@@ -55,8 +55,8 @@ namespace Windy.Srpg.Game.Passives
 
     public sealed class UnitPassiveList
     {
-        public const int DefaultEquipPassiveSlotLimit = 4;
-        public const int DefaultEquipPassiveCostLimit = 12;
+        public const int BaseEquipPassiveSlotLimit = 2;
+        public const int BaseEquipPassiveCostLimit = 4;
 
         private readonly Unit owner;
         private readonly List<Passive> uniqueEntries = new List<Passive>();
@@ -75,8 +75,8 @@ namespace Windy.Srpg.Game.Passives
             }
         }
 
-        public int EquipPassiveSlotLimit => DefaultEquipPassiveSlotLimit;
-        public int EquipPassiveCostLimit => DefaultEquipPassiveCostLimit;
+        public int EquipPassiveSlotLimit => GetEquipPassiveSlotLimit(owner?.Level ?? 1);
+        public int EquipPassiveCostLimit => GetEquipPassiveCostLimit(owner?.Level ?? 1);
         public int EquippedPassiveCount => equippedEntries.Count;
         public int EquippedPassiveCost => equippedEntries.Sum(entry => entry?.Data?.Cost ?? 0);
 
@@ -259,6 +259,16 @@ namespace Windy.Srpg.Game.Passives
         {
             ClearInternal();
             NotifyOwnerChanged();
+        }
+
+        public static int GetEquipPassiveSlotLimit(int level)
+        {
+            return BaseEquipPassiveSlotLimit + Mathf.Max(0, level) / 5;
+        }
+
+        public static int GetEquipPassiveCostLimit(int level)
+        {
+            return BaseEquipPassiveCostLimit + Mathf.Max(0, level) / 2;
         }
 
         private bool CanEquipPassive(PassiveData data)

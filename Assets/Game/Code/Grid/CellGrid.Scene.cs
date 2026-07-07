@@ -728,6 +728,11 @@ namespace Windy.Srpg.Game.Grid
 
         internal bool CheckGameFinished()
         {
+            if (Unit.IsAnyCombatPresentationActive)
+            {
+                return false;
+            }
+
             IBattleEndCondition endCondition = GetComponent<IBattleEndCondition>();
             BattleOutcome outcome = endCondition != null
                 ? endCondition.Evaluate(this)
