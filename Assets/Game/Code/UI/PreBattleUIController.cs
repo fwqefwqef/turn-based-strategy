@@ -9,6 +9,7 @@ using Windy.Srpg.Game.Localization;
 using Windy.Srpg.Game.Passives;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Windy.Srpg.Game.UI
@@ -44,6 +45,8 @@ namespace Windy.Srpg.Game.UI
         [FormerlySerializedAs("inventoryButton")]
         [SerializeField] private Button inventoryManagementButton;
         [SerializeField] private Button passiveManagementButton;
+        [SerializeField] private Button mainMenuButton;
+        [SerializeField] private string overworldMenuSceneName = "OverworldMenu";
         [SerializeField] private TMP_Text statusText;
 
         [Header("Select Units UI")]
@@ -313,6 +316,11 @@ namespace Windy.Srpg.Game.UI
                 saveButton = CreateSceneAuthoredSaveButton();
             }
 
+            if (rootPanel != null && mainMenuButton == null)
+            {
+                mainMenuButton = CreateSceneAuthoredMainMenuButton();
+            }
+
             PrepareInventoryButtonTemplate(inventoryManagementUnitButtonTemplate);
             PrepareInventoryButtonTemplate(inventoryManagementOwnItemButtonTemplate);
             PrepareInventoryButtonTemplate(inventoryManagementOtherItemButtonTemplate);
@@ -329,6 +337,7 @@ namespace Windy.Srpg.Game.UI
             switchDeploymentButton?.onClick.AddListener(OpenSwitchDeploymentPanelFromButton);
             inventoryManagementButton?.onClick.AddListener(OpenInventoryPanelFromButton);
             passiveManagementButton?.onClick.AddListener(OpenPassivePanelFromButton);
+            mainMenuButton?.onClick.AddListener(ExitToMainMenu);
             selectUnitsBackButton?.onClick.AddListener(ReturnToMainPanel);
             switchDeploymentBackButton?.onClick.AddListener(ReturnToMainPanel);
             inventoryManagementBackButton?.onClick.AddListener(ReturnToMainPanel);
@@ -351,6 +360,7 @@ namespace Windy.Srpg.Game.UI
             switchDeploymentButton?.onClick.RemoveListener(OpenSwitchDeploymentPanelFromButton);
             inventoryManagementButton?.onClick.RemoveListener(OpenInventoryPanelFromButton);
             passiveManagementButton?.onClick.RemoveListener(OpenPassivePanelFromButton);
+            mainMenuButton?.onClick.RemoveListener(ExitToMainMenu);
             selectUnitsBackButton?.onClick.RemoveListener(ReturnToMainPanel);
             switchDeploymentBackButton?.onClick.RemoveListener(ReturnToMainPanel);
             inventoryManagementBackButton?.onClick.RemoveListener(ReturnToMainPanel);
@@ -625,6 +635,25 @@ namespace Windy.Srpg.Game.UI
         {
             cellGrid?.SaveDeploymentRosterChanges();
             RefreshAll();
+        }
+
+        private void ExitToMainMenu()
+        {
+            cellGrid?.ExitPreBattleDeploymentSwapMode();
+            CloseSubPanels();
+
+            if (cellGrid?.HasUnsavedPreBattleChanges == true)
+            {
+                cellGrid.SaveDeploymentRosterChanges();
+            }
+
+            if (string.IsNullOrWhiteSpace(overworldMenuSceneName))
+            {
+                Debug.LogWarning("PreBattleUIController: Overworld menu scene name is empty.");
+                return;
+            }
+
+            SceneManager.LoadScene(overworldMenuSceneName);
         }
 
         private void CloseSubPanels()
@@ -2004,14 +2033,15 @@ namespace Windy.Srpg.Game.UI
 
         private void BuildFallbackUi()
         {
-            rootPanel = CreateRuntimePanel("Pre Battle Panel", canvas.transform, new Vector2(16f, -16f), new Vector2(220f, 232f), new Color(0.08f, 0.18f, 0.26f, 0.86f));
+            rootPanel = CreateRuntimePanel("Pre Battle Panel", canvas.transform, new Vector2(16f, -16f), new Vector2(220f, 312f), new Color(0.08f, 0.18f, 0.26f, 0.86f));
             CreateRuntimeText(rootPanel, GameTextCatalog.Get("ui.pre_battle.title", "Pre Battle"), new Vector2(16f, -12f), new Vector2(188f, 28f), 24, FontStyles.Bold, TextAlignmentOptions.Center);
 
             battleStartButton = CreateRuntimeButton(rootPanel, GameTextCatalog.Get("ui.pre_battle.button_battle_start", "Battle Start"), new Vector2(16f, -52f), new Vector2(188f, 34f), null);
             selectUnitsButton = CreateRuntimeButton(rootPanel, GameTextCatalog.Get("ui.pre_battle.button_select_units", "Select Units"), new Vector2(16f, -94f), new Vector2(188f, 34f), null);
             switchDeploymentButton = CreateRuntimeButton(rootPanel, GameTextCatalog.Get("ui.pre_battle.button_switch_deployment", "Switch Deployment"), new Vector2(16f, -136f), new Vector2(188f, 34f), null);
             saveButton = CreateRuntimeButton(rootPanel, GameTextCatalog.Get("ui.pre_battle.button_save", "Save"), new Vector2(16f, -178f), new Vector2(188f, 34f), null);
-            statusText = CreateRuntimeText(rootPanel, string.Empty, new Vector2(16f, -218f), new Vector2(188f, 44f), 16, FontStyles.Normal, TextAlignmentOptions.Left);
+            mainMenuButton = CreateRuntimeButton(rootPanel, GameTextCatalog.Get("ui.pre_battle.button_main_menu", "Main Menu"), new Vector2(16f, -220f), new Vector2(188f, 34f), null);
+            statusText = CreateRuntimeText(rootPanel, string.Empty, new Vector2(16f, -260f), new Vector2(188f, 44f), 16, FontStyles.Normal, TextAlignmentOptions.Left);
 
             selectUnitsPanel = CreateRuntimePanel("Select Units Panel", canvas.transform, new Vector2(252f, -16f), new Vector2(420f, 330f), new Color(0.12f, 0.12f, 0.18f, 0.92f));
             CreateRuntimeText(selectUnitsPanel, GameTextCatalog.Get("ui.pre_battle.button_select_units", "Select Units"), new Vector2(16f, -12f), new Vector2(280f, 28f), 24, FontStyles.Bold, TextAlignmentOptions.Left);
@@ -2070,6 +2100,50 @@ namespace Windy.Srpg.Game.UI
                 null);
             button.name = "Save Button";
             return button;
+        }
+
+        private Button CreateSceneAuthoredMainMenuButton()
+        {
+            if (rootPanel == null)
+            {
+                return null;
+            }
+
+            Vector2 size = new Vector2(160f, 30f);
+            float lowestButtonY = -50f;
+            Button[] rootButtons =
+            {
+                battleStartButton,
+                selectUnitsButton,
+                switchDeploymentButton,
+                inventoryManagementButton,
+                passiveManagementButton,
+                saveButton
+            };
+
+            foreach (Button button in rootButtons)
+            {
+                RectTransform rectTransform = button != null ? button.transform as RectTransform : null;
+                if (rectTransform == null)
+                {
+                    continue;
+                }
+
+                lowestButtonY = Mathf.Min(lowestButtonY, rectTransform.anchoredPosition.y);
+                if (rectTransform.sizeDelta != default)
+                {
+                    size = rectTransform.sizeDelta;
+                }
+            }
+
+            Button mainMenu = CreateRuntimeButton(
+                rootPanel,
+                GameTextCatalog.Get("ui.pre_battle.button_main_menu", "Main Menu"),
+                new Vector2(0f, lowestButtonY - 42f),
+                size,
+                null);
+            mainMenu.name = "Main Menu Button";
+            return mainMenu;
         }
 
         private TMP_FontAsset ResolveFontAsset()

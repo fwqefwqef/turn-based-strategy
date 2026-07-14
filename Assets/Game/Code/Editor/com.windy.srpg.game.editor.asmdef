@@ -2,7 +2,8 @@
   "name": "com.windy.srpg.game.editor",
   "rootNamespace": "Windy.Srpg.Game.Editor",
   "references": [
-    "com.windy.srpg.game"
+    "com.windy.srpg.game",
+    "UnityEngine.UI"
   ],
   "includePlatforms": [
     "Editor"
