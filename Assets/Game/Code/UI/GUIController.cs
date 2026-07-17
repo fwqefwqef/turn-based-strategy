@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Grid.States;
@@ -16,6 +17,7 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private GameplayInputController gameplayInputController;
         [SerializeField] private SceneButtonTextOverflowFitter buttonTextOverflowFitter;
         [SerializeField] private BattleResultUI battleResultUi;
+        [SerializeField] private string overworldMenuSceneName = "OverworldMenu";
 
         private void Awake()
         {
@@ -113,11 +115,13 @@ namespace Windy.Srpg.Game.UI
 
         private void ExitScene()
         {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            Application.Quit();
-#endif
+            if (string.IsNullOrWhiteSpace(overworldMenuSceneName))
+            {
+                Debug.LogWarning("GUIController: Overworld menu scene name is empty.");
+                return;
+            }
+
+            SceneManager.LoadScene(overworldMenuSceneName);
         }
 
         private void OnLevelLoading(object sender, EventArgs e)

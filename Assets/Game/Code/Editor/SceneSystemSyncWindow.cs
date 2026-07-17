@@ -13,6 +13,7 @@ namespace Windy.Srpg.Game.Editor
     public sealed class SceneSystemSyncWindow : EditorWindow
     {
         private const string DefaultSourceScenePath = "Assets/Scenes/PaintedMap.unity";
+        private const string DefaultLevelSceneFolder = "Assets/Scenes/Level";
         private const string DefaultPreservedRootNames =
             "CellGrid\n" +
             "Units\n" +
@@ -25,13 +26,11 @@ namespace Windy.Srpg.Game.Editor
 
         private Vector2 scrollPosition;
 
-        [MenuItem("Tools/Windy SRPG/Scene System Sync")]
         private static void OpenWindow()
         {
             GetWindow<SceneSystemSyncWindow>("Scene System Sync");
         }
 
-        [MenuItem("Tools/Windy SRPG/Sync Current Scene Systems From PaintedMap")]
         private static void SyncFromPaintedMap()
         {
             SyncSceneSystems(
@@ -41,7 +40,17 @@ namespace Windy.Srpg.Game.Editor
                 removeExtraNonMapRootObjects: false);
         }
 
-        [MenuItem("Tools/Windy SRPG/Repair Current Scene Missing Map Prefab Links")]
+        [MenuItem("Tools/Windy SRPG/Sync All Level Scenes From PaintedMap")]
+        private static void SyncAllLevelScenesFromPaintedMap()
+        {
+            SyncLevelScenesFromSource(
+                DefaultSourceScenePath,
+                DefaultLevelSceneFolder,
+                ParseRootNames(DefaultPreservedRootNames),
+                syncComponentsOnPreservedRoots: true,
+                removeExtraNonMapRootObjects: false);
+        }
+
         private static void RepairCurrentSceneMissingMapPrefabLinks()
         {
             Scene targetScene = SceneManager.GetActiveScene();
@@ -112,9 +121,121 @@ namespace Windy.Srpg.Game.Editor
                         syncComponentsOnPreservedRoots,
                         removeExtraNonMapRootObjects);
                 }
+
+                if (GUILayout.Button("Sync All Level Scenes From Source"))
+                {
+                    string sourcePath = AssetDatabase.GetAssetPath(sourceScene);
+                    SyncLevelScenesFromSource(
+                        sourcePath,
+                        DefaultLevelSceneFolder,
+                        ParseRootNames(preservedRootNames),
+                        syncComponentsOnPreservedRoots,
+                        removeExtraNonMapRootObjects);
+                }
             }
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private static void SyncLevelScenesFromSource(
+            string sourceScenePath,
+            string levelSceneFolder,
+            HashSet<string> preservedRootNameSet,
+            bool syncComponentsOnPreservedRoots,
+            bool removeExtraNonMapRootObjects)
+        {
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning("Scene System Sync: Stop Play Mode before syncing level scenes.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(sourceScenePath))
+            {
+                Debug.LogWarning("Scene System Sync: No source scene selected.");
+                return;
+            }
+
+            string[] levelScenePaths = FindLevelScenePaths(levelSceneFolder, sourceScenePath);
+            if (levelScenePaths.Length == 0)
+            {
+                Debug.LogWarning($"Scene System Sync: No level scenes were found under '{levelSceneFolder}'.");
+                return;
+            }
+
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            {
+                return;
+            }
+
+            Scene sourceScene = default;
+            bool sourceSceneOpenedByTool = false;
+            Scene originalActiveScene = SceneManager.GetActiveScene();
+            int syncedCount = 0;
+
+            try
+            {
+                sourceScene = FindLoadedScene(sourceScenePath);
+                if (!sourceScene.IsValid() || !sourceScene.isLoaded)
+                {
+                    sourceScene = EditorSceneManager.OpenScene(sourceScenePath, OpenSceneMode.Additive);
+                    sourceSceneOpenedByTool = true;
+                }
+
+                for (int i = 0; i < levelScenePaths.Length; i++)
+                {
+                    string targetScenePath = levelScenePaths[i];
+                    EditorUtility.DisplayProgressBar(
+                        "Scene System Sync",
+                        $"Syncing {targetScenePath}",
+                        levelScenePaths.Length == 0 ? 1f : i / (float)levelScenePaths.Length);
+
+                    Scene targetScene = FindLoadedScene(targetScenePath);
+                    bool targetSceneOpenedByTool = false;
+                    if (!targetScene.IsValid() || !targetScene.isLoaded)
+                    {
+                        targetScene = EditorSceneManager.OpenScene(targetScenePath, OpenSceneMode.Additive);
+                        targetSceneOpenedByTool = true;
+                    }
+
+                    try
+                    {
+                        SyncLoadedTargetScene(
+                            sourceScene,
+                            targetScene,
+                            sourceScenePath,
+                            preservedRootNameSet,
+                            syncComponentsOnPreservedRoots,
+                            removeExtraNonMapRootObjects);
+
+                        EditorSceneManager.SaveScene(targetScene);
+                        syncedCount++;
+                    }
+                    finally
+                    {
+                        if (targetSceneOpenedByTool && targetScene.IsValid() && targetScene.isLoaded)
+                        {
+                            EditorSceneManager.CloseScene(targetScene, removeScene: true);
+                        }
+                    }
+                }
+
+                Debug.Log($"Scene System Sync: Synced {syncedCount} level scene(s) from '{sourceScenePath}'.");
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+
+                if (sourceSceneOpenedByTool && sourceScene.IsValid() && sourceScene.isLoaded)
+                {
+                    EditorSceneManager.CloseScene(sourceScene, removeScene: true);
+                }
+
+                if (originalActiveScene.IsValid() && originalActiveScene.isLoaded)
+                {
+                    EditorSceneManager.SetActiveScene(originalActiveScene);
+                }
+            }
         }
 
         private static void SyncSceneSystems(
@@ -162,20 +283,13 @@ namespace Windy.Srpg.Game.Editor
                 sourceSceneOpened = true;
                 EditorSceneManager.SetActiveScene(targetScene);
 
-                SyncOpenedScenes(
+                SyncLoadedTargetScene(
                     sourceScene,
                     targetScene,
+                    sourceScenePath,
                     preservedRootNameSet,
                     syncComponentsOnPreservedRoots,
                     removeExtraNonMapRootObjects);
-
-                int repairedMissingPrefabCount = UnpackMissingPrefabInstances(targetScene, preservedRootNameSet);
-                EditorSceneManager.MarkSceneDirty(targetScene);
-                Debug.Log(
-                    $"Scene System Sync: Synced '{targetScene.path}' from '{sourceScenePath}'." +
-                    (repairedMissingPrefabCount > 0
-                        ? $" Repaired {repairedMissingPrefabCount} missing prefab instance link(s) on preserved map roots."
-                        : string.Empty));
             }
             finally
             {
@@ -186,6 +300,64 @@ namespace Windy.Srpg.Game.Editor
 
                 EditorSceneManager.SetActiveScene(targetScene);
             }
+        }
+
+        private static void SyncLoadedTargetScene(
+            Scene sourceScene,
+            Scene targetScene,
+            string sourceScenePath,
+            HashSet<string> preservedRootNameSet,
+            bool syncComponentsOnPreservedRoots,
+            bool removeExtraNonMapRootObjects)
+        {
+            if (!sourceScene.IsValid() || !sourceScene.isLoaded || !targetScene.IsValid() || !targetScene.isLoaded)
+            {
+                return;
+            }
+
+            SyncOpenedScenes(
+                sourceScene,
+                targetScene,
+                preservedRootNameSet,
+                syncComponentsOnPreservedRoots,
+                removeExtraNonMapRootObjects);
+
+            int repairedMissingPrefabCount = UnpackMissingPrefabInstances(targetScene, preservedRootNameSet);
+            EditorSceneManager.MarkSceneDirty(targetScene);
+            Debug.Log(
+                $"Scene System Sync: Synced '{targetScene.path}' from '{sourceScenePath}'." +
+                (repairedMissingPrefabCount > 0
+                    ? $" Repaired {repairedMissingPrefabCount} missing prefab instance link(s) on preserved map roots."
+                    : string.Empty));
+        }
+
+        private static string[] FindLevelScenePaths(string levelSceneFolder, string sourceScenePath)
+        {
+            if (string.IsNullOrWhiteSpace(levelSceneFolder) || !AssetDatabase.IsValidFolder(levelSceneFolder))
+            {
+                return Array.Empty<string>();
+            }
+
+            return AssetDatabase.FindAssets("t:Scene", new[] { levelSceneFolder })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Where(path => !string.Equals(path, sourceScenePath, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static Scene FindLoadedScene(string scenePath)
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                Scene scene = SceneManager.GetSceneAt(i);
+                if (string.Equals(scene.path, scenePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return scene;
+                }
+            }
+
+            return default;
         }
 
         private static int UnpackMissingPrefabInstances(Scene targetScene, HashSet<string> preservedRootNameSet)

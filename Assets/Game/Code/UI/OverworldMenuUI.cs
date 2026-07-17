@@ -340,8 +340,24 @@ namespace Windy.Srpg.Game.UI
             Button button = buttonObject.GetComponent<Button>();
             button.targetGraphic = image;
 
-            CreateText(rectTransform, label, Vector2.zero, size, 18f, FontStyles.Normal, TextAlignmentOptions.Center);
+            TMP_Text labelText = CreateText(rectTransform, label, Vector2.zero, size, 18f, FontStyles.Normal, TextAlignmentOptions.Center);
+            StretchButtonLabel(labelText.transform as RectTransform);
             return button;
+        }
+
+        private static void StretchButtonLabel(RectTransform labelRectTransform)
+        {
+            if (labelRectTransform == null)
+            {
+                return;
+            }
+
+            labelRectTransform.anchorMin = Vector2.zero;
+            labelRectTransform.anchorMax = Vector2.one;
+            labelRectTransform.pivot = new Vector2(0.5f, 0.5f);
+            labelRectTransform.anchoredPosition = Vector2.zero;
+            labelRectTransform.offsetMin = new Vector2(8f, 0f);
+            labelRectTransform.offsetMax = new Vector2(-8f, 0f);
         }
 
         private RectTransform CreatePanel(string name, Transform parent, Vector2 anchoredPosition, Vector2 size, Color color)

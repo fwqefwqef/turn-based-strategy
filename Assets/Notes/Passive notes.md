@@ -25,6 +25,3 @@ Restore 3 HP at the start of turn.
 2. Arcana Knowledge
 Unique Passive
 Magic +5
-
-Make a basic passive catalogue that just gives this to everyone.
-Any questions?

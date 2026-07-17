@@ -17,7 +17,6 @@ namespace Windy.Srpg.Game.Editor
         private const string Level0ScenePath = "Assets/Scenes/Level/Level0.unity";
         private const string Level1ScenePath = "Assets/Scenes/Level/Level1.unity";
 
-        [MenuItem("Tools/Windy SRPG/Create Overworld Menu Scene")]
         private static void CreateOverworldMenuScene()
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
@@ -173,8 +172,24 @@ namespace Windy.Srpg.Game.Editor
 
             Button button = buttonObject.GetComponent<Button>();
             button.targetGraphic = image;
-            CreateText(rectTransform, label, Vector2.zero, size, 18f, FontStyle.Normal, TextAnchor.MiddleCenter);
+            Text labelText = CreateText(rectTransform, label, Vector2.zero, size, 18f, FontStyle.Normal, TextAnchor.MiddleCenter);
+            StretchButtonLabel(labelText.transform as RectTransform);
             return button;
+        }
+
+        private static void StretchButtonLabel(RectTransform labelRectTransform)
+        {
+            if (labelRectTransform == null)
+            {
+                return;
+            }
+
+            labelRectTransform.anchorMin = Vector2.zero;
+            labelRectTransform.anchorMax = Vector2.one;
+            labelRectTransform.pivot = new Vector2(0.5f, 0.5f);
+            labelRectTransform.anchoredPosition = Vector2.zero;
+            labelRectTransform.offsetMin = new Vector2(8f, 0f);
+            labelRectTransform.offsetMax = new Vector2(-8f, 0f);
         }
 
         private static Text CreateText(Transform parent, string content, Vector2 anchoredPosition, Vector2 size, float fontSize, FontStyle fontStyle, TextAnchor alignment)
