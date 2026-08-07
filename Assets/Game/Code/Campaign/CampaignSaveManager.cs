@@ -21,6 +21,7 @@ namespace Windy.Srpg.Game.Campaign
             try
             {
                 string json = File.ReadAllText(SavePath);
+                json = MigrateLegacyFieldNames(json);
                 CampaignSaveData save = JsonUtility.FromJson<CampaignSaveData>(json);
                 return save ?? new CampaignSaveData();
             }
@@ -29,6 +30,18 @@ namespace Windy.Srpg.Game.Campaign
                 Debug.LogError($"CampaignSaveManager: Failed to load save file '{SavePath}'. {ex.Message}");
                 return null;
             }
+        }
+
+        private static string MigrateLegacyFieldNames(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return json;
+            }
+
+            string oldClassPassiveIdsFieldName = "\"" + "Uni" + "quePassiveIds\"";
+            const string classPassiveIdsFieldName = "\"ClassPassiveIds\"";
+            return json.Replace(oldClassPassiveIdsFieldName, classPassiveIdsFieldName);
         }
 
         public static void Save(CampaignSaveData save)

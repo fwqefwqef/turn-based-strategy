@@ -8,7 +8,6 @@ using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.UI;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.Serialization;
 
 public class TradeMenuUI : GameplayModalUI, MoveAbility.ITradeMenuUI
 {
@@ -39,9 +38,7 @@ public class TradeMenuUI : GameplayModalUI, MoveAbility.ITradeMenuUI
     public RectTransform friendlyInventoryDropdown;
     public Button itemButtonTemplate;
     public GameObject itemActionPanel;
-    [FormerlySerializedAs("primaryActionButton")]
     public Button giveOrTakeButton;
-    [FormerlySerializedAs("primaryActionButtonText")]
     public TMP_Text giveOrTakeButtonText;
     public Button swapButton;
     public TMP_Text swapButtonText;

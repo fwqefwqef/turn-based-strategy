@@ -59,12 +59,12 @@ namespace Windy.Srpg.Game.Passives
         public const int BaseEquipPassiveCostLimit = 4;
 
         private readonly Unit owner;
-        private readonly List<Passive> uniqueEntries = new List<Passive>();
+        private readonly List<Passive> classEntries = new List<Passive>();
         private readonly List<Passive> equippedEntries = new List<Passive>();
         private readonly List<Passive> combinedEntries = new List<Passive>();
         private bool combinedEntriesDirty = true;
 
-        public IReadOnlyList<Passive> UniqueEntries => uniqueEntries;
+        public IReadOnlyList<Passive> ClassEntries => classEntries;
         public IReadOnlyList<Passive> EquippedEntries => equippedEntries;
         public IReadOnlyList<Passive> Entries
         {
@@ -85,15 +85,15 @@ namespace Windy.Srpg.Game.Passives
             this.owner = owner;
         }
 
-        public void LoadStartingPassives(IEnumerable<StartingPassiveEntry> uniquePassives, IEnumerable<StartingPassiveEntry> equipPassives)
+        public void LoadStartingPassives(IEnumerable<StartingPassiveEntry> classPassives, IEnumerable<StartingPassiveEntry> equipPassives)
         {
             ClearInternal();
 
-            if (uniquePassives != null)
+            if (classPassives != null)
             {
-                foreach (StartingPassiveEntry entry in uniquePassives)
+                foreach (StartingPassiveEntry entry in classPassives)
                 {
-                    AddPassiveById(entry.PassiveId, PassiveListKind.Unique, notifyOwner: false);
+                    AddPassiveById(entry.PassiveId, PassiveListKind.Class, notifyOwner: false);
                 }
             }
 
@@ -110,7 +110,7 @@ namespace Windy.Srpg.Game.Passives
 
         public Passive AddPassive(PassiveData data, bool notifyOwner = true)
         {
-            return AddPassive(data, PassiveListKind.Unique, notifyOwner);
+            return AddPassive(data, PassiveListKind.Class, notifyOwner);
         }
 
         public Passive AddEquipPassive(PassiveData data, bool notifyOwner = true)
@@ -152,7 +152,7 @@ namespace Windy.Srpg.Game.Passives
 
         public Passive AddPassiveById(string passiveId, bool notifyOwner = true)
         {
-            return AddPassiveById(passiveId, PassiveListKind.Unique, notifyOwner);
+            return AddPassiveById(passiveId, PassiveListKind.Class, notifyOwner);
         }
 
         public Passive AddEquipPassiveById(string passiveId, bool notifyOwner = true)
@@ -183,7 +183,7 @@ namespace Windy.Srpg.Game.Passives
                 return false;
             }
 
-            bool removed = uniqueEntries.Remove(entry) || equippedEntries.Remove(entry);
+            bool removed = classEntries.Remove(entry) || equippedEntries.Remove(entry);
             if (!removed)
             {
                 return false;
@@ -293,7 +293,7 @@ namespace Windy.Srpg.Game.Passives
 
         private List<Passive> GetTargetList(PassiveListKind listKind)
         {
-            return listKind == PassiveListKind.Equip ? equippedEntries : uniqueEntries;
+            return listKind == PassiveListKind.Equip ? equippedEntries : classEntries;
         }
 
         private void ClearInternal()
@@ -303,7 +303,7 @@ namespace Windy.Srpg.Game.Passives
                 entry?.EffectInstance?.OnRemove(owner, entry);
             }
 
-            uniqueEntries.Clear();
+            classEntries.Clear();
             equippedEntries.Clear();
             MarkEntriesDirty();
         }
@@ -316,7 +316,7 @@ namespace Windy.Srpg.Game.Passives
             }
 
             combinedEntries.Clear();
-            combinedEntries.AddRange(uniqueEntries);
+            combinedEntries.AddRange(classEntries);
             combinedEntries.AddRange(equippedEntries);
             combinedEntriesDirty = false;
         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Windy.Srpg.Game.Chapters;
 using Windy.Srpg.Game.Skills;
 
 namespace Windy.Srpg.Game.Units
@@ -135,6 +136,12 @@ namespace Windy.Srpg.Game.Units
             if (user == null)
             {
                 return 1f;
+            }
+
+            ChapterData chapterData = ChapterData.FindForGrid(cellGrid);
+            if (chapterData != null)
+            {
+                return chapterData.AverageEnemyLevel;
             }
 
             List<Unit> enemyUnits = cellGrid?.GetAllUnits()

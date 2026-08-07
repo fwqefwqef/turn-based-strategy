@@ -5,7 +5,6 @@ using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Windy.Srpg.Game.UI
 {
@@ -19,7 +18,6 @@ namespace Windy.Srpg.Game.UI
         public GameObject Root;
 
         [Header("Labels")]
-        [FormerlySerializedAs("AllyEnemyText")]
         public TMP_Text NameText;
         public TMP_Text HitPointsText;
         public TMP_Text EquippedWeaponText;

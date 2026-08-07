@@ -18,6 +18,7 @@ namespace Windy.Srpg.Game.Editor
         private const string FriendlyUnitPrefabPath = "Assets/Game/Prefabs/FriendlyUnit.prefab";
         private const string EnemyUnitPrefabPath = "Assets/Game/Prefabs/EnemyUnit.prefab";
         private const string DeploymentSlotPrefabPath = "Assets/Game/Prefabs/DeploymentSlot.prefab";
+        private const string ReinforcementTilesParentName = "ReinforcementTiles";
 
         private static readonly FieldInfo UnitPresetField = typeof(Unit).GetField("preset", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         private static readonly FieldInfo UnitPresetOverrideField = typeof(Unit).GetField("presetOverride", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -28,6 +29,7 @@ namespace Windy.Srpg.Game.Editor
             DeploymentSlot,
             Enemy,
             Friendly,
+            Reinforcement,
             Erase
         }
 
@@ -40,6 +42,12 @@ namespace Windy.Srpg.Game.Editor
         [SerializeField] private UnitPreset friendlyUnitPreset;
         [SerializeField] private UnitPreset enemyUnitPreset;
         [SerializeField] private UnitPresetOverride enemyUnitPresetOverride = new UnitPresetOverride();
+        [SerializeField] private List<ReinforcementUnitEntry> reinforcementUnits = new List<ReinforcementUnitEntry>();
+        [SerializeField] private List<int> reinforcementSpawnTurns = new List<int>();
+        [SerializeField] private bool placeReinforcementSpawner;
+        [SerializeField] private int reinforcementSpawnerPlayerNumber = 1;
+        [SerializeField] private UnitPreset reinforcementSpawnerPreset;
+        [SerializeField] private UnitPresetOverride reinforcementSpawnerPresetOverride = new UnitPresetOverride();
         [SerializeField] private int mapWidth = 20;
         [SerializeField] private int mapHeight = 20;
         [SerializeField] private bool enableScenePainting = true;
@@ -169,7 +177,7 @@ namespace Windy.Srpg.Game.Editor
         private void DrawPaletteSection()
         {
             EditorGUILayout.LabelField("Paint Palette", EditorStyles.boldLabel);
-            paintMode = (PaintMode)GUILayout.Toolbar((int)paintMode, new[] { "Tile", "Deploy", "Enemy", "Friendly", "Erase" });
+            paintMode = (PaintMode)GUILayout.Toolbar((int)paintMode, new[] { "Tile", "Deploy", "Enemy", "Friendly", "Reinforce", "Erase" });
 
             switch (paintMode)
             {
@@ -185,6 +193,10 @@ namespace Windy.Srpg.Game.Editor
                 case PaintMode.Friendly:
                     friendlyUnitPreset = (UnitPreset)EditorGUILayout.ObjectField("Friendly Preset", friendlyUnitPreset, typeof(UnitPreset), false);
                     EditorGUILayout.HelpBox("Direct friendlies are player 0 controllable units that bypass deployment roster/save ownership.", MessageType.None);
+                    break;
+
+                case PaintMode.Reinforcement:
+                    DrawReinforcementPalette();
                     break;
 
                 case PaintMode.DeploymentSlot:
@@ -252,6 +264,60 @@ namespace Windy.Srpg.Game.Editor
             if (enemyUnitPresetOverride.OverrideWaitGroupId)
             {
                 enemyUnitPresetOverride.WaitGroupId = Mathf.Max(0, EditorGUILayout.IntField("Wait Group Id", enemyUnitPresetOverride.WaitGroupId));
+            }
+        }
+
+        private void DrawReinforcementPalette()
+        {
+            reinforcementUnits ??= new List<ReinforcementUnitEntry>();
+            reinforcementSpawnTurns ??= new List<int>();
+            reinforcementSpawnerPresetOverride ??= new UnitPresetOverride();
+            int reinforcementUnitCountBeforeDrawing = reinforcementUnits.Count;
+
+            EditorGUILayout.HelpBox(
+                "The turn list is the schedule. Preset entries repeat from the beginning when the schedule has more entries than the unit list.",
+                MessageType.None);
+
+            SerializedObject serializedWindow = new SerializedObject(this);
+            serializedWindow.Update();
+            EditorGUILayout.PropertyField(
+                serializedWindow.FindProperty("reinforcementUnits"),
+                new GUIContent("Reinforcement Units"),
+                includeChildren: true);
+            EditorGUILayout.PropertyField(
+                serializedWindow.FindProperty("reinforcementSpawnTurns"),
+                new GUIContent("Spawn Turns"),
+                includeChildren: true);
+            EditorGUILayout.PropertyField(
+                serializedWindow.FindProperty("placeReinforcementSpawner"),
+                new GUIContent("Place Linked Spawner"));
+
+            SerializedProperty placeSpawnerProperty = serializedWindow.FindProperty("placeReinforcementSpawner");
+            if (placeSpawnerProperty.boolValue)
+            {
+                EditorGUILayout.PropertyField(
+                    serializedWindow.FindProperty("reinforcementSpawnerPlayerNumber"),
+                    new GUIContent("Spawner Player Number"));
+                EditorGUILayout.PropertyField(
+                    serializedWindow.FindProperty("reinforcementSpawnerPreset"),
+                    new GUIContent("Spawner Preset"));
+                EditorGUILayout.PropertyField(
+                    serializedWindow.FindProperty("reinforcementSpawnerPresetOverride"),
+                    new GUIContent("Spawner Override"),
+                    includeChildren: true);
+                EditorGUILayout.HelpBox(
+                    "The spawner is created from this preset and override. Configure zero movement in either of those assets when the spawner should be immovable.",
+                    MessageType.Info);
+            }
+
+            serializedWindow.ApplyModifiedProperties();
+
+            for (int i = reinforcementUnitCountBeforeDrawing; i < reinforcementUnits.Count; i++)
+            {
+                ReinforcementUnitEntry newEntry = reinforcementUnits[i] ?? new ReinforcementUnitEntry();
+                newEntry.PlayerNumber = 1;
+                newEntry.PresetOverride ??= new UnitPresetOverride();
+                reinforcementUnits[i] = newEntry;
             }
         }
 
@@ -362,6 +428,9 @@ namespace Windy.Srpg.Game.Editor
                 case PaintMode.Friendly:
                     return PaintSceneUnitAt(context, coordinate, friendlyUnitPrefab, friendlyUnitPreset, null, playerNumber: 0, participatesInDeploymentRoster: false, includeInOwnedUnitSave: false);
 
+                case PaintMode.Reinforcement:
+                    return PaintReinforcementTileAt(context, coordinate);
+
                 case PaintMode.Erase:
                     return EraseAtCoordinate(context, coordinate);
             }
@@ -436,6 +505,7 @@ namespace Windy.Srpg.Game.Editor
             context.DeploymentSlotsParent = deploymentSlotsParent;
             context.MapWidth = mapWidth;
             context.MapHeight = mapHeight;
+            ClearChildren(GetOrCreateReinforcementTilesParent(context));
             cellGrid.SetDeploymentSlotsParent(deploymentSlotsParent);
             sceneUnitGenerator.SetDeploymentRosterUnitPrefab(friendlyUnitPrefab != null ? friendlyUnitPrefab.GetComponent<Unit>() : null);
             EditorUtility.SetDirty(cellGrid);
@@ -461,6 +531,7 @@ namespace Windy.Srpg.Game.Editor
 
             ClearChildren(cellsParent);
             ClearChildren(deploymentSlotsParent);
+            ClearChildren(GetOrCreateReinforcementTilesParent(context));
 
             foreach (Unit unit in unitsParent.GetComponentsInChildren<Unit>(true).ToList())
             {
@@ -499,6 +570,7 @@ namespace Windy.Srpg.Game.Editor
 
             RemoveUnitAtCoordinate(context, coordinate);
             RemoveDeploymentSlotAtCoordinate(context, coordinate);
+            RemoveReinforcementTileAtCoordinate(context, coordinate);
             RemoveCellAtCoordinate(context, coordinate);
 
             GameObject cellObject = baseCellPrefab != null
@@ -533,6 +605,7 @@ namespace Windy.Srpg.Game.Editor
             }
 
             RemoveUnitAtCoordinate(context, coordinate);
+            RemoveReinforcementTileAtCoordinate(context, coordinate);
 
             DeploymentSlot slot = GetDeploymentSlotAtCoordinate(context, coordinate);
             if (slot == null)
@@ -552,9 +625,114 @@ namespace Windy.Srpg.Game.Editor
                 slot = slotObject.GetComponent<DeploymentSlot>();
             }
 
-            SetDeploymentSlotBinding(slot, cell);
-            slot.SyncToCell();
+            Undo.RecordObject(slot, "Bind Deployment Slot");
+            slot.BindToCell(cell);
             RenumberDeploymentSlots(context);
+            EditorSceneManager.MarkSceneDirty(context.gameObject.scene);
+            return true;
+        }
+
+        private bool PaintReinforcementTileAt(MapPainterSceneContext context, Vector2Int coordinate)
+        {
+            if (reinforcementUnits == null
+                || reinforcementUnits.Count == 0
+                || reinforcementUnits.Any(entry => entry == null || entry.Preset == null))
+            {
+                Debug.LogWarning("Map Painter: Every reinforcement unit entry requires a UnitPreset.");
+                return false;
+            }
+
+            List<ReinforcementUnitEntry> configuredUnits = reinforcementUnits
+                .Select(entry => new ReinforcementUnitEntry
+                {
+                    PlayerNumber = Mathf.Max(0, entry.PlayerNumber),
+                    Preset = entry.Preset,
+                    PresetOverride = ClonePresetOverride(entry.PresetOverride)
+                })
+                .ToList();
+            List<int> configuredTurns = (reinforcementSpawnTurns ?? new List<int>())
+                .Select(turn => Mathf.Max(1, turn))
+                .ToList();
+            if (configuredTurns.Count == 0)
+            {
+                Debug.LogWarning("Map Painter: A reinforcement tile requires at least one spawn turn.");
+                return false;
+            }
+
+            Cell cell = EnsureTraversableCellAt(context, coordinate);
+            Transform reinforcementTilesParent = GetOrCreateReinforcementTilesParent(context);
+            if (cell == null || reinforcementTilesParent == null)
+            {
+                return false;
+            }
+
+            RemoveDeploymentSlotAtCoordinate(context, coordinate);
+            RemoveUnitAtCoordinate(context, coordinate);
+
+            Unit linkedSpawner = null;
+            if (placeReinforcementSpawner)
+            {
+                if (reinforcementSpawnerPreset == null)
+                {
+                    Debug.LogWarning("Map Painter: Assign a UnitPreset for the linked reinforcement spawner.");
+                    return false;
+                }
+
+                int spawnerPlayerNumber = Mathf.Max(0, reinforcementSpawnerPlayerNumber);
+                GameObject spawnerUnitTemplate = spawnerPlayerNumber == 0
+                    ? friendlyUnitPrefab
+                    : enemyUnitPrefab;
+                spawnerUnitTemplate ??= enemyUnitPrefab != null ? enemyUnitPrefab : friendlyUnitPrefab;
+                if (spawnerUnitTemplate == null || spawnerUnitTemplate.GetComponent<Unit>() == null)
+                {
+                    Debug.LogWarning("Map Painter: Configure a valid base unit prefab in Scene Setup before painting a spawner.");
+                    return false;
+                }
+
+                if (!PaintSceneUnitAt(
+                    context,
+                    coordinate,
+                    spawnerUnitTemplate,
+                    reinforcementSpawnerPreset,
+                    reinforcementSpawnerPresetOverride,
+                    playerNumber: spawnerPlayerNumber,
+                    participatesInDeploymentRoster: false,
+                    includeInOwnedUnitSave: false))
+                {
+                    return false;
+                }
+
+                linkedSpawner = GetUnitAtCoordinate(context, coordinate);
+                if (linkedSpawner == null)
+                {
+                    Debug.LogError("Map Painter: The reinforcement spawner was placed but could not be resolved.");
+                    return false;
+                }
+            }
+
+            ReinforcementTile reinforcementTile = GetReinforcementTileAtCoordinate(context, coordinate);
+            if (reinforcementTile != null && reinforcementTile.gameObject == cell.gameObject)
+            {
+                Undo.DestroyObjectImmediate(reinforcementTile);
+                reinforcementTile = null;
+            }
+
+            if (reinforcementTile == null)
+            {
+                GameObject reinforcementObject = new GameObject($"ReinforcementTile_{coordinate.x}_{coordinate.y}");
+                Undo.RegisterCreatedObjectUndo(reinforcementObject, "Paint Reinforcement Tile");
+                reinforcementObject.transform.SetParent(reinforcementTilesParent, false);
+                reinforcementTile = Undo.AddComponent<ReinforcementTile>(reinforcementObject);
+            }
+            else
+            {
+                Undo.RecordObject(reinforcementTile, "Update Reinforcement Tile");
+                reinforcementTile.transform.SetParent(reinforcementTilesParent, false);
+            }
+
+            reinforcementTile.Configure(cell, configuredUnits, configuredTurns, linkedSpawner);
+            reinforcementTile.name = $"ReinforcementTile_{coordinate.x}_{coordinate.y}";
+            EditorUtility.SetDirty(reinforcementTile);
             EditorSceneManager.MarkSceneDirty(context.gameObject.scene);
             return true;
         }
@@ -692,6 +870,12 @@ namespace Windy.Srpg.Game.Editor
                 changed = true;
             }
 
+            if (GetReinforcementTileAtCoordinate(context, coordinate) != null)
+            {
+                RemoveReinforcementTileAtCoordinate(context, coordinate);
+                changed = true;
+            }
+
             if (GetCellAtCoordinate(context, coordinate) != null)
             {
                 RemoveCellAtCoordinate(context, coordinate);
@@ -730,6 +914,22 @@ namespace Windy.Srpg.Game.Editor
             if (slot != null)
             {
                 Undo.DestroyObjectImmediate(slot.gameObject);
+            }
+        }
+
+        private void RemoveReinforcementTileAtCoordinate(MapPainterSceneContext context, Vector2Int coordinate)
+        {
+            ReinforcementTile reinforcementTile = GetReinforcementTileAtCoordinate(context, coordinate);
+            if (reinforcementTile != null)
+            {
+                if (reinforcementTile.GetComponent<Cell>() != null)
+                {
+                    Undo.DestroyObjectImmediate(reinforcementTile);
+                }
+                else
+                {
+                    Undo.DestroyObjectImmediate(reinforcementTile.gameObject);
+                }
             }
         }
 
@@ -816,6 +1016,75 @@ namespace Windy.Srpg.Game.Editor
             return null;
         }
 
+        private ReinforcementTile GetReinforcementTileAtCoordinate(MapPainterSceneContext context, Vector2Int coordinate)
+        {
+            Transform reinforcementTilesParent = context != null ? context.ReinforcementTilesParent : null;
+            if (reinforcementTilesParent != null)
+            {
+                foreach (ReinforcementTile reinforcementTile in reinforcementTilesParent.GetComponentsInChildren<ReinforcementTile>(true))
+                {
+                    if (reinforcementTile == null)
+                    {
+                        continue;
+                    }
+
+                    Cell linkedCell = reinforcementTile.Cell;
+                    if (linkedCell != null && linkedCell.Coordinates == coordinate)
+                    {
+                        return reinforcementTile;
+                    }
+
+                    Vector3 position = reinforcementTile.transform.position;
+                    if (Mathf.RoundToInt(position.x) == coordinate.x && Mathf.RoundToInt(position.y) == coordinate.y)
+                    {
+                        return reinforcementTile;
+                    }
+                }
+            }
+
+            Cell cell = GetCellAtCoordinate(context, coordinate);
+            return cell != null ? cell.GetComponent<ReinforcementTile>() : null;
+        }
+
+        private Transform GetOrCreateReinforcementTilesParent(MapPainterSceneContext context)
+        {
+            if (context == null)
+            {
+                return null;
+            }
+
+            if (context.ReinforcementTilesParent != null)
+            {
+                return context.ReinforcementTilesParent;
+            }
+
+            Transform hierarchyParent = context.DeploymentSlotsParent != null
+                ? context.DeploymentSlotsParent.parent
+                : context.transform;
+            Transform reinforcementTilesParent = hierarchyParent != null
+                ? hierarchyParent.Find(ReinforcementTilesParentName)
+                : null;
+            if (reinforcementTilesParent == null)
+            {
+                GameObject parentObject = new GameObject(ReinforcementTilesParentName);
+                Undo.RegisterCreatedObjectUndo(parentObject, "Create Reinforcement Tiles Parent");
+                if (hierarchyParent != null)
+                {
+                    parentObject.transform.SetParent(hierarchyParent, false);
+                }
+                else
+                {
+                    SceneManager.MoveGameObjectToScene(parentObject, context.gameObject.scene);
+                }
+
+                reinforcementTilesParent = parentObject.transform;
+            }
+
+            context.ReinforcementTilesParent = reinforcementTilesParent;
+            EditorUtility.SetDirty(context);
+            return reinforcementTilesParent;
+        }
+
         private void RenumberDeploymentSlots(MapPainterSceneContext context)
         {
             if (!TryGetCoreSceneReferences(context, out _, out _, out _, out _, out Transform deploymentSlotsParent))
@@ -840,25 +1109,6 @@ namespace Windy.Srpg.Game.Editor
                 slot.SyncToCell();
                 EditorUtility.SetDirty(slot);
             }
-        }
-
-        private void SetDeploymentSlotBinding(DeploymentSlot slot, Cell cell)
-        {
-            if (slot == null)
-            {
-                return;
-            }
-
-            SerializedObject serializedSlot = new SerializedObject(slot);
-            serializedSlot.FindProperty("boardCell").objectReferenceValue = cell;
-
-            if (slot.TryGetComponent(out SpriteRenderer spriteRenderer))
-            {
-                serializedSlot.FindProperty("highlightRenderer").objectReferenceValue = spriteRenderer;
-            }
-
-            serializedSlot.ApplyModifiedPropertiesWithoutUndo();
-            EditorUtility.SetDirty(slot);
         }
 
         private GameObject EnsureDeploymentSlotPrefab()

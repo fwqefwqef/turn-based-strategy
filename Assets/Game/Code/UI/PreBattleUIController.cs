@@ -8,7 +8,6 @@ using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Localization;
 using Windy.Srpg.Game.Passives;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -42,7 +41,6 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private Button saveButton;
         [SerializeField] private Button selectUnitsButton;
         [SerializeField] private Button switchDeploymentButton;
-        [FormerlySerializedAs("inventoryButton")]
         [SerializeField] private Button inventoryManagementButton;
         [SerializeField] private Button passiveManagementButton;
         [SerializeField] private Button mainMenuButton;
@@ -65,39 +63,22 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private RectTransform switchSlotContainer;
 
         [Header("Inventory Management UI")]
-        [FormerlySerializedAs("inventoryPanel")]
         [SerializeField] private RectTransform inventoryManagementPanel;
-        [FormerlySerializedAs("inventoryBackButton")]
         [SerializeField] private Button inventoryManagementBackButton;
-        [FormerlySerializedAs("inventoryInstructionText")]
         [SerializeField] private TMP_Text inventoryManagementInstructionText;
-        [FormerlySerializedAs("inventoryUnitContainer")]
         [SerializeField] private RectTransform inventoryManagementUnitContainer;
-        [FormerlySerializedAs("inventoryUnitButtonTemplate")]
         [SerializeField] private Button inventoryManagementUnitButtonTemplate;
-        [FormerlySerializedAs("inventoryOwnItemsContainer")]
         [SerializeField] private RectTransform inventoryManagementOwnItemsContainer;
-        [FormerlySerializedAs("inventoryOwnItemButtonTemplate")]
         [SerializeField] private Button inventoryManagementOwnItemButtonTemplate;
-        [FormerlySerializedAs("inventoryOtherItemsContainer")]
         [SerializeField] private RectTransform inventoryManagementOtherItemsContainer;
-        [FormerlySerializedAs("inventoryOtherItemButtonTemplate")]
         [SerializeField] private Button inventoryManagementOtherItemButtonTemplate;
-        [FormerlySerializedAs("inventoryWeaponFilterButton")]
         [SerializeField] private Button inventoryManagementWeaponFilterButton;
-        [FormerlySerializedAs("inventoryAccessoryFilterButton")]
         [SerializeField] private Button inventoryManagementAccessoryFilterButton;
-        [FormerlySerializedAs("inventoryConsumableFilterButton")]
         [SerializeField] private Button inventoryManagementConsumableFilterButton;
-        [FormerlySerializedAs("inventoryAllFilterButton")]
         [SerializeField] private Button inventoryManagementAllFilterButton;
-        [FormerlySerializedAs("inventoryActionPanel")]
         [SerializeField] private RectTransform inventoryManagementActionPanel;
-        [FormerlySerializedAs("inventoryActionText")]
         [SerializeField] private TMP_Text inventoryManagementActionText;
-        [FormerlySerializedAs("inventoryConfirmActionButton")]
         [SerializeField] private Button inventoryManagementConfirmActionButton;
-        [FormerlySerializedAs("inventoryCancelActionButton")]
         [SerializeField] private Button inventoryManagementCancelActionButton;
 
         [Header("Passive Management UI")]

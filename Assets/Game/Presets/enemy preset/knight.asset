@@ -41,19 +41,15 @@ MonoBehaviour:
   StartingInventory:
   - ItemId: iron_sword
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: potion
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: shield
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: wrath_strike
-  StartingUniquePassives: []
+  StartingClassPassives: []
   StartingEquipPassives:
   - PassiveId: deep_breath
-  LegacyBaseMovementPoints: 5

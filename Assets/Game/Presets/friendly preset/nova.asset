@@ -20,14 +20,6 @@ MonoBehaviour:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
     OffsetY: 0
-    LegacySizeReference: 0
-    LegacyScaleMode: 0
-    LegacyFallbackWorldSize: {x: 0, y: 0}
-    LegacyScaleMultiplier: 0
-    LegacyMinScaleFactor: 0
-    LegacyMaxScaleFactor: 0
-    LegacyVerticalAnchor: 0
-    LegacyLocalOffset: {x: 0, y: 0}
   ActionAiMode: 0
   MovementAiMode: 0
   WaitGroupId: 0
@@ -53,35 +45,27 @@ MonoBehaviour:
   StartingInventory:
   - ItemId: iron_sword
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: magic_sword
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: super_bow
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: potion
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: super_potion
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: invulnerability_potion
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: shield
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: cloak
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: wrath_strike
@@ -104,6 +88,5 @@ MonoBehaviour:
   - SkillId: immolate
   - SkillId: regen
   - SkillId: shove
-  StartingUniquePassives: []
+  StartingClassPassives: []
   StartingEquipPassives: []
-  LegacyBaseMovementPoints: 10

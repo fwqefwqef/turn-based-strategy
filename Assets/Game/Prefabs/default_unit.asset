@@ -19,14 +19,6 @@ MonoBehaviour:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
     OffsetY: 0
-    LegacySizeReference: 0
-    LegacyScaleMode: 0
-    LegacyFallbackWorldSize: {x: 0, y: 0}
-    LegacyScaleMultiplier: 0
-    LegacyMinScaleFactor: 0
-    LegacyMaxScaleFactor: 0
-    LegacyVerticalAnchor: 0
-    LegacyLocalOffset: {x: 0, y: 0}
   BaseLevel: 1
   WeaponProficiencies: 0
   BaseStats:
@@ -48,6 +40,5 @@ MonoBehaviour:
     Luck: 0
   StartingInventory: []
   StartingSkills: []
-  StartingUniquePassives: []
+  StartingClassPassives: []
   StartingEquipPassives: []
-  LegacyBaseMovementPoints: 0

@@ -64,6 +64,7 @@ namespace Windy.Srpg.Game.CameraControl
         private bool actionMenuVisible;
         private bool attackPreviewVisible;
         private bool combatFocusActive;
+        private bool presentationFocusActive;
 
         private bool dragActive;
         private Vector3 lastDragScreenPosition;
@@ -96,6 +97,25 @@ namespace Windy.Srpg.Game.CameraControl
             }
 
             activeInstance.SetFocusTarget(cell.transform.position);
+        }
+
+        public static void BeginPresentationFocus(Cell cell)
+        {
+            if (activeInstance == null || cell == null)
+            {
+                return;
+            }
+
+            activeInstance.presentationFocusActive = true;
+            activeInstance.SetFocusTarget(cell.transform.position, allowRetargetLeeway: false);
+        }
+
+        public static void EndPresentationFocus()
+        {
+            if (activeInstance != null)
+            {
+                activeInstance.presentationFocusActive = false;
+            }
         }
 
         public static void SetFocusedWorldPosition(Vector3 worldPosition)
@@ -158,6 +178,7 @@ namespace Windy.Srpg.Game.CameraControl
             }
 
             HasActiveInstance = false;
+            presentationFocusActive = false;
             UnitInspectPanelUI.SelectionTargetChanged -= OnSelectionTargetChanged;
             UnitInspectPanelUI.InspectTargetChanged -= OnInspectTargetChanged;
             ActionMenuUI.VisibilityChanged -= OnActionMenuVisibilityChanged;
@@ -457,7 +478,7 @@ namespace Windy.Srpg.Game.CameraControl
             controlledCamera.transform.position = currentFocusPosition + cameraOffset;
         }
 
-        private void SetFocusTarget(Vector3 worldPosition)
+        private void SetFocusTarget(Vector3 worldPosition, bool allowRetargetLeeway = true)
         {
             if (!TryInitialize())
             {
@@ -466,7 +487,7 @@ namespace Windy.Srpg.Game.CameraControl
 
             Vector3 nextFocusTarget = ClampFocusToBounds(ToFocusPlane(worldPosition));
             focusTargetPosition = nextFocusTarget;
-            pendingFocusWithinLeeway = IsWithinRetargetLeeway(nextFocusTarget);
+            pendingFocusWithinLeeway = allowRetargetLeeway && IsWithinRetargetLeeway(nextFocusTarget);
         }
 
         private Vector3 ResolveUnitFocusPosition(Unit unit)
@@ -722,11 +743,16 @@ namespace Windy.Srpg.Game.CameraControl
 
         private bool ShouldMoveFocusWhileLocked()
         {
-            return combatFocusActive;
+            return combatFocusActive || presentationFocusActive;
         }
 
         private bool IsCameraMovementLocked()
         {
+            if (presentationFocusActive)
+            {
+                return true;
+            }
+
             if (!autoFocusEnabled)
             {
                 return false;

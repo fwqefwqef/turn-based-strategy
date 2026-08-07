@@ -4,7 +4,6 @@ using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Passives;
 using Windy.Srpg.Game.Skills;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Windy.Srpg.Game.Units
 {
@@ -54,23 +53,6 @@ namespace Windy.Srpg.Game.Units
         public float OffsetX;
         public float OffsetY;
 
-        [HideInInspector, FormerlySerializedAs("SizeReference")]
-        public int LegacySizeReference;
-        [HideInInspector, FormerlySerializedAs("ScaleMode")]
-        public int LegacyScaleMode;
-        [HideInInspector, FormerlySerializedAs("FallbackWorldSize")]
-        public Vector2 LegacyFallbackWorldSize;
-        [HideInInspector, FormerlySerializedAs("ScaleMultiplier")]
-        public float LegacyScaleMultiplier;
-        [HideInInspector, FormerlySerializedAs("MinScaleFactor")]
-        public float LegacyMinScaleFactor;
-        [HideInInspector, FormerlySerializedAs("MaxScaleFactor")]
-        public float LegacyMaxScaleFactor;
-        [HideInInspector, FormerlySerializedAs("VerticalAnchor")]
-        public int LegacyVerticalAnchor;
-        [HideInInspector, FormerlySerializedAs("LocalOffset")]
-        public Vector2 LegacyLocalOffset;
-
         public static UnitSpriteLayoutSettings CreateDefault()
         {
             return new UnitSpriteLayoutSettings
@@ -100,7 +82,7 @@ namespace Windy.Srpg.Game.Units
         public SecondaryStatModifiers SecondaryStatOffsets;
         public List<StartingInventoryItem> ExtraInventory = new List<StartingInventoryItem>();
         public List<StartingSkillEntry> ExtraSkills = new List<StartingSkillEntry>();
-        public List<StartingPassiveEntry> ExtraUniquePassives = new List<StartingPassiveEntry>();
+        public List<StartingPassiveEntry> ExtraClassPassives = new List<StartingPassiveEntry>();
         public List<StartingPassiveEntry> ExtraEquipPassives = new List<StartingPassiveEntry>();
     }
 
@@ -121,13 +103,8 @@ namespace Windy.Srpg.Game.Units
         public UnitGrowthRates GrowthRates;
         public List<StartingInventoryItem> StartingInventory = new List<StartingInventoryItem>();
         public List<StartingSkillEntry> StartingSkills = new List<StartingSkillEntry>();
-        public List<StartingPassiveEntry> StartingUniquePassives = new List<StartingPassiveEntry>();
+        public List<StartingPassiveEntry> StartingClassPassives = new List<StartingPassiveEntry>();
         public List<StartingPassiveEntry> StartingEquipPassives = new List<StartingPassiveEntry>();
-
-        // Preserves movement values from older presets that stored this outside BaseStats.
-        [FormerlySerializedAs("BaseMovementPoints")]
-        [HideInInspector]
-        public float LegacyBaseMovementPoints = 5f;
 
         private void OnValidate()
         {
@@ -174,25 +151,6 @@ namespace Windy.Srpg.Game.Units
             if (SpriteLayout.TargetSize.x <= 0f || SpriteLayout.TargetSize.y <= 0f)
             {
                 SpriteLayout.TargetSize = new Vector2(1.2f, 1.2f);
-                changed = true;
-            }
-
-            if (!Mathf.Approximately(SpriteLayout.LegacyLocalOffset.x, 0f) ||
-                !Mathf.Approximately(SpriteLayout.LegacyLocalOffset.y, 0f))
-            {
-                if (Mathf.Approximately(SpriteLayout.OffsetX, 0f))
-                {
-                    SpriteLayout.OffsetX = SpriteLayout.LegacyLocalOffset.x;
-                    changed = true;
-                }
-
-                if (Mathf.Approximately(SpriteLayout.OffsetY, 0f))
-                {
-                    SpriteLayout.OffsetY = SpriteLayout.LegacyLocalOffset.y;
-                    changed = true;
-                }
-
-                SpriteLayout.LegacyLocalOffset = Vector2.zero;
                 changed = true;
             }
 

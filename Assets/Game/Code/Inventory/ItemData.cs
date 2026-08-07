@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Windy.Srpg.Game.Inventory
 {
@@ -111,7 +110,6 @@ namespace Windy.Srpg.Game.Inventory
         public bool CanCounterAttack = true;
         public bool PreventsCounterattack = false;
         public PrimaryStatModifiers StatModifiers;
-        [FormerlySerializedAs("PassiveId")]
         public string EffectId;
         public string[] GrantedSkillIds = Array.Empty<string>();
 
@@ -123,7 +121,6 @@ namespace Windy.Srpg.Game.Inventory
     {
         public PrimaryStatModifiers StatModifiers;
         public SecondaryStatModifiers SecondaryStatModifiers;
-        [FormerlySerializedAs("PassiveId")]
         public string EffectId;
         public string[] GrantedSkillIds = Array.Empty<string>();
 
@@ -145,11 +142,6 @@ namespace Windy.Srpg.Game.Inventory
     {
         public string ItemId;
         public int InitialCharges;
-
-        // Legacy toggle retained only so older assets deserialize cleanly.
-        [FormerlySerializedAs("OverrideInitialCharges")]
-        [HideInInspector]
-        public bool LegacyOverrideInitialCharges;
 
         [HideInInspector]
         public bool ChargesInitialized;

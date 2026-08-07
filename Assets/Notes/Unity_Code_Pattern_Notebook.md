@@ -520,14 +520,7 @@ renamed to:
 
 Unity may lose the assigned reference.
 
-Safer during refactor:
-
-```csharp
-[FormerlySerializedAs("saveButton")]
-[SerializeField] private Button confirmButton;
-```
-
-Only remove the marker after the scene has been opened, migrated, saved, and checked.
+Safer during refactor: migrate the scene, prefab, and asset references to the new serialized field name in the same pass, then open the scene and check that the Inspector wiring survived.
 
 ## Runtime State Vs Save Data
 

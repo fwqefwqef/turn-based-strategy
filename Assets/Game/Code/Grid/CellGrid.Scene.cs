@@ -11,6 +11,9 @@ namespace Windy.Srpg.Game.Grid
 {
     public partial class CellGrid
     {
+        private readonly Queue<Func<System.Collections.IEnumerator>> pendingTurnStartPresentations =
+            new Queue<Func<System.Collections.IEnumerator>>();
+
         // --- Unity lifecycle and scene input dispatch ---
         public void InitializeBattle() => InitializeBattleScene();
 
@@ -125,6 +128,7 @@ namespace Windy.Srpg.Game.Grid
             RoundCount = 1;
             PreBattleStateChanged?.Invoke(this, EventArgs.Empty);
             BattleStarted?.Invoke(this, EventArgs.Empty);
+            pendingTurnStartPresentations.Clear();
             TurnStarted?.Invoke(this, EventArgs.Empty);
         }
 
@@ -138,6 +142,7 @@ namespace Windy.Srpg.Game.Grid
             }
 
             BattleTurnEnded?.Invoke(this, EventArgs.Empty);
+            pendingTurnStartPresentations.Clear();
             TurnStarted?.Invoke(this, EventArgs.Empty);
         }
 
@@ -324,6 +329,54 @@ namespace Windy.Srpg.Game.Grid
             }
 
             RegisterSceneUnitTransform(unit.transform, targetCell, ownerPlayer);
+        }
+
+        internal Unit SpawnReinforcementUnit(
+            UnitPreset preset,
+            UnitPresetOverride presetOverride,
+            int playerNumber,
+            Cell targetCell)
+        {
+            Unit unitTemplate = GetDeploymentRosterUnitPrefab();
+            if (preset == null || unitTemplate == null || targetCell == null || gameFinished)
+            {
+                if (unitTemplate == null)
+                {
+                    Debug.LogError("CellGrid: Reinforcement spawning requires the SceneUnitGenerator deployment unit prefab as its base unit template.", this);
+                }
+
+                return null;
+            }
+
+            Transform unitsParent = GetSceneUnitsParent();
+            Unit spawnedUnit = unitsParent != null
+                ? Instantiate(unitTemplate, unitsParent)
+                : Instantiate(unitTemplate);
+            if (spawnedUnit == null)
+            {
+                return null;
+            }
+
+            spawnedUnit.gameObject.SetActive(true);
+            spawnedUnit.PlayerNumber = Mathf.Max(0, playerNumber);
+            spawnedUnit.preset = preset;
+            spawnedUnit.presetOverride = presetOverride ?? new UnitPresetOverride();
+            spawnedUnit.presetAppliedAtRuntime = false;
+            spawnedUnit.ExcludedFromBattle = false;
+            spawnedUnit.ParticipatesInDeploymentRoster = false;
+            spawnedUnit.IncludeInOwnedUnitSave = false;
+            spawnedUnit.name = !string.IsNullOrWhiteSpace(preset.UnitName)
+                ? preset.UnitName
+                : preset.name;
+            RegisterSceneUnit(spawnedUnit, targetCell);
+
+            if (spawnedUnit.PlayerNumber == CurrentPlayerNumber)
+            {
+                NotifyAbilitiesTurnStarted(spawnedUnit);
+                spawnedUnit.OnTurnStart();
+            }
+
+            return spawnedUnit;
         }
 
         protected bool IsUnitRegistered(Unit unit)
@@ -650,12 +703,7 @@ namespace Windy.Srpg.Game.Grid
                 }
             }
 
-            if (!kickPlayerPlay)
-            {
-                return;
-            }
-
-            KickCurrentScenePlayer();
+            RunTurnStartPresentationsThenPlay(kickPlayerPlay);
         }
 
         internal void CommitTurnTransition(
@@ -689,12 +737,49 @@ namespace Windy.Srpg.Game.Grid
                 }
             }
 
-            if (!kickPlayerPlay)
+            RunTurnStartPresentationsThenPlay(kickPlayerPlay);
+        }
+
+        internal void QueueTurnStartPresentation(Func<System.Collections.IEnumerator> presentationFactory)
+        {
+            if (presentationFactory != null)
             {
+                pendingTurnStartPresentations.Enqueue(presentationFactory);
+            }
+        }
+
+        private void RunTurnStartPresentationsThenPlay(bool kickPlayerPlay)
+        {
+            if (pendingTurnStartPresentations.Count == 0)
+            {
+                if (kickPlayerPlay)
+                {
+                    KickCurrentScenePlayer();
+                }
+
                 return;
             }
 
-            KickCurrentScenePlayer();
+            EnterBlockedInputState();
+            StartCoroutine(RunTurnStartPresentationsThenPlayRoutine(kickPlayerPlay));
+        }
+
+        private System.Collections.IEnumerator RunTurnStartPresentationsThenPlayRoutine(bool kickPlayerPlay)
+        {
+            while (pendingTurnStartPresentations.Count > 0)
+            {
+                Func<System.Collections.IEnumerator> presentationFactory = pendingTurnStartPresentations.Dequeue();
+                System.Collections.IEnumerator presentation = presentationFactory?.Invoke();
+                if (presentation != null)
+                {
+                    yield return StartCoroutine(presentation);
+                }
+            }
+
+            if (kickPlayerPlay && !gameFinished)
+            {
+                KickCurrentScenePlayer();
+            }
         }
 
         internal void EndUnitsForCurrentPlayerTurn()

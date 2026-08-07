@@ -41,14 +41,11 @@ MonoBehaviour:
   StartingInventory:
   - ItemId: super_bow
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   - ItemId: potion
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: close_range_volley
-  StartingUniquePassives: []
+  StartingClassPassives: []
   StartingEquipPassives: []
-  LegacyBaseMovementPoints: 5

@@ -19,14 +19,6 @@ MonoBehaviour:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
     OffsetY: 0
-    LegacySizeReference: 0
-    LegacyScaleMode: 0
-    LegacyFallbackWorldSize: {x: 0, y: 0}
-    LegacyScaleMultiplier: 0
-    LegacyMinScaleFactor: 0
-    LegacyMaxScaleFactor: 0
-    LegacyVerticalAnchor: 0
-    LegacyLocalOffset: {x: 0, y: 0}
   ActionAiMode: 1
   MovementAiMode: 2
   WaitGroupId: 0
@@ -52,10 +44,8 @@ MonoBehaviour:
   StartingInventory:
   - ItemId: magic_sword
     InitialCharges: -1
-    LegacyOverrideInitialCharges: 0
     ChargesInitialized: 1
   StartingSkills: []
-  StartingUniquePassives: []
+  StartingClassPassives: []
   StartingEquipPassives:
   - PassiveId: arcana_knowledge
-  LegacyBaseMovementPoints: 5

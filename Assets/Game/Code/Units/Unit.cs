@@ -13,7 +13,6 @@ using Windy.Srpg.Game.AI.Evaluators;
 using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Pathfinding.Algorithms;
-using UnityEngine.Serialization;
 using RuntimeBuff = Windy.Srpg.Game.Buffs.Buff;
 
 
@@ -82,8 +81,8 @@ namespace Windy.Srpg.Game.Units
         internal int experience = 0;
         public string unitName = "Ally";
         [Header("Unit Preset")]
-        [SerializeField, FormerlySerializedAs("enemyPreset")] internal UnitPreset preset;
-        [SerializeField, FormerlySerializedAs("enemyPresetOverride")] internal UnitPresetOverride presetOverride = new UnitPresetOverride();
+        [SerializeField] internal UnitPreset preset;
+        [SerializeField] internal UnitPresetOverride presetOverride = new UnitPresetOverride();
         [Header("Save Identity")]
         [SerializeField] internal string unitId = string.Empty;
         [SerializeField] internal string visualId = string.Empty;
@@ -92,7 +91,7 @@ namespace Windy.Srpg.Game.Units
         [SerializeField]
         internal List<StartingSkillEntry> startingSkills = new List<StartingSkillEntry>();
         [SerializeField]
-        internal List<StartingPassiveEntry> startingUniquePassives = new List<StartingPassiveEntry>();
+        internal List<StartingPassiveEntry> startingClassPassives = new List<StartingPassiveEntry>();
         [SerializeField]
         internal List<StartingPassiveEntry> startingEquipPassives = new List<StartingPassiveEntry>();
         [SerializeField]
@@ -191,7 +190,7 @@ namespace Windy.Srpg.Game.Units
         internal bool useResolvedPresetLoadout;
         internal List<StartingInventoryItem> resolvedStartingInventory = new List<StartingInventoryItem>();
         internal List<StartingSkillEntry> resolvedStartingSkills = new List<StartingSkillEntry>();
-        internal List<StartingPassiveEntry> resolvedStartingUniquePassives = new List<StartingPassiveEntry>();
+        internal List<StartingPassiveEntry> resolvedStartingClassPassives = new List<StartingPassiveEntry>();
         internal List<StartingPassiveEntry> resolvedStartingEquipPassives = new List<StartingPassiveEntry>();
         internal SecondaryStatModifiers resolvedSecondaryStatOffsets;
         [NonSerialized] internal OwnedUnitSaveData pendingOwnedUnitSaveData;
@@ -355,16 +354,16 @@ namespace Windy.Srpg.Game.Units
             return Array.Empty<StartingSkillEntry>();
         }
 
-        private IEnumerable<StartingPassiveEntry> GetInitialUniquePassives()
+        private IEnumerable<StartingPassiveEntry> GetInitialClassPassives()
         {
             if (useResolvedPresetLoadout)
             {
-                return resolvedStartingUniquePassives;
+                return resolvedStartingClassPassives;
             }
 
-            if (startingUniquePassives != null && startingUniquePassives.Count > 0)
+            if (startingClassPassives != null && startingClassPassives.Count > 0)
             {
-                return startingUniquePassives;
+                return startingClassPassives;
             }
 
             return Array.Empty<StartingPassiveEntry>();

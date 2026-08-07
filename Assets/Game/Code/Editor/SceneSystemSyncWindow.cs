@@ -17,7 +17,8 @@ namespace Windy.Srpg.Game.Editor
         private const string DefaultPreservedRootNames =
             "CellGrid\n" +
             "Units\n" +
-            "Friendly Deployment Slots";
+            "Friendly Deployment Slots\n" +
+            "ReinforcementTiles";
 
         [SerializeField] private SceneAsset sourceScene;
         [SerializeField] private string preservedRootNames = DefaultPreservedRootNames;
@@ -85,7 +86,8 @@ namespace Windy.Srpg.Game.Editor
             EditorGUILayout.LabelField("Scene System Sync", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
                 "Copies reusable scene systems from a source scene into the active scene while preserving map roots. " +
-                "Default source is PaintedMap.unity. Default preserved roots are CellGrid, Units, and Friendly Deployment Slots.",
+                "Default source is PaintedMap.unity. Default preserved roots are CellGrid, Units, Friendly Deployment Slots, and ReinforcementTiles. " +
+                "Chapter Data should stay on its own root object so it copies from the source scene.",
                 MessageType.Info);
 
             sourceScene = (SceneAsset)EditorGUILayout.ObjectField("Source Scene", sourceScene, typeof(SceneAsset), false);

@@ -23,6 +23,12 @@ namespace Windy.Srpg.Game.Grid
         public int SlotIndex => slotIndex;
         public Cell Cell => boardCell;
 
+        public void BindToCell(Cell cell)
+        {
+            boardCell = cell;
+            SyncToCell();
+        }
+
         public void EnsureRegistryCellBinding(Cell[] candidateTiles = null)
         {
             if (boardCell != null)

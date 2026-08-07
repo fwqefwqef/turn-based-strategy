@@ -6,7 +6,7 @@ namespace Windy.Srpg.Game.Passives
 {
     public enum PassiveListKind
     {
-        Unique,
+        Class,
         Equip
     }
 

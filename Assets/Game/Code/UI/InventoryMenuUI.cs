@@ -8,7 +8,6 @@ using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.UI;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.Serialization;
 
 public class InventoryMenuUI : GameplayModalUI, MoveAbility.IInventoryMenuUI
 {
@@ -24,19 +23,14 @@ public class InventoryMenuUI : GameplayModalUI, MoveAbility.IInventoryMenuUI
         public TMP_Text Label;
     }
 
-    [FormerlySerializedAs("panel")]
     public GameObject rootPanel;
     public TMP_Text titleText;
-    [FormerlySerializedAs("itemListRoot")]
     public RectTransform inventoryDropdown;
     public Button itemButtonTemplate;
     public Button closeButton;
     public GameObject itemActionPanel;
-    [FormerlySerializedAs("primaryActionButton")]
     public Button equipOrUseButton;
-    [FormerlySerializedAs("primaryActionButtonText")]
     public TMP_Text equipOrUseButtonText;
-    [FormerlySerializedAs("cancelActionButton")]
     public Button itemActionCancelButton;
     public GameObject itemDisplayPanel;
     public TMP_Text itemDisplayNameText;

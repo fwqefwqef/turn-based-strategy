@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Serialization;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 
@@ -7,7 +6,6 @@ namespace Windy.Srpg.Game.Players
 {
     public abstract class BattlePlayerController : MonoBehaviour, IBattleTurnPlayer
     {
-        [FormerlySerializedAs("PlayerNumber")]
         [SerializeField] private int playerId;
 
         public int PlayerId => playerId;

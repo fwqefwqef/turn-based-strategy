@@ -7,7 +7,7 @@ namespace Windy.Srpg.Game.Campaign
     public sealed class CampaignSaveData
     {
         public int Version = 1;
-        public int Gold = 0;
+        public int Gold = 5000;
         public OwnedUnitSaveData[] OwnedUnits = Array.Empty<OwnedUnitSaveData>();
         public string[] DeploymentRosterUnitIds = Array.Empty<string>();
         public SavedInventoryEntryData[] StorageItems = Array.Empty<SavedInventoryEntryData>();
@@ -27,7 +27,7 @@ namespace Windy.Srpg.Game.Campaign
         public UnitGrowthRates GrowthRates;
         public SavedInventoryEntryData[] Inventory = Array.Empty<SavedInventoryEntryData>();
         public string[] SkillIds = Array.Empty<string>();
-        public string[] UniquePassiveIds = Array.Empty<string>();
+        public string[] ClassPassiveIds = Array.Empty<string>();
         public string[] EquipPassiveIds = Array.Empty<string>();
     }
 

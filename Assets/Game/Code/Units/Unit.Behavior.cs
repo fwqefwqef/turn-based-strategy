@@ -124,7 +124,7 @@ namespace Windy.Srpg.Game.Units
             EnsurePassiveList();
             Inventory.LoadStartingItems(GetInitialInventory());
             SkillList.LoadStartingSkills(GetInitialSkills());
-            PassiveList.LoadStartingPassives(GetInitialUniquePassives(), GetInitialEquipPassives());
+            PassiveList.LoadStartingPassives(GetInitialClassPassives(), GetInitialEquipPassives());
 
             SetTurnStateKind(UnitTurnStateKind.Normal, useStateTransition: false);
 
@@ -198,7 +198,7 @@ namespace Windy.Srpg.Game.Units
             Inventory.LoadExactItems(Unit.CreateSavedInventoryItems(saveData));
             SkillList.LoadStartingSkills(Unit.CreateSavedSkillEntries(saveData.SkillIds));
             PassiveList.LoadStartingPassives(
-                Unit.CreateSavedPassiveEntries(saveData.UniquePassiveIds),
+                Unit.CreateSavedPassiveEntries(saveData.ClassPassiveIds),
                 Unit.CreateSavedPassiveEntries(saveData.EquipPassiveIds));
 
             SetTurnStateKind(UnitTurnStateKind.Normal, useStateTransition: false);
@@ -517,7 +517,7 @@ namespace Windy.Srpg.Game.Units
                 .ToArray()
                 ?? Array.Empty<string>();
 
-            string[] uniquePassiveIds = PassiveList?.UniqueEntries?
+            string[] classPassiveIds = PassiveList?.ClassEntries?
                 .Where(entry => entry != null && !string.IsNullOrWhiteSpace(entry.PassiveId))
                 .Select(entry => entry.PassiveId)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -561,7 +561,7 @@ namespace Windy.Srpg.Game.Units
                 },
                 Inventory = inventoryEntries,
                 SkillIds = skillIds,
-                UniquePassiveIds = uniquePassiveIds,
+                ClassPassiveIds = classPassiveIds,
                 EquipPassiveIds = equipPassiveIds
             };
         }
@@ -678,10 +678,7 @@ namespace Windy.Srpg.Game.Units
             movementAiMode = preset.MovementAiMode;
             waitGroupId = Mathf.Max(0, preset.WaitGroupId);
             aiWaitTriggered = false;
-            float presetMovementPoints = preset.BaseStats.MovementPoints > 0
-                ? preset.BaseStats.MovementPoints
-                : preset.LegacyBaseMovementPoints;
-            MovementPoints = Mathf.Max(0f, presetMovementPoints);
+            MovementPoints = Mathf.Max(0f, preset.BaseStats.MovementPoints);
 
             if (presetOverride != null && presetOverride.OverrideMovementPoints)
             {
@@ -856,8 +853,8 @@ namespace Windy.Srpg.Game.Units
                 preset != null ? preset.StartingInventory : Enumerable.Empty<StartingInventoryItem>());
             resolvedStartingSkills = new List<StartingSkillEntry>(
                 preset != null ? preset.StartingSkills : Enumerable.Empty<StartingSkillEntry>());
-            resolvedStartingUniquePassives = new List<StartingPassiveEntry>(
-                preset != null ? preset.StartingUniquePassives : Enumerable.Empty<StartingPassiveEntry>());
+            resolvedStartingClassPassives = new List<StartingPassiveEntry>(
+                preset != null ? preset.StartingClassPassives : Enumerable.Empty<StartingPassiveEntry>());
             resolvedStartingEquipPassives = new List<StartingPassiveEntry>(
                 preset != null ? preset.StartingEquipPassives : Enumerable.Empty<StartingPassiveEntry>());
 
@@ -876,9 +873,9 @@ namespace Windy.Srpg.Game.Units
                 resolvedStartingSkills.AddRange(presetOverride.ExtraSkills);
             }
 
-            if (presetOverride.ExtraUniquePassives != null)
+            if (presetOverride.ExtraClassPassives != null)
             {
-                resolvedStartingUniquePassives.AddRange(presetOverride.ExtraUniquePassives);
+                resolvedStartingClassPassives.AddRange(presetOverride.ExtraClassPassives);
             }
 
             if (presetOverride.ExtraEquipPassives != null)

@@ -12,6 +12,7 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private CellGrid cellGrid;
         [SerializeField] private SceneUnitGenerator sceneUnitGenerator;
         [SerializeField] private Transform deploymentSlotsParent;
+        [SerializeField] private Transform reinforcementTilesParent;
         [SerializeField] private int mapWidth = 20;
         [SerializeField] private int mapHeight = 20;
 
@@ -31,6 +32,12 @@ namespace Windy.Srpg.Game.Grid
         {
             get => deploymentSlotsParent;
             set => deploymentSlotsParent = value;
+        }
+
+        public Transform ReinforcementTilesParent
+        {
+            get => reinforcementTilesParent;
+            set => reinforcementTilesParent = value;
         }
 
         public int MapWidth

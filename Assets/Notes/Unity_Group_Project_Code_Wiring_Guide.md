@@ -145,14 +145,7 @@ Public fields make it unclear whether outside code should mutate the value.
 
 Renaming a `[SerializeField]` field can break scene and prefab references.
 
-If you rename a serialized field and need existing Unity wiring to survive, use:
-
-```csharp
-[FormerlySerializedAs("oldFieldName")]
-[SerializeField] private Button newFieldName;
-```
-
-After the scene has been opened and re-saved, the marker can usually be removed later, but do not remove it casually during the same refactor.
+If you rename a serialized field, migrate the affected scene, prefab, and asset YAML to the new field name in the same cleanup pass, then open the scene and verify the Inspector references are still assigned.
 
 High-risk changes:
 
@@ -426,7 +419,7 @@ Before changing a script used in a scene:
 
 1. Search for the field or class name.
 2. Check whether it is `[SerializeField]`.
-3. If renaming, add `[FormerlySerializedAs]`.
+3. If renaming, migrate existing scene, prefab, and asset references to the new field name.
 4. If changing a type, expect manual scene rewiring.
 5. Run a compile check.
 6. Open the scene and look for missing script/reference warnings.

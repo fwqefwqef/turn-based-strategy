@@ -209,9 +209,7 @@ namespace Windy.Srpg.Game.Campaign
                 ? Guid.NewGuid().ToString("N")
                 : preset.PresetId.Trim();
 
-            float movementPoints = preset.BaseStats.MovementPoints > 0
-                ? preset.BaseStats.MovementPoints
-                : preset.LegacyBaseMovementPoints;
+            int movementPoints = Mathf.Max(0, preset.BaseStats.MovementPoints);
             int hitPoints = Mathf.Max(1, preset.BaseStats.HitPoints);
             int manaPoints = Mathf.Max(0, preset.BaseStats.ManaPoints);
             return new OwnedUnitSaveData
@@ -226,7 +224,7 @@ namespace Windy.Srpg.Game.Campaign
                 {
                     HitPoints = hitPoints,
                     ManaPoints = manaPoints,
-                    MovementPoints = Mathf.Max(0, Mathf.RoundToInt(movementPoints)),
+                    MovementPoints = movementPoints,
                     Strength = preset.BaseStats.Strength,
                     Defense = preset.BaseStats.Defense,
                     Magic = preset.BaseStats.Magic,
@@ -245,7 +243,7 @@ namespace Windy.Srpg.Game.Campaign
                 },
                 Inventory = CreateSavedInventoryEntries(preset.StartingInventory),
                 SkillIds = CreateSkillIds(preset.StartingSkills),
-                UniquePassiveIds = CreatePassiveIds(preset.StartingUniquePassives),
+                ClassPassiveIds = CreatePassiveIds(preset.StartingClassPassives),
                 EquipPassiveIds = CreatePassiveIds(preset.StartingEquipPassives)
             };
         }
@@ -299,7 +297,7 @@ namespace Windy.Srpg.Game.Campaign
                 }
 
                 string[] previousEquipPassiveIds = ClonePassiveIds(unit.EquipPassiveIds);
-                unit.UniquePassiveIds = NormalizePassiveIds(unit.UniquePassiveIds);
+                unit.ClassPassiveIds = NormalizePassiveIds(unit.ClassPassiveIds);
                 unit.EquipPassiveIds = NormalizeEquipPassiveIds(previousEquipPassiveIds, passiveStorageIds);
             }
         }
@@ -470,7 +468,7 @@ namespace Windy.Srpg.Game.Campaign
                 GrowthRates = unit.GrowthRates,
                 Inventory = CloneStorageEntries(unit.Inventory),
                 SkillIds = unit.SkillIds?.ToArray() ?? Array.Empty<string>(),
-                UniquePassiveIds = unit.UniquePassiveIds?.ToArray() ?? Array.Empty<string>(),
+                ClassPassiveIds = unit.ClassPassiveIds?.ToArray() ?? Array.Empty<string>(),
                 EquipPassiveIds = unit.EquipPassiveIds?.ToArray() ?? Array.Empty<string>()
             };
         }

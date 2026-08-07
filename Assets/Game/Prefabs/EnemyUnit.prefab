@@ -171,13 +171,13 @@ MonoBehaviour:
       AttackRange: 0
     ExtraInventory: []
     ExtraSkills: []
-    ExtraUniquePassives: []
+    ExtraClassPassives: []
     ExtraEquipPassives: []
   unitId: enemy
   visualId: 
   startingInventory: []
   startingSkills: []
-  startingUniquePassives: []
+  startingClassPassives: []
   startingEquipPassives: []
   weaponProficiencies: -1
   baseStrength: 7

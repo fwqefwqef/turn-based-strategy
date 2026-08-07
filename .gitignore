@@ -32,6 +32,11 @@
 Thumbs.db
 Desktop.ini
 
+# Keep small hand-authored .NET tool projects under Assets, but ignore their build output.
+!/Assets/Tools~/**/*.csproj
+/Assets/Tools~/**/bin/
+/Assets/Tools~/**/obj/
+
 # Unity crash / misc
 sysinfo.txt
 *.apk
