@@ -89,4 +89,3 @@ MonoBehaviour:
   - SkillId: regen
   - SkillId: shove
   StartingClassPassives: []
-  StartingEquipPassives: []

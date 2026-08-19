@@ -4,12 +4,6 @@ using UnityEngine;
 
 namespace Windy.Srpg.Game.Passives
 {
-    public enum PassiveListKind
-    {
-        Class,
-        Equip
-    }
-
     [Serializable]
     public class PassiveData
     {

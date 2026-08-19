@@ -14,8 +14,9 @@ namespace Windy.Srpg.Game.Editor
     internal static class OverworldMenuSceneBuilder
     {
         private const string OverworldScenePath = "Assets/Scenes/OverworldMenu.unity";
-        private const string Level0ScenePath = "Assets/Scenes/Level/Level0.unity";
-        private const string Level1ScenePath = "Assets/Scenes/Level/Level1.unity";
+        private const string Chapter1ScenePath = "Assets/Scenes/Level/Chapter 1.unity";
+        private const string FreeBattle1ScenePath = "Assets/Scenes/Level/Free Battle 1.unity";
+        private const string Chapter2ScenePath = "Assets/Scenes/Level/Chapter 2.unity";
 
         private static void CreateOverworldMenuScene()
         {
@@ -86,10 +87,10 @@ namespace Windy.Srpg.Game.Editor
             _ = camera;
 
             EditorSceneManager.SaveScene(scene, OverworldScenePath);
-            AddScenesToBuildSettings(OverworldScenePath, Level0ScenePath, Level1ScenePath);
+            AddScenesToBuildSettings(OverworldScenePath, Chapter1ScenePath, FreeBattle1ScenePath, Chapter2ScenePath);
             AssetDatabase.SaveAssets();
 
-            Debug.Log($"Overworld Menu Scene Builder: Created {OverworldScenePath} and added it with Level0/Level1 to Build Settings.");
+            Debug.Log($"Overworld Menu Scene Builder: Created {OverworldScenePath} and added it with Chapter 1/Free Battle 1/Chapter 2 to Build Settings.");
         }
 
         private static Camera CreateCamera()

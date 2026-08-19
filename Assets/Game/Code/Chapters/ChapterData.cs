@@ -107,9 +107,17 @@ namespace Windy.Srpg.Game.Chapters
     [AddComponentMenu("TBS/Chapter/Chapter Data")]
     public sealed class ChapterData : MonoBehaviour
     {
+        [SerializeField] private string chapterName = "Chapter";
+        [SerializeField] private float chapterId = 1f;
+        [SerializeField] private bool replayable = true;
+        [SerializeField] private float unlockRequiredChapterId;
         [SerializeField] private int averageEnemyLevel = 1;
         [SerializeField] private List<ChapterBattleCondition> battleConditions = CreateDefaultBattleConditions();
 
+        public string ChapterName => string.IsNullOrWhiteSpace(chapterName) ? gameObject.scene.name : chapterName;
+        public float ChapterId => Mathf.Max(0f, chapterId);
+        public bool Replayable => replayable;
+        public float UnlockRequiredChapterId => Mathf.Max(0f, unlockRequiredChapterId);
         public int AverageEnemyLevel => Mathf.Max(1, averageEnemyLevel);
         public IReadOnlyList<ChapterBattleCondition> BattleConditions => GetEffectiveBattleConditions();
 
@@ -178,12 +186,20 @@ namespace Windy.Srpg.Game.Chapters
 
         private void Reset()
         {
+            chapterName = gameObject.scene.IsValid() && !string.IsNullOrWhiteSpace(gameObject.scene.name)
+                ? gameObject.scene.name
+                : "Chapter";
+            chapterId = 1f;
+            replayable = true;
+            unlockRequiredChapterId = 0f;
             averageEnemyLevel = 1;
             battleConditions = CreateDefaultBattleConditions();
         }
 
         private void OnValidate()
         {
+            chapterId = Mathf.Max(0f, chapterId);
+            unlockRequiredChapterId = Mathf.Max(0f, unlockRequiredChapterId);
             averageEnemyLevel = Mathf.Max(1, averageEnemyLevel);
             if (battleConditions == null || battleConditions.Count == 0)
             {

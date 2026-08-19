@@ -93,8 +93,6 @@ namespace Windy.Srpg.Game.Units
         [SerializeField]
         internal List<StartingPassiveEntry> startingClassPassives = new List<StartingPassiveEntry>();
         [SerializeField]
-        internal List<StartingPassiveEntry> startingEquipPassives = new List<StartingPassiveEntry>();
-        [SerializeField]
         internal WeaponType weaponProficiencies = WeaponType.Sword | WeaponType.Lance | WeaponType.Blunt | WeaponType.Ranged | WeaponType.Magic;
         [SerializeField]
         internal UnitActionAiMode actionAiMode = UnitActionAiMode.Attack;
@@ -191,7 +189,6 @@ namespace Windy.Srpg.Game.Units
         internal List<StartingInventoryItem> resolvedStartingInventory = new List<StartingInventoryItem>();
         internal List<StartingSkillEntry> resolvedStartingSkills = new List<StartingSkillEntry>();
         internal List<StartingPassiveEntry> resolvedStartingClassPassives = new List<StartingPassiveEntry>();
-        internal List<StartingPassiveEntry> resolvedStartingEquipPassives = new List<StartingPassiveEntry>();
         internal SecondaryStatModifiers resolvedSecondaryStatOffsets;
         [NonSerialized] internal OwnedUnitSaveData pendingOwnedUnitSaveData;
         [NonSerialized] internal UnitPreset pendingOwnedUnitVisualPreset;
@@ -364,21 +361,6 @@ namespace Windy.Srpg.Game.Units
             if (startingClassPassives != null && startingClassPassives.Count > 0)
             {
                 return startingClassPassives;
-            }
-
-            return Array.Empty<StartingPassiveEntry>();
-        }
-
-        private IEnumerable<StartingPassiveEntry> GetInitialEquipPassives()
-        {
-            if (useResolvedPresetLoadout)
-            {
-                return resolvedStartingEquipPassives;
-            }
-
-            if (startingEquipPassives != null && startingEquipPassives.Count > 0)
-            {
-                return startingEquipPassives;
             }
 
             return Array.Empty<StartingPassiveEntry>();

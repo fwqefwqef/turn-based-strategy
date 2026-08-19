@@ -1800,8 +1800,8 @@ namespace Windy.Srpg.Game.Abilities
                                     target.DefendHandler(
                                         UnitReference,
                                         profile.Damage,
-                                        GetGuaranteedAreaSkillHitChance(),
-                                        0,
+                                        profile.Accuracy,
+                                        profile.Crit,
                                         isMagicAttack: profile.IsMagic,
                                         isCounterAttack: false,
                                         simulateOnly: false);
@@ -2631,7 +2631,13 @@ namespace Windy.Srpg.Game.Abilities
                 {
                     int damage = CalculateProjectedDamage(UnitReference, target, hitMultiplier, profile);
                     int projectedHp = Mathf.Max(0, target.HitPoints - damage);
-                    results.Add(new AreaConfirmTargetPreviewData(target.unitName, target.HitPoints, projectedHp));
+                    results.Add(new AreaConfirmTargetPreviewData(
+                        target.unitName,
+                        target.HitPoints,
+                        projectedHp,
+                        CalculateHitChance(profile, target),
+                        CalculateCritChance(profile, target),
+                        showsCombatChances: true));
                 }
 
                 return results;
@@ -2913,13 +2919,6 @@ namespace Windy.Srpg.Game.Abilities
 
             int defenseStat = profile.IsMagic ? defender.Resistance : defender.Defense;
             return Mathf.Max(1, profile.Damage - defenseStat) * Mathf.Max(1, multiplier);
-        }
-
-        private static int GetGuaranteedAreaSkillHitChance()
-        {
-            // DefendHandler subtracts Evade from the incoming hit stat.
-            // Use an intentionally oversized value so offensive area spells always hit.
-            return 10000;
         }
 
         private static string DescribeActionUnit(Unit unit)

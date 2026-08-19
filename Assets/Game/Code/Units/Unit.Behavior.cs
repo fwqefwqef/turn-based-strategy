@@ -124,7 +124,7 @@ namespace Windy.Srpg.Game.Units
             EnsurePassiveList();
             Inventory.LoadStartingItems(GetInitialInventory());
             SkillList.LoadStartingSkills(GetInitialSkills());
-            PassiveList.LoadStartingPassives(GetInitialClassPassives(), GetInitialEquipPassives());
+            PassiveList.LoadStartingPassives(GetInitialClassPassives());
 
             SetTurnStateKind(UnitTurnStateKind.Normal, useStateTransition: false);
 
@@ -197,9 +197,7 @@ namespace Windy.Srpg.Game.Units
 
             Inventory.LoadExactItems(Unit.CreateSavedInventoryItems(saveData));
             SkillList.LoadStartingSkills(Unit.CreateSavedSkillEntries(saveData.SkillIds));
-            PassiveList.LoadStartingPassives(
-                Unit.CreateSavedPassiveEntries(saveData.ClassPassiveIds),
-                Unit.CreateSavedPassiveEntries(saveData.EquipPassiveIds));
+            PassiveList.LoadStartingPassives(Unit.CreateSavedPassiveEntries(saveData.ClassPassiveIds));
 
             SetTurnStateKind(UnitTurnStateKind.Normal, useStateTransition: false);
 
@@ -406,20 +404,10 @@ namespace Windy.Srpg.Game.Units
             EnsurePassiveList();
             return PassiveList.AddPassive(data);
         }
-        public Passive AddEquipPassive(PassiveData data)
-        {
-            EnsurePassiveList();
-            return PassiveList.AddEquipPassive(data);
-        }
         public Passive AddPassiveById(string passiveId)
         {
             EnsurePassiveList();
             return PassiveList.AddPassiveById(passiveId);
-        }
-        public Passive AddEquipPassiveById(string passiveId)
-        {
-            EnsurePassiveList();
-            return PassiveList.AddEquipPassiveById(passiveId);
         }
         public bool RemovePassive(Passive entry)
         {
@@ -524,12 +512,6 @@ namespace Windy.Srpg.Game.Units
                 .ToArray()
                 ?? Array.Empty<string>();
 
-            string[] equipPassiveIds = PassiveList?.EquippedEntries?
-                .Where(entry => entry != null && !string.IsNullOrWhiteSpace(entry.PassiveId))
-                .Select(entry => entry.PassiveId)
-                .ToArray()
-                ?? Array.Empty<string>();
-
             return new OwnedUnitSaveData
             {
                 UnitId = unitId ?? string.Empty,
@@ -561,8 +543,7 @@ namespace Windy.Srpg.Game.Units
                 },
                 Inventory = inventoryEntries,
                 SkillIds = skillIds,
-                ClassPassiveIds = classPassiveIds,
-                EquipPassiveIds = equipPassiveIds
+                ClassPassiveIds = classPassiveIds
             };
         }
         private void ApplySavedIdentityAndBaseStats(OwnedUnitSaveData saveData)
@@ -855,8 +836,6 @@ namespace Windy.Srpg.Game.Units
                 preset != null ? preset.StartingSkills : Enumerable.Empty<StartingSkillEntry>());
             resolvedStartingClassPassives = new List<StartingPassiveEntry>(
                 preset != null ? preset.StartingClassPassives : Enumerable.Empty<StartingPassiveEntry>());
-            resolvedStartingEquipPassives = new List<StartingPassiveEntry>(
-                preset != null ? preset.StartingEquipPassives : Enumerable.Empty<StartingPassiveEntry>());
 
             if (presetOverride == null)
             {
@@ -878,10 +857,6 @@ namespace Windy.Srpg.Game.Units
                 resolvedStartingClassPassives.AddRange(presetOverride.ExtraClassPassives);
             }
 
-            if (presetOverride.ExtraEquipPassives != null)
-            {
-                resolvedStartingEquipPassives.AddRange(presetOverride.ExtraEquipPassives);
-            }
         }
         public void ApplyBaseStatIncrease(LevelableStatKind stat, int amount)
         {

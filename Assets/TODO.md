@@ -5,10 +5,26 @@
 # Add Level Progress Tracker
 
 Levels should be cleared in order. Clearing one level lets you move to the next level, or replay already cleared levels.
+Inaccessible levels should be greyed out and cannot be entered.
 
-Shop catalog should add to the stock whenever a level is cleared, only on the first clear.
+Already cleared levels show a checkmark character next to it. 
 
-Shop catalog should be stored in the save file.
+Add to chapter data: Chapter Name, Chapter id, Replayable
+Chapter Name is the displayed name in the overworld.
+Chapter id is the integer id of the chapter, that is used as the chapter tracker.
+Replayable denotes whether the chapter is replayable by entering it in the overworld. If false, it should be displayed with a checkmark but greyed out so you cannot re-enter the level once you have cleared it. 
+
+I'm not sure what the best structure for the progress tracking is.
+I want there to be a few replayable side-levels that are unlocked after clearing a certain chatper but do not unlock any new chapters themselves.
+Maybe an unlock condition in the chapter data that denotes which chapter id needs to be cleared to be able to access this level?
+
+There is currently "Chapter 1" and "Chapter 2" scenes. Make both non-replayable, and make Chapter 2 unlock upon clearing Chapter 1.
+
+# Add to chapter data item stock
+
+Clearing levels should add to stock configurable items of configurable quantity.
+For now, add 1 Magic sword whenever a level is cleared. 
+
 
 # Add droppable items
 Enemies should drop gold? Maybe make them carry Bullions, which can be sold for Gold. This requires making items droppable with a bool field, signified by a green highlight. 

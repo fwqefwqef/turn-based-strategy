@@ -973,7 +973,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.88, g: 0.9, b: 0.92, a: 0.96}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.96}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -3140,10 +3140,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.UI.OverworldMenuUI
   levelScenes:
-  - DisplayName: Level0
-    ScenePath: Assets/Scenes/Level/Level0.unity
-  - DisplayName: Level1
-    ScenePath: Assets/Scenes/Level/Level1.unity
+  - DisplayName: Chapter 1
+    ScenePath: Assets/Scenes/Level/Chapter 1.unity
+    ChapterName: Chapter 1
+    ChapterId: 1
+    Replayable: 0
+    UnlockRequiredChapterId: 0
+  - DisplayName: Free Battle 1
+    ScenePath: Assets/Scenes/Level/Free Battle 1.unity
+    ChapterName: Free Battle 1
+    ChapterId: 1.5
+    Replayable: 1
+    UnlockRequiredChapterId: 1
+  - DisplayName: Chapter 2
+    ScenePath: Assets/Scenes/Level/Chapter 2.unity
+    ChapterName: Chapter 2
+    ChapterId: 2
+    Replayable: 0
+    UnlockRequiredChapterId: 1
   canvas: {fileID: 219098355}
   rootPanel: {fileID: 310621423}
   titleText: {fileID: 0}

@@ -12,9 +12,7 @@ namespace Windy.Srpg.Game.Campaign
 {
     public static class CampaignSaveFactory
     {
-        public const int CurrentSaveVersion = 4;
-        private const int PassiveStorageSaveVersion = 2;
-
+        public const int CurrentSaveVersion = 5;
         public static CampaignSaveData CreateFromOwnedUnits(
             IEnumerable<Unit> ownedUnits,
             CampaignSaveData existingSave = null,
@@ -58,7 +56,7 @@ namespace Windy.Srpg.Game.Campaign
 
             if (starterUnits.Length == 0)
             {
-                return EnsurePassiveStorageInitialized(existingSave ?? new CampaignSaveData());
+                return EnsureSaveInitialized(existingSave ?? new CampaignSaveData());
             }
 
             return MergeOwnedUnits(existingSave, starterUnits, existingSave?.DeploymentRosterUnitIds);
@@ -69,7 +67,7 @@ namespace Windy.Srpg.Game.Campaign
             IEnumerable<OwnedUnitSaveData> ownedUnits,
             IEnumerable<string> deploymentRosterUnitIds = null)
         {
-            CampaignSaveData baseSave = EnsurePassiveStorageInitialized(existingSave ?? new CampaignSaveData());
+            CampaignSaveData baseSave = EnsureSaveInitialized(existingSave ?? new CampaignSaveData());
             List<OwnedUnitSaveData> savedUnits = new List<OwnedUnitSaveData>();
             Dictionary<string, int> indexByUnitId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -108,8 +106,8 @@ namespace Windy.Srpg.Game.Campaign
             {
                 Version = Mathf.Max(CurrentSaveVersion, baseSave.Version),
                 Gold = baseSave.Gold,
+                ClearedChapterIds = CampaignProgressUtility.NormalizeClearedChapterIds(baseSave.ClearedChapterIds),
                 StorageItems = CloneStorageEntries(baseSave.StorageItems),
-                PassiveStorageIds = ClonePassiveIds(baseSave.PassiveStorageIds),
                 DeploymentRosterUnitIds = NormalizeRoster(deploymentRosterUnitIds ?? baseSave.DeploymentRosterUnitIds),
                 OwnedUnits = savedUnits.ToArray()
             };
@@ -243,43 +241,20 @@ namespace Windy.Srpg.Game.Campaign
                 },
                 Inventory = CreateSavedInventoryEntries(preset.StartingInventory),
                 SkillIds = CreateSkillIds(preset.StartingSkills),
-                ClassPassiveIds = CreatePassiveIds(preset.StartingClassPassives),
-                EquipPassiveIds = CreatePassiveIds(preset.StartingEquipPassives)
+                ClassPassiveIds = CreatePassiveIds(preset.StartingClassPassives)
             };
         }
 
-        private static CampaignSaveData EnsurePassiveStorageInitialized(CampaignSaveData save)
+        private static CampaignSaveData EnsureSaveInitialized(CampaignSaveData save)
         {
             save ??= new CampaignSaveData();
-            if (save.Version >= CurrentSaveVersion && save.PassiveStorageIds != null)
-            {
-                return save;
-            }
-
-            List<string> passiveStorageIds = ClonePassiveIds(save.PassiveStorageIds).ToList();
-            int originalVersion = save.Version;
-            if (originalVersion < PassiveStorageSaveVersion)
-            {
-                PassiveCatalogResource passiveCatalog = CatalogResourceLoader.LoadPassiveCatalog();
-                foreach (PassiveData passive in passiveCatalog.ToRuntimeDefinitions())
-                {
-                    if (passive == null || string.IsNullOrWhiteSpace(passive.Id))
-                    {
-                        continue;
-                    }
-
-                    passiveStorageIds.Add(passive.Id);
-                    passiveStorageIds.Add(passive.Id);
-                }
-            }
-
-            RepairEquippedPassives(save, passiveStorageIds);
-            save.PassiveStorageIds = passiveStorageIds.ToArray();
+            save.ClearedChapterIds = CampaignProgressUtility.NormalizeClearedChapterIds(save.ClearedChapterIds);
+            NormalizeClassPassives(save);
             save.Version = Mathf.Max(CurrentSaveVersion, save.Version);
             return save;
         }
 
-        private static void RepairEquippedPassives(CampaignSaveData save, List<string> passiveStorageIds)
+        private static void NormalizeClassPassives(CampaignSaveData save)
         {
             if (save?.OwnedUnits == null)
             {
@@ -296,34 +271,13 @@ namespace Windy.Srpg.Game.Campaign
                     continue;
                 }
 
-                string[] previousEquipPassiveIds = ClonePassiveIds(unit.EquipPassiveIds);
                 unit.ClassPassiveIds = NormalizePassiveIds(unit.ClassPassiveIds);
-                unit.EquipPassiveIds = NormalizeEquipPassiveIds(previousEquipPassiveIds, passiveStorageIds);
             }
         }
 
         private static string[] NormalizePassiveIds(IEnumerable<string> passiveIds)
         {
             return ClonePassiveIds(passiveIds);
-        }
-
-        private static string[] NormalizeEquipPassiveIds(IEnumerable<string> passiveIds, List<string> passiveStorageIds)
-        {
-            HashSet<string> seenPassiveIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            List<string> normalizedPassiveIds = new List<string>();
-
-            foreach (string passiveId in ClonePassiveIds(passiveIds))
-            {
-                if (seenPassiveIds.Add(passiveId))
-                {
-                    normalizedPassiveIds.Add(passiveId);
-                    continue;
-                }
-
-                passiveStorageIds?.Add(passiveId);
-            }
-
-            return normalizedPassiveIds.ToArray();
         }
 
         private static bool TryNormalizeIdentity(OwnedUnitSaveData unit, out string unitId)
@@ -468,8 +422,7 @@ namespace Windy.Srpg.Game.Campaign
                 GrowthRates = unit.GrowthRates,
                 Inventory = CloneStorageEntries(unit.Inventory),
                 SkillIds = unit.SkillIds?.ToArray() ?? Array.Empty<string>(),
-                ClassPassiveIds = unit.ClassPassiveIds?.ToArray() ?? Array.Empty<string>(),
-                EquipPassiveIds = unit.EquipPassiveIds?.ToArray() ?? Array.Empty<string>()
+                ClassPassiveIds = unit.ClassPassiveIds?.ToArray() ?? Array.Empty<string>()
             };
         }
 

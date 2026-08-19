@@ -3,9 +3,9 @@ using System.Linq;
 using System;
 using UnityEngine;
 using Windy.Srpg.Game.Campaign;
+using Windy.Srpg.Game.Chapters;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Inventory;
-using Windy.Srpg.Game.Passives;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Game.Grid;
 
@@ -22,7 +22,7 @@ namespace Windy.Srpg.Game.Grid
 
         public void SaveVictoryProgress()
         {
-            SaveOwnedUnits(overwriteExistingSave: true);
+            SaveOwnedUnits(overwriteExistingSave: true, markCurrentChapterCleared: true);
         }
 
         private void TryPersistOwnedUnitSave()
@@ -37,10 +37,10 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            SaveOwnedUnits(overwriteOwnedUnitSaveOnGameStarted);
+            SaveOwnedUnits(overwriteOwnedUnitSaveOnGameStarted, markCurrentChapterCleared: false);
         }
 
-        private void SaveOwnedUnits(bool overwriteExistingSave)
+        private void SaveOwnedUnits(bool overwriteExistingSave, bool markCurrentChapterCleared = false)
         {
             List<Unit> deployedUnits = GetAllUnits()
                 .Where(unit => unit != null && unit.PlayerNumber == 0 && unit.IncludeInOwnedUnitSave)
@@ -58,6 +58,16 @@ namespace Windy.Srpg.Game.Grid
                 deployedUnits,
                 existingSave,
                 authoredRoster);
+
+            if (markCurrentChapterCleared)
+            {
+                ChapterData chapterData = ChapterData.FindForGrid(this);
+                if (chapterData != null)
+                {
+                    CampaignProgressUtility.MarkChapterCleared(save, chapterData.ChapterId);
+                }
+            }
+
             SaveCampaignDataImmediate(save);
             Debug.Log($"CellGrid: Wrote owned unit save to '{CampaignSaveManager.SavePath}'.");
         }
@@ -74,7 +84,6 @@ namespace Windy.Srpg.Game.Grid
             campaignSaveDirty = false;
             hasUnsavedDeploymentRosterChanges = false;
             hasUnsavedPreBattleInventoryChanges = false;
-            hasUnsavedPreBattlePassiveChanges = false;
             DeploymentSlot[] deploymentSlots = DeploymentScene.GetDeploymentSlots();
             if (deploymentSlots.Length > 0)
             {
@@ -183,6 +192,12 @@ namespace Windy.Srpg.Game.Grid
                 return false;
             }
 
+            if (!CampaignProgressUtility.NormalizeClearedChapterIds(left.ClearedChapterIds)
+                    .SequenceEqual(CampaignProgressUtility.NormalizeClearedChapterIds(right.ClearedChapterIds)))
+            {
+                return false;
+            }
+
             if (left.OwnedUnits?.Length != right.OwnedUnits?.Length || left.StorageItems?.Length != right.StorageItems?.Length)
             {
                 return false;
@@ -202,11 +217,6 @@ namespace Windy.Srpg.Game.Grid
         public IReadOnlyList<SavedInventoryEntryData> GetStorageItemsForPreBattle()
         {
             return CloneSavedInventoryEntries(LoadSeededCampaignSave()?.StorageItems);
-        }
-
-        public IReadOnlyList<string> GetPassiveStorageIdsForPreBattle()
-        {
-            return ClonePassiveIds(LoadSeededCampaignSave()?.PassiveStorageIds);
         }
 
         public int GetDeploymentSlotCount()
@@ -452,13 +462,12 @@ namespace Windy.Srpg.Game.Grid
             save.DeploymentRosterUnitIds = roster;
             stagedDeploymentRosterUnitIds = roster.ToArray();
             hasUnsavedDeploymentRosterChanges = false;
-            if (changed || hasUnsavedPreBattleInventoryChanges || hasUnsavedPreBattlePassiveChanges)
+            if (changed || hasUnsavedPreBattleInventoryChanges)
             {
                 SaveCampaignDataImmediate(save);
             }
 
             hasUnsavedPreBattleInventoryChanges = false;
-            hasUnsavedPreBattlePassiveChanges = false;
             DeploymentRosterChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -511,93 +520,6 @@ namespace Windy.Srpg.Game.Grid
             return true;
         }
 
-        public bool TakePreBattlePassive(string targetUnitId, string sourceUnitId, int sourcePassiveIndex, bool sourceIsStorage)
-        {
-            if (string.IsNullOrWhiteSpace(targetUnitId) || sourcePassiveIndex < 0)
-            {
-                return false;
-            }
-
-            CampaignSaveData save = LoadSeededCampaignSave();
-            OwnedUnitSaveData targetUnit = FindOwnedUnit(save, targetUnitId);
-            if (targetUnit == null)
-            {
-                return false;
-            }
-
-            string passiveId;
-            if (sourceIsStorage)
-            {
-                List<string> storagePassives = ClonePassiveIds(save.PassiveStorageIds).ToList();
-                if (!TryRemovePassiveId(storagePassives, sourcePassiveIndex, out passiveId))
-                {
-                    return false;
-                }
-
-                if (!CanEquipPreBattlePassive(targetUnit, passiveId))
-                {
-                    return false;
-                }
-
-                save.PassiveStorageIds = storagePassives.ToArray();
-            }
-            else
-            {
-                OwnedUnitSaveData sourceUnit = FindOwnedUnit(save, sourceUnitId);
-                if (sourceUnit == null || string.Equals(sourceUnit.UnitId, targetUnit.UnitId, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-
-                List<string> sourcePassives = ClonePassiveIds(sourceUnit.EquipPassiveIds).ToList();
-                if (!TryRemovePassiveId(sourcePassives, sourcePassiveIndex, out passiveId))
-                {
-                    return false;
-                }
-
-                if (!CanEquipPreBattlePassive(targetUnit, passiveId))
-                {
-                    return false;
-                }
-
-                sourceUnit.EquipPassiveIds = sourcePassives.ToArray();
-            }
-
-            List<string> targetPassives = ClonePassiveIds(targetUnit.EquipPassiveIds).ToList();
-            targetPassives.Add(passiveId);
-            targetUnit.EquipPassiveIds = targetPassives.ToArray();
-            MarkPreBattlePassiveChanged(save);
-            return true;
-        }
-
-        public bool GivePreBattlePassiveToStorage(string sourceUnitId, int sourcePassiveIndex)
-        {
-            if (string.IsNullOrWhiteSpace(sourceUnitId) || sourcePassiveIndex < 0)
-            {
-                return false;
-            }
-
-            CampaignSaveData save = LoadSeededCampaignSave();
-            OwnedUnitSaveData sourceUnit = FindOwnedUnit(save, sourceUnitId);
-            if (sourceUnit == null)
-            {
-                return false;
-            }
-
-            List<string> sourcePassives = ClonePassiveIds(sourceUnit.EquipPassiveIds).ToList();
-            if (!TryRemovePassiveId(sourcePassives, sourcePassiveIndex, out string passiveId))
-            {
-                return false;
-            }
-
-            List<string> storagePassives = ClonePassiveIds(save.PassiveStorageIds).ToList();
-            storagePassives.Add(passiveId);
-            sourceUnit.EquipPassiveIds = sourcePassives.ToArray();
-            save.PassiveStorageIds = storagePassives.ToArray();
-            MarkPreBattlePassiveChanged(save);
-            return true;
-        }
-
         public bool GivePreBattleInventoryItemToStorage(string sourceUnitId, int sourceItemIndex)
         {
             if (string.IsNullOrWhiteSpace(sourceUnitId) || sourceItemIndex < 0)
@@ -639,13 +561,6 @@ namespace Windy.Srpg.Game.Grid
             DeploymentRosterChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        private void MarkPreBattlePassiveChanged(CampaignSaveData save)
-        {
-            hasUnsavedPreBattlePassiveChanges = true;
-            ApplyFriendlyDeployment(save, GetDeploymentRosterForPreBattle());
-            DeploymentRosterChanged?.Invoke(this, EventArgs.Empty);
-        }
-
         private static OwnedUnitSaveData FindOwnedUnit(CampaignSaveData save, string unitId)
         {
             return (save?.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
@@ -655,35 +570,6 @@ namespace Windy.Srpg.Game.Grid
         private static int CountInventoryEntries(IEnumerable<SavedInventoryEntryData> entries)
         {
             return CloneSavedInventoryEntries(entries).Length;
-        }
-
-        private static bool CanEquipPreBattlePassive(OwnedUnitSaveData targetUnit, string passiveId)
-        {
-            if (targetUnit == null || string.IsNullOrWhiteSpace(passiveId))
-            {
-                return false;
-            }
-
-            string[] equippedPassives = ClonePassiveIds(targetUnit.EquipPassiveIds);
-            if (equippedPassives.Any(equippedPassiveId => string.Equals(equippedPassiveId, passiveId, StringComparison.OrdinalIgnoreCase)))
-            {
-                return false;
-            }
-
-            if (equippedPassives.Length >= UnitPassiveList.GetEquipPassiveSlotLimit(targetUnit.Level))
-            {
-                return false;
-            }
-
-            int currentCost = equippedPassives.Sum(GetPassiveCost);
-            return currentCost + GetPassiveCost(passiveId) <= UnitPassiveList.GetEquipPassiveCostLimit(targetUnit.Level);
-        }
-
-        private static int GetPassiveCost(string passiveId)
-        {
-            BuiltInPassiveCatalog.EnsureRegistered();
-            PassiveData passive = PassiveRegistry.Get(passiveId);
-            return Mathf.Max(0, passive?.Cost ?? 0);
         }
 
         private static bool TryRemoveInventoryEntry(List<SavedInventoryEntryData> entries, int index, out SavedInventoryEntryData item)
@@ -720,28 +606,6 @@ namespace Windy.Srpg.Game.Grid
                 .Where(entry => entry != null)
                 .ToArray()
                 ?? Array.Empty<SavedInventoryEntryData>();
-        }
-
-        private static bool TryRemovePassiveId(List<string> passiveIds, int index, out string passiveId)
-        {
-            passiveId = null;
-            if (passiveIds == null || index < 0 || index >= passiveIds.Count)
-            {
-                return false;
-            }
-
-            passiveId = passiveIds[index];
-            passiveIds.RemoveAt(index);
-            return !string.IsNullOrWhiteSpace(passiveId);
-        }
-
-        private static string[] ClonePassiveIds(IEnumerable<string> passiveIds)
-        {
-            return passiveIds?
-                .Where(passiveId => !string.IsNullOrWhiteSpace(passiveId))
-                .Select(passiveId => passiveId.Trim())
-                .ToArray()
-                ?? Array.Empty<string>();
         }
 
         private string[] GetResolvedDeploymentRosterForCurrentScene(CampaignSaveData save, int deploymentSlotCount)

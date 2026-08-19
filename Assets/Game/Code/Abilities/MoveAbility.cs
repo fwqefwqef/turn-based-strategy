@@ -46,12 +46,18 @@ namespace Windy.Srpg.Game.Abilities
             public readonly string Name;
             public readonly int CurrentHitPoints;
             public readonly int ProjectedHitPoints;
+            public readonly int HitChance;
+            public readonly int CritChance;
+            public readonly bool ShowsCombatChances;
 
-            public AreaConfirmTargetPreviewData(string name, int currentHitPoints, int projectedHitPoints)
+            public AreaConfirmTargetPreviewData(string name, int currentHitPoints, int projectedHitPoints, int hitChance = 0, int critChance = 0, bool showsCombatChances = false)
             {
                 Name = string.IsNullOrWhiteSpace(name) ? GameTextCatalog.Get("ui.common.unit", "Unit") : name;
                 CurrentHitPoints = Mathf.Max(0, currentHitPoints);
                 ProjectedHitPoints = Mathf.Max(0, projectedHitPoints);
+                HitChance = Mathf.Clamp(hitChance, 0, 100);
+                CritChance = Mathf.Clamp(critChance, 0, 100);
+                ShowsCombatChances = showsCombatChances;
             }
         }
 

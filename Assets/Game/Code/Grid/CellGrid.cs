@@ -58,13 +58,11 @@ namespace Windy.Srpg.Game.Grid
         private string[] stagedDeploymentRosterUnitIds = Array.Empty<string>();
         private bool hasUnsavedDeploymentRosterChanges;
         private bool hasUnsavedPreBattleInventoryChanges;
-        private bool hasUnsavedPreBattlePassiveChanges;
         private int occupancyRevision;
         public bool IsPreBattleDeploymentSwapModeActive => IsPreBattlePhase && isPreBattleDeploymentSwapMode;
         public bool HasUnsavedDeploymentRosterChanges => hasUnsavedDeploymentRosterChanges;
         public bool HasUnsavedPreBattleInventoryChanges => hasUnsavedPreBattleInventoryChanges;
-        public bool HasUnsavedPreBattlePassiveChanges => hasUnsavedPreBattlePassiveChanges;
-        public bool HasUnsavedPreBattleChanges => hasUnsavedDeploymentRosterChanges || hasUnsavedPreBattleInventoryChanges || hasUnsavedPreBattlePassiveChanges;
+        public bool HasUnsavedPreBattleChanges => hasUnsavedDeploymentRosterChanges || hasUnsavedPreBattleInventoryChanges;
         public int OccupancyRevision => occupancyRevision;
 
         public int SelectedPreBattleDeploymentSlotIndex => selectedPreBattleDeploymentSlotIndex;

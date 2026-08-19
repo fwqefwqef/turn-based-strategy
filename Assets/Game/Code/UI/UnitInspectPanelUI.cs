@@ -863,14 +863,9 @@ namespace Windy.Srpg.Game.UI
                     continue;
                 }
 
-                bool isEquippedPassive = unit.PassiveList.EquippedEntries.Contains(passive);
-                string displayName = isEquippedPassive
-                    ? $"{passiveData.Name} ({passiveData.Cost})"
-                    : passiveData.Name;
-
                 yield return new UnitInspectEntryListUI.EntryData(
                     $"passive:{passiveData.Id}",
-                    displayName,
+                    passiveData.Name,
                     passiveData.Name,
                     passiveData.Description);
             }

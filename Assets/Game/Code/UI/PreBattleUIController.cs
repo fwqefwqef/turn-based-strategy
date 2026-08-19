@@ -6,7 +6,6 @@ using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Localization;
-using Windy.Srpg.Game.Passives;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -83,26 +82,12 @@ namespace Windy.Srpg.Game.UI
 
         [Header("Passive Management UI")]
         [SerializeField] private RectTransform passiveManagementPanel;
-        [SerializeField] private Button passiveManagementBackButton;
-        [SerializeField] private TMP_Text passiveManagementInstructionText;
-        [SerializeField] private RectTransform passiveManagementUnitContainer;
-        [SerializeField] private Button passiveManagementUnitButtonTemplate;
-        [SerializeField] private RectTransform passiveManagementOwnPassivesContainer;
-        [SerializeField] private Button passiveManagementOwnPassiveButtonTemplate;
-        [SerializeField] private RectTransform passiveManagementOtherPassivesContainer;
-        [SerializeField] private Button passiveManagementOtherPassiveButtonTemplate;
-        [SerializeField] private RectTransform passiveManagementActionPanel;
-        [SerializeField] private TMP_Text passiveManagementActionText;
-        [SerializeField] private Button passiveManagementConfirmActionButton;
-        [SerializeField] private Button passiveManagementCancelActionButton;
 
         private TMP_FontAsset fontAsset;
         private string preferredSelectUnitId;
         private string selectedInventoryManagementUnitId;
-        private string selectedPassiveManagementUnitId;
         private InventoryManagementFilterKind inventoryManagementFilter = InventoryManagementFilterKind.All;
         private PendingInventoryManagementAction pendingInventoryManagementAction;
-        private PendingPassiveManagementAction pendingPassiveManagementAction;
         private bool initialized;
         private bool generatedFallbackUi;
 
@@ -124,16 +109,6 @@ namespace Windy.Srpg.Game.UI
             public string ItemLabel;
         }
 
-        private sealed class PendingPassiveManagementAction
-        {
-            public string TargetUnitId;
-            public string SourceUnitId;
-            public int SourcePassiveIndex;
-            public bool SourceIsStorage;
-            public bool GiveToStorage;
-            public string PassiveLabel;
-        }
-
         private readonly struct IndexedInventoryEntry
         {
             public IndexedInventoryEntry(int index, SavedInventoryEntryData entry)
@@ -144,18 +119,6 @@ namespace Windy.Srpg.Game.UI
 
             public int Index { get; }
             public SavedInventoryEntryData Entry { get; }
-        }
-
-        private readonly struct IndexedPassiveEntry
-        {
-            public IndexedPassiveEntry(int index, string passiveId)
-            {
-                Index = index;
-                PassiveId = passiveId;
-            }
-
-            public int Index { get; }
-            public string PassiveId { get; }
         }
 
         public void Initialize(CellGrid grid)
@@ -305,9 +268,20 @@ namespace Windy.Srpg.Game.UI
             PrepareInventoryButtonTemplate(inventoryManagementUnitButtonTemplate);
             PrepareInventoryButtonTemplate(inventoryManagementOwnItemButtonTemplate);
             PrepareInventoryButtonTemplate(inventoryManagementOtherItemButtonTemplate);
-            PrepareInventoryButtonTemplate(passiveManagementUnitButtonTemplate);
-            PrepareInventoryButtonTemplate(passiveManagementOwnPassiveButtonTemplate);
-            PrepareInventoryButtonTemplate(passiveManagementOtherPassiveButtonTemplate);
+            HidePassiveManagementUi();
+        }
+
+        private void HidePassiveManagementUi()
+        {
+            if (passiveManagementButton != null)
+            {
+                passiveManagementButton.gameObject.SetActive(false);
+            }
+
+            if (passiveManagementPanel != null)
+            {
+                passiveManagementPanel.gameObject.SetActive(false);
+            }
         }
 
         private void HookButtonEvents()
@@ -317,20 +291,16 @@ namespace Windy.Srpg.Game.UI
             selectUnitsButton?.onClick.AddListener(OpenSelectUnitsPanelFromButton);
             switchDeploymentButton?.onClick.AddListener(OpenSwitchDeploymentPanelFromButton);
             inventoryManagementButton?.onClick.AddListener(OpenInventoryPanelFromButton);
-            passiveManagementButton?.onClick.AddListener(OpenPassivePanelFromButton);
             mainMenuButton?.onClick.AddListener(ExitToMainMenu);
             selectUnitsBackButton?.onClick.AddListener(ReturnToMainPanel);
             switchDeploymentBackButton?.onClick.AddListener(ReturnToMainPanel);
             inventoryManagementBackButton?.onClick.AddListener(ReturnToMainPanel);
-            passiveManagementBackButton?.onClick.AddListener(ReturnToMainPanel);
             inventoryManagementWeaponFilterButton?.onClick.AddListener(SetInventoryFilterWeapon);
             inventoryManagementAccessoryFilterButton?.onClick.AddListener(SetInventoryFilterAccessory);
             inventoryManagementConsumableFilterButton?.onClick.AddListener(SetInventoryFilterConsumable);
             inventoryManagementAllFilterButton?.onClick.AddListener(SetInventoryFilterAll);
             inventoryManagementConfirmActionButton?.onClick.AddListener(ConfirmPendingInventoryAction);
             inventoryManagementCancelActionButton?.onClick.AddListener(ClearPendingInventoryAction);
-            passiveManagementConfirmActionButton?.onClick.AddListener(ConfirmPendingPassiveAction);
-            passiveManagementCancelActionButton?.onClick.AddListener(ClearPendingPassiveAction);
         }
 
         private void UnhookButtonEvents()
@@ -340,20 +310,16 @@ namespace Windy.Srpg.Game.UI
             selectUnitsButton?.onClick.RemoveListener(OpenSelectUnitsPanelFromButton);
             switchDeploymentButton?.onClick.RemoveListener(OpenSwitchDeploymentPanelFromButton);
             inventoryManagementButton?.onClick.RemoveListener(OpenInventoryPanelFromButton);
-            passiveManagementButton?.onClick.RemoveListener(OpenPassivePanelFromButton);
             mainMenuButton?.onClick.RemoveListener(ExitToMainMenu);
             selectUnitsBackButton?.onClick.RemoveListener(ReturnToMainPanel);
             switchDeploymentBackButton?.onClick.RemoveListener(ReturnToMainPanel);
             inventoryManagementBackButton?.onClick.RemoveListener(ReturnToMainPanel);
-            passiveManagementBackButton?.onClick.RemoveListener(ReturnToMainPanel);
             inventoryManagementWeaponFilterButton?.onClick.RemoveListener(SetInventoryFilterWeapon);
             inventoryManagementAccessoryFilterButton?.onClick.RemoveListener(SetInventoryFilterAccessory);
             inventoryManagementConsumableFilterButton?.onClick.RemoveListener(SetInventoryFilterConsumable);
             inventoryManagementAllFilterButton?.onClick.RemoveListener(SetInventoryFilterAll);
             inventoryManagementConfirmActionButton?.onClick.RemoveListener(ConfirmPendingInventoryAction);
             inventoryManagementCancelActionButton?.onClick.RemoveListener(ClearPendingInventoryAction);
-            passiveManagementConfirmActionButton?.onClick.RemoveListener(ConfirmPendingPassiveAction);
-            passiveManagementCancelActionButton?.onClick.RemoveListener(ClearPendingPassiveAction);
         }
 
         private void HookGridEvents()
@@ -401,11 +367,10 @@ namespace Windy.Srpg.Game.UI
             bool showSelectUnitsPanel = selectUnitsPanel != null && selectUnitsPanel.gameObject.activeSelf;
             bool showSwitchDeploymentPanel = switchDeploymentPanel != null && switchDeploymentPanel.gameObject.activeSelf;
             bool showInventoryPanel = inventoryManagementPanel != null && inventoryManagementPanel.gameObject.activeSelf;
-            bool showPassivePanel = passiveManagementPanel != null && passiveManagementPanel.gameObject.activeSelf;
 
             if (rootPanel != null)
             {
-                rootPanel.gameObject.SetActive(showPreBattle && !showSelectUnitsPanel && !showSwitchDeploymentPanel && !showInventoryPanel && !showPassivePanel);
+                rootPanel.gameObject.SetActive(showPreBattle && !showSelectUnitsPanel && !showSwitchDeploymentPanel && !showInventoryPanel);
             }
 
             if (!showPreBattle)
@@ -436,7 +401,6 @@ namespace Windy.Srpg.Game.UI
             RefreshSelectUnitsPanel();
             RefreshSwitchDeploymentPanel();
             RefreshInventoryPanel();
-            RefreshPassivePanel();
         }
 
         private void OpenSelectUnitsPanelFromButton()
@@ -458,13 +422,6 @@ namespace Windy.Srpg.Game.UI
             cellGrid?.ExitPreBattleDeploymentSwapMode();
             OpenInventoryPanel();
             RefreshInventoryPanel();
-        }
-
-        private void OpenPassivePanelFromButton()
-        {
-            cellGrid?.ExitPreBattleDeploymentSwapMode();
-            OpenPassivePanel();
-            RefreshPassivePanel();
         }
 
         private void OpenSelectUnitsPanel()
@@ -547,33 +504,6 @@ namespace Windy.Srpg.Game.UI
             preferredSelectUnitId = null;
         }
 
-        private void OpenPassivePanel()
-        {
-            if (passiveManagementPanel == null)
-            {
-                return;
-            }
-
-            rootPanel?.gameObject.SetActive(false);
-            if (selectUnitsPanel != null)
-            {
-                selectUnitsPanel.gameObject.SetActive(false);
-            }
-
-            if (switchDeploymentPanel != null)
-            {
-                switchDeploymentPanel.gameObject.SetActive(false);
-            }
-
-            if (inventoryManagementPanel != null)
-            {
-                inventoryManagementPanel.gameObject.SetActive(false);
-            }
-
-            passiveManagementPanel.gameObject.SetActive(true);
-            preferredSelectUnitId = null;
-        }
-
         private void ReturnToMainPanel()
         {
             cellGrid?.ExitPreBattleDeploymentSwapMode();
@@ -594,8 +524,7 @@ namespace Windy.Srpg.Game.UI
             bool hasOpenSubPanel =
                 (selectUnitsPanel != null && selectUnitsPanel.gameObject.activeSelf)
                 || (switchDeploymentPanel != null && switchDeploymentPanel.gameObject.activeSelf)
-                || (inventoryManagementPanel != null && inventoryManagementPanel.gameObject.activeSelf)
-                || (passiveManagementPanel != null && passiveManagementPanel.gameObject.activeSelf);
+                || (inventoryManagementPanel != null && inventoryManagementPanel.gameObject.activeSelf);
             if (!hasOpenSubPanel)
             {
                 return false;
@@ -661,7 +590,6 @@ namespace Windy.Srpg.Game.UI
             }
 
             ClearPendingInventoryAction();
-            ClearPendingPassiveAction();
         }
 
         private void RefreshSelectUnitsPanel()
@@ -941,220 +869,6 @@ namespace Windy.Srpg.Game.UI
             FitInventoryContentToChildren(otherItemsContainer);
         }
 
-        private void RefreshPassivePanel()
-        {
-            if (passiveManagementPanel == null || !passiveManagementPanel.gameObject.activeSelf || cellGrid == null)
-            {
-                return;
-            }
-
-            BuiltInPassiveCatalog.EnsureRegistered();
-            IReadOnlyList<OwnedUnitSaveData> ownedUnits = cellGrid.GetOwnedUnitsForPreBattle();
-            EnsureSelectedPassiveUnit(ownedUnits);
-            OwnedUnitSaveData selectedUnit = FindOwnedUnit(ownedUnits, selectedPassiveManagementUnitId);
-
-            if (passiveManagementInstructionText != null)
-            {
-                passiveManagementInstructionText.text = selectedUnit == null
-                    ? GameTextCatalog.Get("ui.pre_battle.passive.select_unit", "Select a unit.")
-                    : BuildPassiveStatusText(selectedUnit);
-            }
-
-            RebuildPassiveUnitButtons(ownedUnits);
-            RebuildPassiveOwnPassives(selectedUnit);
-            RebuildPassiveOtherPassives(ownedUnits, selectedUnit);
-            RefreshPassiveActionPanel();
-        }
-
-        private void EnsureSelectedPassiveUnit(IReadOnlyList<OwnedUnitSaveData> ownedUnits)
-        {
-            if (FindOwnedUnit(ownedUnits, selectedPassiveManagementUnitId) != null)
-            {
-                return;
-            }
-
-            selectedPassiveManagementUnitId = ownedUnits?
-                .FirstOrDefault(unit => unit != null && !string.IsNullOrWhiteSpace(unit.UnitId))
-                ?.UnitId;
-            ClearPendingPassiveAction();
-        }
-
-        private void RebuildPassiveUnitButtons(IReadOnlyList<OwnedUnitSaveData> ownedUnits)
-        {
-            RectTransform unitContainer = ResolveInventoryListContainer(passiveManagementUnitContainer, passiveManagementUnitButtonTemplate);
-            if (unitContainer == null || passiveManagementUnitButtonTemplate == null)
-            {
-                return;
-            }
-
-            ClearDynamicChildrenExcept(unitContainer, passiveManagementUnitButtonTemplate);
-            int buttonIndex = 0;
-            foreach (OwnedUnitSaveData unit in ownedUnits ?? Array.Empty<OwnedUnitSaveData>())
-            {
-                if (unit == null || string.IsNullOrWhiteSpace(unit.UnitId))
-                {
-                    continue;
-                }
-
-                string unitId = unit.UnitId;
-                bool isSelected = string.Equals(unitId, selectedPassiveManagementUnitId, StringComparison.OrdinalIgnoreCase);
-                Button button = CreateInventoryTemplateButton(
-                    passiveManagementUnitButtonTemplate,
-                    unitContainer,
-                    GetUnitDisplayName(unit),
-                    () =>
-                    {
-                        selectedPassiveManagementUnitId = unitId;
-                        ClearPendingPassiveAction();
-                        RefreshAll();
-                    });
-                button.name = $"PreBattlePassiveUnit:{unitId}";
-                SetButtonColor(button, isSelected ? InventorySelectedRowColor : InventoryDefaultRowColor);
-                buttonIndex++;
-            }
-
-            if (buttonIndex == 0)
-            {
-                CreateInventoryTemplateButton(
-                    passiveManagementUnitButtonTemplate,
-                    unitContainer,
-                    GameTextCatalog.Get("ui.pre_battle.no_owned_units", "No owned units found."),
-                    null,
-                    false);
-            }
-
-            FitInventoryContentToChildren(unitContainer);
-        }
-
-        private void RebuildPassiveOwnPassives(OwnedUnitSaveData selectedUnit)
-        {
-            RectTransform ownPassivesContainer = ResolveInventoryListContainer(passiveManagementOwnPassivesContainer, passiveManagementOwnPassiveButtonTemplate);
-            if (ownPassivesContainer == null || passiveManagementOwnPassiveButtonTemplate == null)
-            {
-                return;
-            }
-
-            ClearDynamicChildrenExcept(ownPassivesContainer, passiveManagementOwnPassiveButtonTemplate);
-            int buttonIndex = 0;
-            foreach (IndexedPassiveEntry indexedEntry in GetIndexedPassiveEntries(selectedUnit?.EquipPassiveIds))
-            {
-                int sourceIndex = indexedEntry.Index;
-                string passiveLabel = BuildPassiveDisplayLabel(indexedEntry.PassiveId);
-                Button button = CreateInventoryTemplateButton(
-                    passiveManagementOwnPassiveButtonTemplate,
-                    ownPassivesContainer,
-                    passiveLabel,
-                    () => BeginGivePassiveAction(selectedUnit?.UnitId, sourceIndex, passiveLabel));
-                button.name = $"PreBattlePassiveOwn:{sourceIndex}";
-                buttonIndex++;
-            }
-
-            int slotLimit = selectedUnit != null ? UnitPassiveList.GetEquipPassiveSlotLimit(selectedUnit.Level) : 0;
-            while (buttonIndex < slotLimit)
-            {
-                Button emptyButton = CreateInventoryTemplateButton(
-                    passiveManagementOwnPassiveButtonTemplate,
-                    ownPassivesContainer,
-                    string.Empty,
-                    null,
-                    false);
-                emptyButton.name = $"PreBattlePassiveOwnEmpty:{buttonIndex}";
-                SetButtonColor(emptyButton, InventoryEmptySlotRowColor);
-                buttonIndex++;
-            }
-
-            FitInventoryContentToChildren(ownPassivesContainer);
-        }
-
-        private void RebuildPassiveOtherPassives(IReadOnlyList<OwnedUnitSaveData> ownedUnits, OwnedUnitSaveData selectedUnit)
-        {
-            RectTransform otherPassivesContainer = ResolveInventoryListContainer(passiveManagementOtherPassivesContainer, passiveManagementOtherPassiveButtonTemplate);
-            if (otherPassivesContainer == null || passiveManagementOtherPassiveButtonTemplate == null)
-            {
-                return;
-            }
-
-            ClearDynamicChildrenExcept(otherPassivesContainer, passiveManagementOtherPassiveButtonTemplate);
-            int buttonIndex = 0;
-            OwnedUnitSaveData selectedCatalogUnit = null;
-
-            IReadOnlyList<string> storagePassives = cellGrid.GetPassiveStorageIdsForPreBattle();
-            foreach (IndexedPassiveEntry indexedEntry in GetIndexedPassiveEntries(storagePassives))
-            {
-                int sourceIndex = indexedEntry.Index;
-                string passiveName = BuildPassiveDisplayLabel(indexedEntry.PassiveId);
-                string passiveLabel = BuildPassiveCatalogOwnerLabel(passiveName, GameTextCatalog.Get("ui.pre_battle.inventory.storage", "Storage"));
-                Button button = CreateInventoryTemplateButton(
-                    passiveManagementOtherPassiveButtonTemplate,
-                    otherPassivesContainer,
-                    passiveLabel,
-                    () => BeginTakePassiveAction(selectedUnit?.UnitId, null, sourceIndex, sourceIsStorage: true, passiveName),
-                    CanEquipPassive(selectedUnit, indexedEntry.PassiveId));
-                button.name = $"PreBattlePassiveStorage:{sourceIndex}";
-                buttonIndex++;
-            }
-
-            foreach (OwnedUnitSaveData unit in ownedUnits ?? Array.Empty<OwnedUnitSaveData>())
-            {
-                if (unit == null || string.IsNullOrWhiteSpace(unit.UnitId))
-                {
-                    continue;
-                }
-
-                bool isOwnUnit = selectedUnit != null && string.Equals(unit.UnitId, selectedUnit.UnitId, StringComparison.OrdinalIgnoreCase);
-                if (isOwnUnit)
-                {
-                    selectedCatalogUnit = unit;
-                    continue;
-                }
-
-                foreach (IndexedPassiveEntry indexedEntry in GetIndexedPassiveEntries(unit.EquipPassiveIds))
-                {
-                    int sourceIndex = indexedEntry.Index;
-                    string passiveName = BuildPassiveDisplayLabel(indexedEntry.PassiveId);
-                    string passiveLabel = BuildPassiveCatalogOwnerLabel(passiveName, GetUnitDisplayName(unit));
-                    Button button = CreateInventoryTemplateButton(
-                        passiveManagementOtherPassiveButtonTemplate,
-                        otherPassivesContainer,
-                        passiveLabel,
-                        () => BeginTakePassiveAction(selectedUnit?.UnitId, unit.UnitId, sourceIndex, sourceIsStorage: false, passiveName),
-                        CanEquipPassive(selectedUnit, indexedEntry.PassiveId));
-                    button.name = $"PreBattlePassiveOther:{unit.UnitId}:{sourceIndex}";
-                    buttonIndex++;
-                }
-            }
-
-            if (selectedCatalogUnit != null)
-            {
-                foreach (IndexedPassiveEntry indexedEntry in GetIndexedPassiveEntries(selectedCatalogUnit.EquipPassiveIds))
-                {
-                    int sourceIndex = indexedEntry.Index;
-                    string passiveName = BuildPassiveDisplayLabel(indexedEntry.PassiveId);
-                    string passiveLabel = BuildPassiveCatalogOwnerLabel(passiveName, GetUnitDisplayName(selectedCatalogUnit));
-                    Button button = CreateInventoryTemplateButton(
-                        passiveManagementOtherPassiveButtonTemplate,
-                        otherPassivesContainer,
-                        passiveLabel,
-                        null,
-                        false);
-                    button.name = $"PreBattlePassiveOther:{selectedCatalogUnit.UnitId}:{sourceIndex}";
-                    buttonIndex++;
-                }
-            }
-
-            if (buttonIndex == 0)
-            {
-                CreateInventoryTemplateButton(
-                    passiveManagementOtherPassiveButtonTemplate,
-                    otherPassivesContainer,
-                    GameTextCatalog.Get("ui.pre_battle.passive.no_passives", "No passives."),
-                    null,
-                    false);
-            }
-
-            FitInventoryContentToChildren(otherPassivesContainer);
-        }
-
         private void SetInventoryFilter(InventoryManagementFilterKind filter)
         {
             inventoryManagementFilter = filter;
@@ -1292,100 +1006,6 @@ namespace Windy.Srpg.Game.UI
             }
 
             SetButtonColor(button, inventoryManagementFilter == filter ? InventorySelectedRowColor : InventoryDefaultRowColor);
-        }
-
-        private void BeginTakePassiveAction(string targetUnitId, string sourceUnitId, int sourcePassiveIndex, bool sourceIsStorage, string passiveLabel)
-        {
-            if (string.IsNullOrWhiteSpace(targetUnitId) || sourcePassiveIndex < 0)
-            {
-                return;
-            }
-
-            pendingPassiveManagementAction = new PendingPassiveManagementAction
-            {
-                TargetUnitId = targetUnitId,
-                SourceUnitId = sourceUnitId,
-                SourcePassiveIndex = sourcePassiveIndex,
-                SourceIsStorage = sourceIsStorage,
-                GiveToStorage = false,
-                PassiveLabel = passiveLabel
-            };
-            RefreshPassiveActionPanel();
-        }
-
-        private void BeginGivePassiveAction(string sourceUnitId, int sourcePassiveIndex, string passiveLabel)
-        {
-            if (string.IsNullOrWhiteSpace(sourceUnitId) || sourcePassiveIndex < 0)
-            {
-                return;
-            }
-
-            pendingPassiveManagementAction = new PendingPassiveManagementAction
-            {
-                SourceUnitId = sourceUnitId,
-                SourcePassiveIndex = sourcePassiveIndex,
-                GiveToStorage = true,
-                PassiveLabel = passiveLabel
-            };
-            RefreshPassiveActionPanel();
-        }
-
-        private void ConfirmPendingPassiveAction()
-        {
-            if (pendingPassiveManagementAction == null || cellGrid == null)
-            {
-                return;
-            }
-
-            bool changed = pendingPassiveManagementAction.GiveToStorage
-                ? cellGrid.GivePreBattlePassiveToStorage(pendingPassiveManagementAction.SourceUnitId, pendingPassiveManagementAction.SourcePassiveIndex)
-                : cellGrid.TakePreBattlePassive(
-                    pendingPassiveManagementAction.TargetUnitId,
-                    pendingPassiveManagementAction.SourceUnitId,
-                    pendingPassiveManagementAction.SourcePassiveIndex,
-                    pendingPassiveManagementAction.SourceIsStorage);
-
-            ClearPendingPassiveAction();
-            if (changed)
-            {
-                RefreshAll();
-            }
-        }
-
-        private void ClearPendingPassiveAction()
-        {
-            pendingPassiveManagementAction = null;
-            RefreshPassiveActionPanel();
-        }
-
-        private void RefreshPassiveActionPanel()
-        {
-            if (passiveManagementActionPanel == null)
-            {
-                return;
-            }
-
-            bool hasAction = pendingPassiveManagementAction != null;
-            passiveManagementActionPanel.gameObject.SetActive(hasAction);
-            if (!hasAction)
-            {
-                return;
-            }
-
-            if (passiveManagementActionText != null)
-            {
-                passiveManagementActionText.text = pendingPassiveManagementAction.GiveToStorage
-                    ? GameTextCatalog.Format("ui.pre_battle.passive.confirm_give_storage", "Give {0} to Storage?", pendingPassiveManagementAction.PassiveLabel)
-                    : GameTextCatalog.Format("ui.pre_battle.passive.confirm_equip", "Equip {0}?", pendingPassiveManagementAction.PassiveLabel);
-            }
-
-            TMP_Text confirmText = passiveManagementConfirmActionButton?.GetComponentInChildren<TMP_Text>();
-            if (confirmText != null)
-            {
-                confirmText.text = pendingPassiveManagementAction.GiveToStorage
-                    ? GameTextCatalog.Get("ui.pre_battle.inventory.action_give", "Give")
-                    : GameTextCatalog.Get("ui.pre_battle.passive.action_equip", "Equip");
-            }
         }
 
         private void RebuildOwnedUnitButtons(RectTransform container, IReadOnlyList<OwnedUnitSaveData> ownedUnits, IReadOnlyList<string> roster)
@@ -1611,20 +1231,6 @@ namespace Windy.Srpg.Game.UI
             }
         }
 
-        private static IEnumerable<IndexedPassiveEntry> GetIndexedPassiveEntries(IEnumerable<string> passiveIds)
-        {
-            int index = 0;
-            foreach (string passiveId in passiveIds ?? Array.Empty<string>())
-            {
-                if (!string.IsNullOrWhiteSpace(passiveId))
-                {
-                    yield return new IndexedPassiveEntry(index, passiveId);
-                }
-
-                index++;
-            }
-        }
-
         private bool MatchesInventoryFilter(SavedInventoryEntryData entry)
         {
             if (inventoryManagementFilter == InventoryManagementFilterKind.All)
@@ -1759,88 +1365,6 @@ namespace Windy.Srpg.Game.UI
         private static string BuildInventoryCatalogItemOwnerLabel(string itemName, string ownerName)
         {
             return GameTextCatalog.Format("ui.pre_battle.inventory.catalog_item_owner", "{0} -- {1}", itemName, ownerName);
-        }
-
-        private static string BuildPassiveStatusText(OwnedUnitSaveData unit)
-        {
-            if (unit == null)
-            {
-                return GameTextCatalog.Get("ui.pre_battle.passive.select_unit", "Select a unit.");
-            }
-
-            int equippedCount = CountPassiveEntries(unit.EquipPassiveIds);
-            int slotLimit = UnitPassiveList.GetEquipPassiveSlotLimit(unit.Level);
-            int currentCost = GetPassiveCost(unit.EquipPassiveIds);
-            int costLimit = UnitPassiveList.GetEquipPassiveCostLimit(unit.Level);
-
-            return GameTextCatalog.Format(
-                "ui.pre_battle.passive.status_with_unit",
-                "{0} passives Slots {1}/{2} Cost {3}/{4}",
-                GetUnitDisplayName(unit),
-                equippedCount,
-                slotLimit,
-                currentCost,
-                costLimit);
-        }
-
-        private static bool CanEquipPassive(OwnedUnitSaveData unit, string passiveId)
-        {
-            if (unit == null || string.IsNullOrWhiteSpace(passiveId))
-            {
-                return false;
-            }
-
-            int equippedCount = CountPassiveEntries(unit.EquipPassiveIds);
-            if ((unit.EquipPassiveIds ?? Array.Empty<string>()).Any(equippedPassiveId =>
-                string.Equals(equippedPassiveId, passiveId, StringComparison.OrdinalIgnoreCase)))
-            {
-                return false;
-            }
-
-            if (equippedCount >= UnitPassiveList.GetEquipPassiveSlotLimit(unit.Level))
-            {
-                return false;
-            }
-
-            int currentCost = GetPassiveCost(unit.EquipPassiveIds);
-            return currentCost + GetPassiveCost(passiveId) <= UnitPassiveList.GetEquipPassiveCostLimit(unit.Level);
-        }
-
-        private static int CountPassiveEntries(IEnumerable<string> passiveIds)
-        {
-            return passiveIds?.Count(passiveId => !string.IsNullOrWhiteSpace(passiveId)) ?? 0;
-        }
-
-        private static int GetPassiveCost(IEnumerable<string> passiveIds)
-        {
-            int cost = 0;
-            foreach (string passiveId in passiveIds ?? Array.Empty<string>())
-            {
-                cost += GetPassiveCost(passiveId);
-            }
-
-            return cost;
-        }
-
-        private static int GetPassiveCost(string passiveId)
-        {
-            BuiltInPassiveCatalog.EnsureRegistered();
-            PassiveData passive = PassiveRegistry.Get(passiveId);
-            return Mathf.Max(0, passive?.Cost ?? 0);
-        }
-
-        private static string BuildPassiveDisplayLabel(string passiveId)
-        {
-            BuiltInPassiveCatalog.EnsureRegistered();
-            PassiveData passive = PassiveRegistry.Get(passiveId);
-            string name = string.IsNullOrWhiteSpace(passive?.Name) ? passiveId : passive.Name;
-            int cost = Mathf.Max(0, passive?.Cost ?? 0);
-            return GameTextCatalog.Format("ui.pre_battle.passive.name_cost", "{0} [{1}]", name, cost);
-        }
-
-        private static string BuildPassiveCatalogOwnerLabel(string passiveName, string ownerName)
-        {
-            return GameTextCatalog.Format("ui.pre_battle.passive.catalog_owner", "{0} -- {1}", passiveName, ownerName);
         }
 
         private void ResizeSelectUnitsPanel(int ownedUnitCount)
@@ -2098,7 +1622,6 @@ namespace Windy.Srpg.Game.UI
                 selectUnitsButton,
                 switchDeploymentButton,
                 inventoryManagementButton,
-                passiveManagementButton,
                 saveButton
             };
 

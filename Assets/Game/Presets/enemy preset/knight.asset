@@ -51,5 +51,3 @@ MonoBehaviour:
   StartingSkills:
   - SkillId: wrath_strike
   StartingClassPassives: []
-  StartingEquipPassives:
-  - PassiveId: deep_breath

@@ -83,7 +83,6 @@ namespace Windy.Srpg.Game.Units
         public List<StartingInventoryItem> ExtraInventory = new List<StartingInventoryItem>();
         public List<StartingSkillEntry> ExtraSkills = new List<StartingSkillEntry>();
         public List<StartingPassiveEntry> ExtraClassPassives = new List<StartingPassiveEntry>();
-        public List<StartingPassiveEntry> ExtraEquipPassives = new List<StartingPassiveEntry>();
     }
 
     [CreateAssetMenu(fileName = "UnitPreset", menuName = "TBS/Units/Unit Preset")]
@@ -104,7 +103,6 @@ namespace Windy.Srpg.Game.Units
         public List<StartingInventoryItem> StartingInventory = new List<StartingInventoryItem>();
         public List<StartingSkillEntry> StartingSkills = new List<StartingSkillEntry>();
         public List<StartingPassiveEntry> StartingClassPassives = new List<StartingPassiveEntry>();
-        public List<StartingPassiveEntry> StartingEquipPassives = new List<StartingPassiveEntry>();
 
         private void OnValidate()
         {

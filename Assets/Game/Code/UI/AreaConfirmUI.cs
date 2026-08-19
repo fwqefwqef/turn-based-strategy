@@ -5,6 +5,7 @@ using Windy.Srpg.Game.Abilities;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Windy.Srpg.Game.UI
 {
@@ -194,6 +195,24 @@ namespace Windy.Srpg.Game.UI
             }
 
             targetPreviewPanel.SetActive(true);
+
+            IReadOnlyList<MoveAbility.AreaConfirmTargetPreviewData> combatChancePreviews = targetPreviews
+                .Where(preview => preview.ShowsCombatChances)
+                .ToList();
+            if (combatChancePreviews.Count > 0)
+            {
+                double averageHitChance = combatChancePreviews.Average(preview => preview.HitChance);
+                double averageCritChance = combatChancePreviews.Average(preview => preview.CritChance);
+                TMP_Text summaryRow = Instantiate(targetPreviewRowTemplate, targetPreviewContent);
+                summaryRow.gameObject.SetActive(true);
+                summaryRow.text = GameTextCatalog.Format(
+                    "ui.area_confirm.average_chances",
+                    "Avg. Hit {0}% | Crit {1}%",
+                    Mathf.RoundToInt((float)averageHitChance),
+                    Mathf.RoundToInt((float)averageCritChance));
+                summaryRow.color = Color.black;
+                spawnedPreviewRows.Add(summaryRow);
+            }
 
             foreach (MoveAbility.AreaConfirmTargetPreviewData preview in targetPreviews)
             {

@@ -1,37 +1,64 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Localization;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Windy.Srpg.Game.UI
 {
     [AddComponentMenu("UI/Overworld Menu UI")]
     public sealed class OverworldMenuUI : MonoBehaviour
     {
+        private const string LevelSceneFolderPath = "Assets/Scenes/Level";
+        private const string ChapterDataTypeIdentifier = "Windy.Srpg.Game.Chapters.ChapterData";
+        private static readonly Color DisabledLevelButtonColor = new Color(0.58f, 0.58f, 0.58f, 0.85f);
+        private static readonly Color DisabledLevelTextColor = new Color(0.28f, 0.28f, 0.28f, 0.9f);
+
         [Serializable]
         public sealed class LevelSceneEntry
         {
             public string DisplayName;
             public string ScenePath;
+            public string ChapterName;
+            public float ChapterId;
+            public bool Replayable = true;
+            public float UnlockRequiredChapterId;
 
             public LevelSceneEntry(string displayName, string scenePath)
             {
                 DisplayName = displayName;
                 ScenePath = scenePath;
+                ChapterName = displayName;
+            }
+
+            public LevelSceneEntry(string chapterName, float chapterId, string scenePath, bool replayable, float unlockRequiredChapterId)
+            {
+                DisplayName = chapterName;
+                ChapterName = chapterName;
+                ChapterId = chapterId;
+                ScenePath = scenePath;
+                Replayable = replayable;
+                UnlockRequiredChapterId = unlockRequiredChapterId;
             }
         }
 
         [Header("Scene List")]
         [SerializeField] private List<LevelSceneEntry> levelScenes = new List<LevelSceneEntry>
         {
-            new LevelSceneEntry("Level0", "Assets/Scenes/Level/Level0.unity"),
-            new LevelSceneEntry("Level1", "Assets/Scenes/Level/Level1.unity")
+            new LevelSceneEntry("Chapter 1", 1f, "Assets/Scenes/Level/Chapter 1.unity", replayable: false, unlockRequiredChapterId: 0f),
+            new LevelSceneEntry("Free Battle 1", 1.5f, "Assets/Scenes/Level/Free Battle 1.unity", replayable: true, unlockRequiredChapterId: 1f),
+            new LevelSceneEntry("Chapter 2", 2f, "Assets/Scenes/Level/Chapter 2.unity", replayable: false, unlockRequiredChapterId: 1f)
         };
 
         [Header("References")]
@@ -45,11 +72,14 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private bool autoGenerateUiIfMissing = true;
 
         private readonly List<Button> generatedLevelButtons = new List<Button>();
+        private CampaignSaveData campaignSave;
 
         private void Awake()
         {
             EnsureUiExists();
             HookButtons();
+            RefreshLevelScenesFromProject();
+            campaignSave = CampaignSaveManager.Load() ?? new CampaignSaveData();
             RebuildLevelList();
         }
 
@@ -139,6 +169,8 @@ namespace Windy.Srpg.Game.UI
 
             List<LevelSceneEntry> validEntries = levelScenes
                 .Where(entry => entry != null && !string.IsNullOrWhiteSpace(entry.ScenePath))
+                .OrderBy(entry => entry.ChapterId)
+                .ThenBy(entry => BuildLevelLabel(entry), StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             if (emptyText != null)
@@ -150,28 +182,76 @@ namespace Windy.Srpg.Game.UI
             foreach (LevelSceneEntry entry in validEntries)
             {
                 LevelSceneEntry capturedEntry = entry;
+                bool isCleared = CampaignProgressUtility.IsChapterCleared(campaignSave, capturedEntry.ChapterId);
+                bool canEnter = CampaignProgressUtility.CanEnterChapter(
+                    campaignSave,
+                    capturedEntry.ChapterId,
+                    capturedEntry.Replayable,
+                    capturedEntry.UnlockRequiredChapterId);
+
                 Button button = Instantiate(levelButtonTemplate, levelListContent, false);
                 button.name = $"Level Button - {BuildLevelLabel(capturedEntry)}";
                 button.gameObject.SetActive(true);
-                button.interactable = true;
                 button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(() => LoadLevel(capturedEntry));
+                if (canEnter)
+                {
+                    button.onClick.AddListener(() => LoadLevel(capturedEntry));
+                }
 
                 TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
                 if (label != null)
                 {
-                    label.text = BuildLevelLabel(capturedEntry);
+                    label.text = BuildLevelLabel(capturedEntry, isCleared);
                 }
                 else
                 {
                     Text legacyLabel = button.GetComponentInChildren<Text>(true);
                     if (legacyLabel != null)
                     {
-                        legacyLabel.text = BuildLevelLabel(capturedEntry);
+                        legacyLabel.text = BuildLevelLabel(capturedEntry, isCleared);
                     }
                 }
 
+                ApplyLevelButtonAvailability(button, canEnter);
                 generatedLevelButtons.Add(button);
+            }
+        }
+
+        private static void ApplyLevelButtonAvailability(Button button, bool canEnter)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            ColorBlock colors = button.colors;
+            colors.disabledColor = DisabledLevelButtonColor;
+            button.colors = colors;
+            button.interactable = canEnter;
+
+            if (!canEnter && button.targetGraphic != null)
+            {
+                button.targetGraphic.color = DisabledLevelButtonColor;
+            }
+
+            TMP_Text tmpLabel = button.GetComponentInChildren<TMP_Text>(true);
+            if (tmpLabel != null)
+            {
+                if (!canEnter)
+                {
+                    tmpLabel.color = DisabledLevelTextColor;
+                }
+
+                return;
+            }
+
+            Text legacyLabel = button.GetComponentInChildren<Text>(true);
+            if (legacyLabel != null)
+            {
+                if (!canEnter)
+                {
+                    legacyLabel.color = DisabledLevelTextColor;
+                }
             }
         }
 
@@ -192,20 +272,135 @@ namespace Windy.Srpg.Game.UI
             }
         }
 
-        private static string BuildLevelLabel(LevelSceneEntry entry)
+        private static string BuildLevelLabel(LevelSceneEntry entry, bool isCleared = false)
         {
             if (entry == null)
             {
                 return string.Empty;
             }
 
-            if (!string.IsNullOrWhiteSpace(entry.DisplayName))
+            string label = !string.IsNullOrWhiteSpace(entry.ChapterName)
+                ? entry.ChapterName
+                : entry.DisplayName;
+
+            if (string.IsNullOrWhiteSpace(label))
             {
-                return entry.DisplayName;
+                label = Path.GetFileNameWithoutExtension(entry.ScenePath) ?? entry.ScenePath;
             }
 
-            return Path.GetFileNameWithoutExtension(entry.ScenePath) ?? entry.ScenePath;
+            return isCleared ? $"\u2713 {label}" : label;
         }
+
+        private void RefreshLevelScenesFromProject()
+        {
+#if UNITY_EDITOR
+            List<LevelSceneEntry> discoveredEntries = DiscoverLevelSceneEntriesInEditor();
+            if (discoveredEntries.Count > 0)
+            {
+                levelScenes = discoveredEntries;
+                EnsureDiscoveredScenesAreInBuildSettings(discoveredEntries.Select(entry => entry.ScenePath));
+            }
+#endif
+        }
+
+#if UNITY_EDITOR
+        private static List<LevelSceneEntry> DiscoverLevelSceneEntriesInEditor()
+        {
+            if (!AssetDatabase.IsValidFolder(LevelSceneFolderPath))
+            {
+                return new List<LevelSceneEntry>();
+            }
+
+            return AssetDatabase.FindAssets("t:Scene", new[] { LevelSceneFolderPath })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(BuildLevelSceneEntryFromSceneAsset)
+                .Where(entry => entry != null)
+                .OrderBy(entry => entry.ChapterId)
+                .ThenBy(entry => BuildLevelLabel(entry), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static LevelSceneEntry BuildLevelSceneEntryFromSceneAsset(string scenePath)
+        {
+            string fallbackName = Path.GetFileNameWithoutExtension(scenePath) ?? scenePath;
+            if (!File.Exists(scenePath))
+            {
+                return new LevelSceneEntry(fallbackName, scenePath);
+            }
+
+            string sceneText = File.ReadAllText(scenePath);
+            int chapterDataIndex = sceneText.IndexOf(ChapterDataTypeIdentifier, StringComparison.Ordinal);
+            if (chapterDataIndex < 0)
+            {
+                return new LevelSceneEntry(fallbackName, scenePath);
+            }
+
+            string chapterDataBlock = sceneText.Substring(chapterDataIndex);
+            string chapterName = ReadYamlString(chapterDataBlock, "chapterName");
+            float chapterId = ReadYamlFloat(chapterDataBlock, "chapterId", 0f);
+            bool replayable = ReadYamlBool(chapterDataBlock, "replayable", true);
+            float unlockRequiredChapterId = ReadYamlFloat(chapterDataBlock, "unlockRequiredChapterId", 0f);
+
+            if (string.IsNullOrWhiteSpace(chapterName))
+            {
+                chapterName = fallbackName;
+            }
+
+            return new LevelSceneEntry(chapterName, chapterId, scenePath, replayable, unlockRequiredChapterId);
+        }
+
+        private static string ReadYamlString(string yamlText, string fieldName)
+        {
+            Match match = Regex.Match(yamlText, @"^\s*" + Regex.Escape(fieldName) + @":\s*(.*)$", RegexOptions.Multiline);
+            return match.Success ? match.Groups[1].Value.Trim() : string.Empty;
+        }
+
+        private static float ReadYamlFloat(string yamlText, string fieldName, float fallbackValue)
+        {
+            string rawValue = ReadYamlString(yamlText, fieldName);
+            return float.TryParse(rawValue, NumberStyles.Float, CultureInfo.InvariantCulture, out float value)
+                ? Mathf.Max(0f, value)
+                : fallbackValue;
+        }
+
+        private static bool ReadYamlBool(string yamlText, string fieldName, bool fallbackValue)
+        {
+            string rawValue = ReadYamlString(yamlText, fieldName);
+            return rawValue switch
+            {
+                "0" => false,
+                "1" => true,
+                _ => fallbackValue
+            };
+        }
+
+        private static void EnsureDiscoveredScenesAreInBuildSettings(IEnumerable<string> scenePaths)
+        {
+            List<EditorBuildSettingsScene> buildScenes = EditorBuildSettings.scenes.ToList();
+            HashSet<string> existingPaths = new HashSet<string>(
+                buildScenes.Select(scene => scene.path),
+                StringComparer.OrdinalIgnoreCase);
+
+            bool changed = false;
+            foreach (string scenePath in scenePaths.Where(path => !string.IsNullOrWhiteSpace(path)))
+            {
+                if (existingPaths.Contains(scenePath))
+                {
+                    continue;
+                }
+
+                buildScenes.Add(new EditorBuildSettingsScene(scenePath, enabled: true));
+                existingPaths.Add(scenePath);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                EditorBuildSettings.scenes = buildScenes.ToArray();
+            }
+        }
+#endif
 
         private void QuitGame()
         {

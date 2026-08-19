@@ -47,5 +47,3 @@ MonoBehaviour:
     ChargesInitialized: 1
   StartingSkills: []
   StartingClassPassives: []
-  StartingEquipPassives:
-  - PassiveId: arcana_knowledge

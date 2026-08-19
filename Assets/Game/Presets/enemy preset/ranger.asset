@@ -48,4 +48,3 @@ MonoBehaviour:
   StartingSkills:
   - SkillId: close_range_volley
   StartingClassPassives: []
-  StartingEquipPassives: []

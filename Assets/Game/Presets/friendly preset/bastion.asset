@@ -85,5 +85,3 @@ MonoBehaviour:
   - SkillId: regen
   - SkillId: shove
   StartingClassPassives: []
-  StartingEquipPassives:
-  - PassiveId: deep_breath
