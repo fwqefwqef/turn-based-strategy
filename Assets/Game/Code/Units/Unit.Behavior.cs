@@ -528,7 +528,6 @@ namespace Windy.Srpg.Game.Units
                     Strength = BaseStrength,
                     Defense = BaseDefense,
                     Magic = BaseMagic,
-                    Resistance = BaseResistance,
                     Speed = BaseSpeed,
                     Luck = BaseLuck
                 },
@@ -537,7 +536,6 @@ namespace Windy.Srpg.Game.Units
                     Strength = growthStrength,
                     Magic = growthMagic,
                     Defense = growthDefense,
-                    Resistance = growthResistance,
                     Speed = growthSpeed,
                     Luck = growthLuck
                 },
@@ -560,7 +558,6 @@ namespace Windy.Srpg.Game.Units
             baseStrength = saveData.BaseStats.Strength;
             baseDefense = saveData.BaseStats.Defense;
             baseMagic = saveData.BaseStats.Magic;
-            baseResistance = saveData.BaseStats.Resistance;
             baseSpeed = saveData.BaseStats.Speed;
             baseLuck = saveData.BaseStats.Luck;
         }
@@ -569,7 +566,6 @@ namespace Windy.Srpg.Game.Units
             growthStrength = Mathf.Max(0, saveData.GrowthRates.Strength);
             growthMagic = Mathf.Max(0, saveData.GrowthRates.Magic);
             growthDefense = Mathf.Max(0, saveData.GrowthRates.Defense);
-            growthResistance = Mathf.Max(0, saveData.GrowthRates.Resistance);
             growthSpeed = Mathf.Max(0, saveData.GrowthRates.Speed);
             growthLuck = Mathf.Max(0, saveData.GrowthRates.Luck);
         }
@@ -596,14 +592,13 @@ namespace Windy.Srpg.Game.Units
 
             presetAppliedAtRuntime = true;
             useResolvedPresetLoadout = true;
-            resolvedSecondaryStatOffsets = presetOverride?.SecondaryStatOffsets ?? default;
+            resolvedSecondaryStatOffsets = default;
 
             ApplyPresetIdentityAndBaseStats(preset);
             ApplyPresetGrowthRates(preset);
             ApplyPresetSprite(preset);
-            ApplyPresetLevel(preset, presetOverride);
-            ApplyPresetPrimaryStatOffsets(presetOverride?.StatOffsets ?? default);
-            ResolvePresetLoadout(preset, presetOverride);
+            ApplyPresetLevel(preset);
+            ResolvePresetLoadout(preset);
             EnsureSaveIdentity(preset);
         }
         private void ApplyPresetInEditor()
@@ -615,14 +610,13 @@ namespace Windy.Srpg.Game.Units
 
             presetAppliedAtRuntime = false;
             useResolvedPresetLoadout = false;
-            resolvedSecondaryStatOffsets = presetOverride?.SecondaryStatOffsets ?? default;
+            resolvedSecondaryStatOffsets = default;
 
             ApplyPresetIdentityAndBaseStats(preset);
             ApplyPresetGrowthRates(preset);
             ApplyPresetSprite(preset);
-            ApplyPresetLevel(preset, presetOverride);
-            ApplyPresetPrimaryStatOffsets(presetOverride?.StatOffsets ?? default);
-            ResolvePresetLoadout(preset, presetOverride);
+            ApplyPresetLevel(preset);
+            ResolvePresetLoadout(preset);
             EnsureSaveIdentity(preset);
         }
         internal void RefreshPresetFromAssetInEditor(UnitPreset preset)
@@ -641,17 +635,9 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            string resolvedUnitName = preset.UnitName;
-            if (presetOverride != null
-                && presetOverride.OverrideUnitName
-                && !string.IsNullOrWhiteSpace(presetOverride.UnitNameOverride))
+            if (!string.IsNullOrWhiteSpace(preset.UnitName))
             {
-                resolvedUnitName = presetOverride.UnitNameOverride;
-            }
-
-            if (!string.IsNullOrWhiteSpace(resolvedUnitName))
-            {
-                unitName = resolvedUnitName;
+                unitName = preset.UnitName;
             }
 
             weaponProficiencies = preset.WeaponProficiencies;
@@ -660,16 +646,6 @@ namespace Windy.Srpg.Game.Units
             waitGroupId = Mathf.Max(0, preset.WaitGroupId);
             aiWaitTriggered = false;
             MovementPoints = Mathf.Max(0f, preset.BaseStats.MovementPoints);
-
-            if (presetOverride != null && presetOverride.OverrideMovementPoints)
-            {
-                MovementPoints = Mathf.Max(0f, presetOverride.FinalMovementPoints);
-            }
-
-            if (presetOverride != null && presetOverride.OverrideWaitGroupId)
-            {
-                waitGroupId = Mathf.Max(0, presetOverride.WaitGroupId);
-            }
 
             if (movementAiMode == UnitMovementAiMode.NotMove)
             {
@@ -681,7 +657,6 @@ namespace Windy.Srpg.Game.Units
             baseStrength = preset.BaseStats.Strength;
             baseDefense = preset.BaseStats.Defense;
             baseMagic = preset.BaseStats.Magic;
-            baseResistance = preset.BaseStats.Resistance;
             baseSpeed = preset.BaseStats.Speed;
             baseLuck = preset.BaseStats.Luck;
         }
@@ -695,7 +670,6 @@ namespace Windy.Srpg.Game.Units
             growthStrength = Mathf.Max(0, preset.GrowthRates.Strength);
             growthMagic = Mathf.Max(0, preset.GrowthRates.Magic);
             growthDefense = Mathf.Max(0, preset.GrowthRates.Defense);
-            growthResistance = Mathf.Max(0, preset.GrowthRates.Resistance);
             growthSpeed = Mathf.Max(0, preset.GrowthRates.Speed);
             growthLuck = Mathf.Max(0, preset.GrowthRates.Luck);
         }
@@ -773,7 +747,7 @@ namespace Windy.Srpg.Game.Units
                 ResetSpriteLayoutBaseline();
             }
         }
-        private void ApplyPresetLevel(UnitPreset preset, UnitPresetOverride presetOverride)
+        private void ApplyPresetLevel(UnitPreset preset)
         {
             if (preset == null)
             {
@@ -781,54 +755,11 @@ namespace Windy.Srpg.Game.Units
             }
 
             int presetLevel = Mathf.Clamp(preset.BaseLevel, 1, ExperienceCalculator.MaxLevel);
-            int finalLevel = presetLevel;
-
-            if (presetOverride != null && presetOverride.OverrideLevel)
-            {
-                finalLevel = Mathf.Clamp(presetOverride.FinalLevel, presetLevel, ExperienceCalculator.MaxLevel);
-            }
 
             level = presetLevel;
             experience = 0;
-
-            if (finalLevel <= presetLevel)
-            {
-                return;
-            }
-
-            IReadOnlyList<int> normalizedGrowthRates = LevelUpGainCalculator.NormalizeGrowthRates(new[]
-            {
-                growthStrength,
-                growthMagic,
-                growthDefense,
-                growthResistance,
-                growthSpeed,
-                growthLuck
-            });
-
-            for (int currentLevel = presetLevel; currentLevel < finalLevel; currentLevel++)
-            {
-                LevelUpGainStep step = LevelUpGainCalculator.BuildStep(normalizedGrowthRates, currentLevel);
-                foreach (var pair in step.AutoGains)
-                {
-                    ApplyBaseStatIncreaseInternal(pair.Key, pair.Value);
-                }
-
-                level = step.ToLevel;
-            }
         }
-        private void ApplyPresetPrimaryStatOffsets(UnitStatBlock offsets)
-        {
-            baseHitPoints = Mathf.Max(1, baseHitPoints + offsets.HitPoints);
-            baseManaPoints = Mathf.Max(0, baseManaPoints + offsets.ManaPoints);
-            baseStrength += offsets.Strength;
-            baseDefense += offsets.Defense;
-            baseMagic += offsets.Magic;
-            baseResistance += offsets.Resistance;
-            baseSpeed += offsets.Speed;
-            baseLuck += offsets.Luck;
-        }
-        private void ResolvePresetLoadout(UnitPreset preset, UnitPresetOverride presetOverride)
+        private void ResolvePresetLoadout(UnitPreset preset)
         {
             resolvedStartingInventory = new List<StartingInventoryItem>(
                 preset != null ? preset.StartingInventory : Enumerable.Empty<StartingInventoryItem>());
@@ -836,27 +767,6 @@ namespace Windy.Srpg.Game.Units
                 preset != null ? preset.StartingSkills : Enumerable.Empty<StartingSkillEntry>());
             resolvedStartingClassPassives = new List<StartingPassiveEntry>(
                 preset != null ? preset.StartingClassPassives : Enumerable.Empty<StartingPassiveEntry>());
-
-            if (presetOverride == null)
-            {
-                return;
-            }
-
-            if (presetOverride.ExtraInventory != null)
-            {
-                resolvedStartingInventory.AddRange(presetOverride.ExtraInventory);
-            }
-
-            if (presetOverride.ExtraSkills != null)
-            {
-                resolvedStartingSkills.AddRange(presetOverride.ExtraSkills);
-            }
-
-            if (presetOverride.ExtraClassPassives != null)
-            {
-                resolvedStartingClassPassives.AddRange(presetOverride.ExtraClassPassives);
-            }
-
         }
         public void ApplyBaseStatIncrease(LevelableStatKind stat, int amount)
         {
@@ -1644,7 +1554,7 @@ namespace Windy.Srpg.Game.Units
                 }
                 else
                 {
-                    int defenseStat = isMagicAttack ? Resistance : Defense;
+                    int defenseStat = isMagicAttack ? Magic : Defense;
                     int rawDamage = damageContext.IsCrit
                         ? damage * 2 - defenseStat
                         : damage - defenseStat;
@@ -1661,7 +1571,7 @@ namespace Windy.Srpg.Game.Units
 
                     if (!simulateOnly)
                     {
-                        BattleLog.Log("Combat", $"Strike hits {name}{(damageContext.IsCrit ? " and crits" : "")}, dealing {damageTaken} damage. (defenderId={UnitID}, hitChance={hitChance}%, critChance={critChance}%, crit={damageContext.IsCrit}, mitigationStat={(isMagicAttack ? "Resistance" : "Defence")}, mitigationValue={defenseStat})");
+                        BattleLog.Log("Combat", $"Strike hits {name}{(damageContext.IsCrit ? " and crits" : "")}, dealing {damageTaken} damage. (defenderId={UnitID}, hitChance={hitChance}%, critChance={critChance}%, crit={damageContext.IsCrit}, mitigationStat={(isMagicAttack ? "Magic" : "Defence")}, mitigationValue={defenseStat})");
                     }
                 }
 

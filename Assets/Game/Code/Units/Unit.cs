@@ -82,7 +82,6 @@ namespace Windy.Srpg.Game.Units
         public string unitName = "Ally";
         [Header("Unit Preset")]
         [SerializeField] internal UnitPreset preset;
-        [SerializeField] internal UnitPresetOverride presetOverride = new UnitPresetOverride();
         [Header("Save Identity")]
         [SerializeField] internal string unitId = string.Empty;
         [SerializeField] internal string visualId = string.Empty;
@@ -109,8 +108,6 @@ namespace Windy.Srpg.Game.Units
         [SerializeField]
         internal int baseMagic;
         [SerializeField]
-        internal int baseResistance;
-        [SerializeField]
         internal int baseSpeed;
         internal int PursuitAttackSpeedThreshold = 5;
         internal float attackHitPauseSeconds = 0.25f;
@@ -124,12 +121,11 @@ namespace Windy.Srpg.Game.Units
 
         [SerializeField]
         internal int baseLuck;
-        [SerializeField] internal int growthStrength = 17;
-        [SerializeField] internal int growthMagic = 17;
-        [SerializeField] internal int growthDefense = 17;
-        [SerializeField] internal int growthResistance = 17;
-        [SerializeField] internal int growthSpeed = 16;
-        [SerializeField] internal int growthLuck = 16;
+        [SerializeField] internal int growthStrength = 20;
+        [SerializeField] internal int growthMagic = 20;
+        [SerializeField] internal int growthDefense = 20;
+        [SerializeField] internal int growthSpeed = 20;
+        [SerializeField] internal int growthLuck = 20;
         public UnitInventory Inventory { get; internal set; }
         public UnitSkillList SkillList { get; internal set; }
         public UnitBuffList BuffList { get; internal set; }
@@ -175,7 +171,7 @@ namespace Windy.Srpg.Game.Units
         public virtual int MaxHitPoints => Mathf.Max(1, BaseHitPoints + GetPrimaryStatModifiers().MaxHitPoints + Strength);
         public int HitPoints { get; set; }
         public virtual int BaseManaPoints => baseManaPoints;
-        public virtual int MaxManaPoints => Mathf.Max(0, BaseManaPoints + GetPrimaryStatModifiers().MaxManaPoints + ((Magic + Resistance) * 3));
+        public virtual int MaxManaPoints => Mathf.Max(0, BaseManaPoints + GetPrimaryStatModifiers().MaxManaPoints + (Magic * 3));
         public int CurrentManaPoints { get; internal set; }
         public int Level => Mathf.Clamp(level, 1, ExperienceCalculator.MaxLevel);
         public int Experience => Level >= ExperienceCalculator.MaxLevel ? 0 : Mathf.Clamp(experience, 0, ExperienceCalculator.MaxGain - 1);
@@ -201,8 +197,6 @@ namespace Windy.Srpg.Game.Units
         public virtual int Defense => BaseDefense + GetPrimaryStatModifiers().Defense;
         public virtual int BaseMagic => baseMagic;
         public virtual int Magic => BaseMagic + GetPrimaryStatModifiers().Magic;
-        public virtual int BaseResistance => baseResistance;
-        public virtual int Resistance => BaseResistance + GetPrimaryStatModifiers().Resistance;
         public virtual int BaseSpeed => baseSpeed;
         public virtual int Speed => BaseSpeed + GetPrimaryStatModifiers().Speed;
         public virtual int BaseLuck => baseLuck;
@@ -460,7 +454,6 @@ namespace Windy.Srpg.Game.Units
                 LevelableStatKind.Strength => BaseStrength,
                 LevelableStatKind.Magic => BaseMagic,
                 LevelableStatKind.Defense => BaseDefense,
-                LevelableStatKind.Resistance => BaseResistance,
                 LevelableStatKind.Speed => BaseSpeed,
                 LevelableStatKind.Luck => BaseLuck,
                 _ => 0
@@ -474,7 +467,6 @@ namespace Windy.Srpg.Game.Units
                 [LevelableStatKind.Strength] = BaseStrength,
                 [LevelableStatKind.Magic] = BaseMagic,
                 [LevelableStatKind.Defense] = BaseDefense,
-                [LevelableStatKind.Resistance] = BaseResistance,
                 [LevelableStatKind.Speed] = BaseSpeed,
                 [LevelableStatKind.Luck] = BaseLuck
             };
@@ -487,7 +479,6 @@ namespace Windy.Srpg.Game.Units
                 growthStrength,
                 growthMagic,
                 growthDefense,
-                growthResistance,
                 growthSpeed,
                 growthLuck
             });
@@ -713,9 +704,6 @@ namespace Windy.Srpg.Game.Units
                     break;
                 case LevelableStatKind.Defense:
                     baseDefense += amount;
-                    break;
-                case LevelableStatKind.Resistance:
-                    baseResistance += amount;
                     break;
                 case LevelableStatKind.Speed:
                     baseSpeed += amount;

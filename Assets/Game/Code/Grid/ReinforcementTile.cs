@@ -13,7 +13,6 @@ namespace Windy.Srpg.Game.Grid
     {
         [Min(0)] public int PlayerNumber = 1;
         public UnitPreset Preset;
-        public UnitPresetOverride PresetOverride = new UnitPresetOverride();
     }
 
     [ExecuteAlways]
@@ -69,7 +68,6 @@ namespace Windy.Srpg.Game.Grid
             foreach (ReinforcementUnitEntry entry in units.Where(entry => entry != null))
             {
                 entry.PlayerNumber = Mathf.Max(0, entry.PlayerNumber);
-                entry.PresetOverride ??= new UnitPresetOverride();
             }
 
             spawnTurns ??= new List<int>();
@@ -235,7 +233,6 @@ namespace Windy.Srpg.Game.Grid
                     yield return GameplayCameraController.WaitForFocusSettled(timeoutSeconds: 0f);
                     spawnedUnit = cellGrid.SpawnReinforcementUnit(
                         unitEntry.Preset,
-                        unitEntry.PresetOverride,
                         unitEntry.PlayerNumber,
                         spawnCell);
                 }

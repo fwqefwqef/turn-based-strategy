@@ -73,10 +73,10 @@
       {
         "Id": "cloak",
         "Name": "Cloak",
-        "Description": "Res +5. A cloak that improves resistance.",
+        "Description": "Mag +5. A cloak that improves magic power and magic defense.",
         "Value": 100,
         "StatModifiers": {
-          "Resistance": 5
+          "Magic": 5
         },
         "GrantedSkillIds": []
       }
@@ -233,7 +233,7 @@
       {
         "Id": "luna",
         "Name": "Luna",
-        "Description": "A precise combat art that pierces through enemy defense or resistance.",
+        "Description": "A precise combat art that pierces through enemy defense or magic defense.",
         "Category": "CombatArt",
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Any",
@@ -241,7 +241,7 @@
         "OncePerTurn": true,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "ignore_def_res",
+        "EffectId": "ignore_def_mag",
         "AttackProfile": {
           "Enabled": true,
           "IsMagic": false,
@@ -326,7 +326,7 @@
       {
         "Id": "heal",
         "Name": "Heal",
-        "Description": "Restore (Res + 10) HP to an adjacent ally.",
+        "Description": "Restore (Mag + 10) HP to an adjacent ally.",
         "Category": "Spell",
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
@@ -334,7 +334,7 @@
         "OncePerTurn": true,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "heal_res_10",
+        "EffectId": "heal_mag_10",
         "AttackProfile": {
           "Enabled": false,
           "IsMagic": true,
@@ -350,7 +350,7 @@
       {
         "Id": "mend",
         "Name": "Mend",
-        "Description": "Restore (Res + 25) HP to an adjacent ally.",
+        "Description": "Restore (Mag + 25) HP to an adjacent ally.",
         "Category": "Spell",
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
@@ -358,7 +358,7 @@
         "OncePerTurn": true,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "heal_res_25",
+        "EffectId": "heal_mag_25",
         "AttackProfile": {
           "Enabled": false,
           "IsMagic": true,
@@ -374,7 +374,7 @@
       {
         "Id": "physic",
         "Name": "Physic",
-        "Description": "Restore (Res + 10) HP to an ally from 1 to 10 range.",
+        "Description": "Restore (Mag + 10) HP to an ally from 1 to 10 range.",
         "Category": "Spell",
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
@@ -382,7 +382,7 @@
         "OncePerTurn": true,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "heal_res_10",
+        "EffectId": "heal_mag_10",
         "AttackProfile": {
           "Enabled": false,
           "IsMagic": true,
@@ -398,7 +398,7 @@
       {
         "Id": "affection",
         "Name": "Affection",
-        "Description": "Restore (Res + 25) HP to an ally at any range.",
+        "Description": "Restore (Mag + 25) HP to an ally at any range.",
         "Category": "Spell",
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
@@ -406,7 +406,7 @@
         "OncePerTurn": true,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "heal_res_25",
+        "EffectId": "heal_mag_25",
         "AttackProfile": {
           "Enabled": false,
           "IsMagic": true,
@@ -422,7 +422,7 @@
       {
         "Id": "fortify",
         "Name": "Fortify",
-        "Description": "Heal all allies in range for Res + 10.",
+        "Description": "Heal all allies in range for Mag + 10.",
         "Category": "AreaSpell",
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
@@ -430,7 +430,7 @@
         "OncePerTurn": true,
         "SelfImmune": false,
         "MpCost": 9,
-        "EffectId": "heal_res_10",
+        "EffectId": "heal_mag_10",
         "AttackProfile": {
           "Enabled": false,
           "IsMagic": true,
@@ -457,7 +457,7 @@
       {
         "Id": "sacrifice",
         "Name": "Sacrifice",
-        "Description": "Heal all allies in range for Res + 25, but reduce the caster to 1 HP.",
+        "Description": "Heal all allies in range for Mag + 25, but reduce the caster to 1 HP.",
         "Category": "AreaSpell",
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
@@ -465,7 +465,7 @@
         "OncePerTurn": true,
         "SelfImmune": true,
         "MpCost": 9,
-        "EffectId": "sacrifice_heal_res_25",
+        "EffectId": "sacrifice_heal_mag_25",
         "AttackProfile": {
           "Enabled": false,
           "IsMagic": true,
@@ -735,9 +735,9 @@
       {
         "Id": "luna",
         "Name": "Luna",
-        "Description": "Ignores Def/Res for one round of initiated combat.",
+        "Description": "Ignores Def/Mag for one round of initiated combat.",
         "Duration": 1,
-        "EffectId": "ignore_def_res"
+        "EffectId": "ignore_def_mag"
       }
     ]
   }

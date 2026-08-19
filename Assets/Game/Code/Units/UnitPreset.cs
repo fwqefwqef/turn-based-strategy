@@ -30,7 +30,6 @@ namespace Windy.Srpg.Game.Units
         public int Strength;
         public int Defense;
         public int Magic;
-        public int Resistance;
         public int Speed;
         public int Luck;
     }
@@ -41,7 +40,6 @@ namespace Windy.Srpg.Game.Units
         public int Strength;
         public int Magic;
         public int Defense;
-        public int Resistance;
         public int Speed;
         public int Luck;
     }
@@ -65,24 +63,6 @@ namespace Windy.Srpg.Game.Units
 
         public Vector2 ResolvedTargetSize =>
             TargetSize.x > 0f && TargetSize.y > 0f ? TargetSize : new Vector2(1.2f, 1.2f);
-    }
-
-    [Serializable]
-    public class UnitPresetOverride
-    {
-        public bool OverrideUnitName;
-        public string UnitNameOverride;
-        public bool OverrideLevel;
-        public int FinalLevel = 1;
-        public bool OverrideMovementPoints;
-        public float FinalMovementPoints = 5f;
-        public bool OverrideWaitGroupId;
-        public int WaitGroupId = 0;
-        public UnitStatBlock StatOffsets;
-        public SecondaryStatModifiers SecondaryStatOffsets;
-        public List<StartingInventoryItem> ExtraInventory = new List<StartingInventoryItem>();
-        public List<StartingSkillEntry> ExtraSkills = new List<StartingSkillEntry>();
-        public List<StartingPassiveEntry> ExtraClassPassives = new List<StartingPassiveEntry>();
     }
 
     [CreateAssetMenu(fileName = "UnitPreset", menuName = "TBS/Units/Unit Preset")]

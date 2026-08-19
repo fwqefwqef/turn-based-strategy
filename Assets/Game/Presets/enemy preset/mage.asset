@@ -15,6 +15,7 @@ MonoBehaviour:
   PresetId: mage
   UnitName: Mage
   UnitSprite: {fileID: 21300000, guid: e7a1b2c3d4e5f6789012345678a1b012, type: 3}
+  FaceSprite: {fileID: 0}
   SpriteLayout:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
@@ -31,16 +32,14 @@ MonoBehaviour:
     Strength: 0
     Defense: 0
     Magic: 5
-    Resistance: 0
     Speed: 0
     Luck: 0
   GrowthRates:
-    Strength: 10
-    Magic: 30
+    Strength: 20
+    Magic: 20
     Defense: 20
-    Resistance: 20
-    Speed: 10
-    Luck: 10
+    Speed: 20
+    Luck: 20
   StartingInventory:
   - ItemId: magic_sword
     InitialCharges: -1

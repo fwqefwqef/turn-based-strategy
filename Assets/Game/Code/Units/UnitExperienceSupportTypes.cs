@@ -226,9 +226,8 @@ namespace Windy.Srpg.Game.Units
         Strength = 0,
         Magic = 1,
         Defense = 2,
-        Resistance = 3,
-        Speed = 4,
-        Luck = 5
+        Speed = 3,
+        Luck = 4
     }
 
     public sealed class LevelUpGainStep
@@ -334,7 +333,7 @@ namespace Windy.Srpg.Game.Units
 
     public static class LevelUpGainCalculator
     {
-        public const int GainableStatCount = 6;
+        public const int GainableStatCount = 5;
         public const int ExpectedGrowthTotal = 100;
 
         public static IReadOnlyList<int> NormalizeGrowthRates(IReadOnlyList<int> rawGrowthRates)
@@ -350,7 +349,7 @@ namespace Windy.Srpg.Game.Units
             int rawTotal = clampedRates.Sum();
             if (rawTotal <= 0)
             {
-                return new[] { 17, 17, 17, 17, 16, 16 };
+                return new[] { 20, 20, 20, 20, 20 };
             }
 
             double scale = ExpectedGrowthTotal / (double)rawTotal;

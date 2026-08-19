@@ -28,7 +28,6 @@ namespace Windy.Srpg.Game.UI
         public TMP_Text SpeedText;
         public TMP_Text LuckText;
         public TMP_Text MagicText;
-        public TMP_Text ResistanceText;
         public TMP_Text MaxMovementText;
         public TMP_Text CurrentBuffsText;
 
@@ -356,11 +355,6 @@ namespace Windy.Srpg.Game.UI
             {
                 var magicText = GameTextCatalog.Format("ui.common.magic_label", "Magic: {0}", unit.Magic);
                 MagicText.text = unit.IsMagic ? $"<u>{magicText}</u>" : magicText;
-            }
-
-            if (ResistanceText != null)
-            {
-                ResistanceText.text = GameTextCatalog.Format("ui.common.resistance_label", "Resistance: {0}", unit.Resistance);
             }
 
             if (MaxMovementText != null)

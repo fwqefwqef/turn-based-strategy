@@ -657,7 +657,7 @@ namespace Windy.Srpg.Game.AI
 
         private static bool TryApplySkillAttackEffect(Unit actor, Skill skill, SkillContext context, ref ResolvedAttackProfile profile, out bool ignoresDefense)
         {
-            ignoresDefense = string.Equals(skill?.Data?.EffectId, "ignore_def_res", StringComparison.OrdinalIgnoreCase);
+            ignoresDefense = string.Equals(skill?.Data?.EffectId, "ignore_def_mag", StringComparison.OrdinalIgnoreCase);
             if (skill?.Data == null || string.IsNullOrWhiteSpace(skill.Data.EffectId))
             {
                 return true;
@@ -1063,7 +1063,7 @@ namespace Windy.Srpg.Game.AI
         {
             bool isMagicAttack = attacker.GetIsMagicForWeapon(weapon);
             int attackValue = attacker.GetAttackForWeapon(weapon);
-            int defenseStat = isMagicAttack ? defender.Resistance : defender.Defense;
+            int defenseStat = isMagicAttack ? defender.Magic : defender.Defense;
             return Mathf.Max(1, attackValue - defenseStat);
         }
 
@@ -1071,7 +1071,7 @@ namespace Windy.Srpg.Game.AI
         {
             bool isMagicAttack = attacker.GetIsMagicForWeapon(weapon);
             int attackValue = attacker.GetAttackForWeapon(weapon);
-            int defenseStat = isMagicAttack ? defender.Resistance : defender.Defense;
+            int defenseStat = isMagicAttack ? defender.Magic : defender.Defense;
             return Mathf.Max(1, attackValue * 2 - defenseStat);
         }
 
@@ -1087,13 +1087,13 @@ namespace Windy.Srpg.Game.AI
 
         private static int CalculateProfilePerHitDamage(ResolvedAttackProfile profile, Unit defender, bool ignoresDefense)
         {
-            int defenseStat = ignoresDefense ? 0 : (profile.IsMagic ? defender.Resistance : defender.Defense);
+            int defenseStat = ignoresDefense ? 0 : (profile.IsMagic ? defender.Magic : defender.Defense);
             return Mathf.Max(1, profile.Damage - defenseStat);
         }
 
         private static int CalculateProfilePerHitCritDamage(ResolvedAttackProfile profile, Unit defender, bool ignoresDefense)
         {
-            int defenseStat = ignoresDefense ? 0 : (profile.IsMagic ? defender.Resistance : defender.Defense);
+            int defenseStat = ignoresDefense ? 0 : (profile.IsMagic ? defender.Magic : defender.Defense);
             return Mathf.Max(1, profile.Damage * 2 - defenseStat);
         }
 

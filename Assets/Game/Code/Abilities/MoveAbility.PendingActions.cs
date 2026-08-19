@@ -1939,11 +1939,11 @@ namespace Windy.Srpg.Game.Abilities
         {
             if (unit == null || !hasIncomingAttack)
             {
-                return "Def/Res: -";
+                return "Def/Mag: -";
             }
 
             return incomingIsMagic
-                ? $"Res: {unit.Resistance}"
+                ? $"Mag: {unit.Magic}"
                 : $"Def: {unit.Defense}";
         }
 
@@ -1966,7 +1966,7 @@ namespace Windy.Srpg.Game.Abilities
 
             bool isMagicAttack = weapon != null ? attacker.GetIsMagicForWeapon(weapon) : attacker.IsMagic;
             int attackValue = weapon != null ? attacker.GetAttackForWeapon(weapon) : attacker.Attack;
-            int defenseStat = isMagicAttack ? defender.Resistance : defender.Defense;
+            int defenseStat = isMagicAttack ? defender.Magic : defender.Defense;
             return Mathf.Max(1, attackValue - defenseStat);
         }
 
@@ -1979,7 +1979,7 @@ namespace Windy.Srpg.Game.Abilities
 
             bool isMagicAttack = weapon != null ? attacker.GetIsMagicForWeapon(weapon) : attacker.IsMagic;
             int attackValue = weapon != null ? attacker.GetAttackForWeapon(weapon) : attacker.Attack;
-            int defenseStat = isMagicAttack ? defender.Resistance : defender.Defense;
+            int defenseStat = isMagicAttack ? defender.Magic : defender.Defense;
             return Mathf.Max(1, attackValue * 2 - defenseStat);
         }
 
@@ -2673,7 +2673,7 @@ namespace Windy.Srpg.Game.Abilities
         {
             if (skill?.Data == null)
             {
-                return new AttackPreviewPanelData(UnitReference.unitName, FormatHitPointsDisplay(UnitReference), "Def/Res: -", "-", "-", "-");
+                return new AttackPreviewPanelData(UnitReference.unitName, FormatHitPointsDisplay(UnitReference), "Def/Mag: -", "-", "-", "-");
             }
 
             if (TryGetHealingAmount(skill, target, cellGrid, out int healingAmount))
@@ -2690,13 +2690,13 @@ namespace Windy.Srpg.Game.Abilities
 
             if (!TryBuildSkillAttackProfile(skill, target, GetPreferredWeaponForSkill(skill, target, GetActingCellForPendingActions(cellGrid), selectedSkillPreviewWeaponEntry), out ResolvedAttackProfile profile))
             {
-                return new AttackPreviewPanelData(UnitReference.unitName, FormatHitPointsDisplay(UnitReference), "Def/Res: -", "-", "-", "-");
+                return new AttackPreviewPanelData(UnitReference.unitName, FormatHitPointsDisplay(UnitReference), "Def/Mag: -", "-", "-", "-");
             }
 
             SkillContext context = BuildSkillContext(skill, target, cellGrid);
             if (!TryPrepareAttackSkillEffect(skill, context, ref profile, out _))
             {
-                return new AttackPreviewPanelData(UnitReference.unitName, FormatHitPointsDisplay(UnitReference), "Def/Res: -", "-", "-", "-");
+                return new AttackPreviewPanelData(UnitReference.unitName, FormatHitPointsDisplay(UnitReference), "Def/Mag: -", "-", "-", "-");
             }
 
             int attackMultiplier = Mathf.Max(1, profile.NumHits);
@@ -2720,7 +2720,7 @@ namespace Windy.Srpg.Game.Abilities
         {
             if (skill?.Data == null || defender == null)
             {
-                return new AttackPreviewPanelData("-", "-", "Def/Res: -", "-", "-", "-");
+                return new AttackPreviewPanelData("-", "-", "Def/Mag: -", "-", "-", "-");
             }
 
             if (TryGetHealingAmount(skill, defender, cellGrid, out int healingAmount))
@@ -2736,13 +2736,13 @@ namespace Windy.Srpg.Game.Abilities
 
             if (!TryBuildSkillAttackProfile(skill, defender, GetPreferredWeaponForSkill(skill, defender, GetActingCellForPendingActions(cellGrid), selectedSkillPreviewWeaponEntry), out ResolvedAttackProfile attackProfile))
             {
-                return new AttackPreviewPanelData(defender.unitName, FormatHitPointsDisplay(defender), "Def/Res: -", "-", "-", "-");
+                return new AttackPreviewPanelData(defender.unitName, FormatHitPointsDisplay(defender), "Def/Mag: -", "-", "-", "-");
             }
 
             SkillContext context = BuildSkillContext(skill, defender, cellGrid);
             if (!TryPrepareAttackSkillEffect(skill, context, ref attackProfile, out _))
             {
-                return new AttackPreviewPanelData(defender.unitName, FormatHitPointsDisplay(defender), "Def/Res: -", "-", "-", "-");
+                return new AttackPreviewPanelData(defender.unitName, FormatHitPointsDisplay(defender), "Def/Mag: -", "-", "-", "-");
             }
 
             bool defenderCanCounter = skill.Data.TargetingType == SkillTargetingType.EnemyUnit
@@ -2917,7 +2917,7 @@ namespace Windy.Srpg.Game.Abilities
                 return 0;
             }
 
-            int defenseStat = profile.IsMagic ? defender.Resistance : defender.Defense;
+            int defenseStat = profile.IsMagic ? defender.Magic : defender.Defense;
             return Mathf.Max(1, profile.Damage - defenseStat) * Mathf.Max(1, multiplier);
         }
 
@@ -2959,7 +2959,7 @@ namespace Windy.Srpg.Game.Abilities
                 return 0;
             }
 
-            int defenseStat = profile.IsMagic ? defender.Resistance : defender.Defense;
+            int defenseStat = profile.IsMagic ? defender.Magic : defender.Defense;
             return Mathf.Max(1, profile.Damage - defenseStat);
         }
 
@@ -2970,7 +2970,7 @@ namespace Windy.Srpg.Game.Abilities
                 return 0;
             }
 
-            int defenseStat = profile.IsMagic ? defender.Resistance : defender.Defense;
+            int defenseStat = profile.IsMagic ? defender.Magic : defender.Defense;
             return Mathf.Max(1, profile.Damage * 2 - defenseStat);
         }
 

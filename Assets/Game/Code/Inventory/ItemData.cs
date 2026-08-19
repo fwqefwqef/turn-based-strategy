@@ -42,7 +42,6 @@ namespace Windy.Srpg.Game.Inventory
         public int Strength;
         public int Defense;
         public int Magic;
-        public int Resistance;
         public int Speed;
         public int Luck;
 
@@ -56,7 +55,6 @@ namespace Windy.Srpg.Game.Inventory
                 Strength = left.Strength + right.Strength,
                 Defense = left.Defense + right.Defense,
                 Magic = left.Magic + right.Magic,
-                Resistance = left.Resistance + right.Resistance,
                 Speed = left.Speed + right.Speed,
                 Luck = left.Luck + right.Luck
             };

@@ -32,16 +32,14 @@ MonoBehaviour:
     Strength: 5
     Defense: 0
     Magic: 2
-    Resistance: 0
     Speed: 5
     Luck: 0
   GrowthRates:
-    Strength: 17
-    Magic: 17
-    Defense: 17
-    Resistance: 17
-    Speed: 16
-    Luck: 16
+    Strength: 20
+    Magic: 20
+    Defense: 20
+    Speed: 20
+    Luck: 20
   StartingInventory:
   - ItemId: iron_sword
     InitialCharges: -1

@@ -18,7 +18,7 @@ namespace Windy.Srpg.Game.Buffs
             BuffRegistry.RegisterRange(catalog.ToRuntimeDefinitions());
 
             BuffEffectRegistry.Register("damage_to_one", () => new DamageToOneBuffEffect());
-            BuffEffectRegistry.Register("ignore_def_res", () => new IgnoreDefRes());
+            BuffEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMag());
             isRegistered = true;
         }
 
@@ -35,7 +35,7 @@ namespace Windy.Srpg.Game.Buffs
             }
         }
 
-        private sealed class IgnoreDefRes : BuffEffectBase, IP_DamageChange, IP_AfterCombat_Attacker
+        private sealed class IgnoreDefMag : BuffEffectBase, IP_DamageChange, IP_AfterCombat_Attacker
         {
             public void AfterCombatSequenceAsAttacker(CombatSequenceContext context)
             {
@@ -51,7 +51,7 @@ namespace Windy.Srpg.Game.Buffs
 
                 if (context.IsMagicAttack)
                 {
-                    context.Damage += context.Defender.Resistance;
+                    context.Damage += context.Defender.Magic;
                 }
                 else
                 {

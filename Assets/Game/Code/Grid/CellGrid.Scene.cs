@@ -333,7 +333,6 @@ namespace Windy.Srpg.Game.Grid
 
         internal Unit SpawnReinforcementUnit(
             UnitPreset preset,
-            UnitPresetOverride presetOverride,
             int playerNumber,
             Cell targetCell)
         {
@@ -360,7 +359,6 @@ namespace Windy.Srpg.Game.Grid
             spawnedUnit.gameObject.SetActive(true);
             spawnedUnit.PlayerNumber = Mathf.Max(0, playerNumber);
             spawnedUnit.preset = preset;
-            spawnedUnit.presetOverride = presetOverride ?? new UnitPresetOverride();
             spawnedUnit.presetAppliedAtRuntime = false;
             spawnedUnit.ExcludedFromBattle = false;
             spawnedUnit.ParticipatesInDeploymentRoster = false;

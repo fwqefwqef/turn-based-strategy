@@ -351,7 +351,6 @@ namespace Windy.Srpg.Game.UI
                 LevelableStatKind.Strength => GameTextCatalog.Get("ui.level_up.stat.strength", "Strength"),
                 LevelableStatKind.Magic => GameTextCatalog.Get("ui.level_up.stat.magic", "Magic"),
                 LevelableStatKind.Defense => GameTextCatalog.Get("ui.level_up.stat.defense", "Defense"),
-                LevelableStatKind.Resistance => GameTextCatalog.Get("ui.level_up.stat.resistance", "Resistance"),
                 LevelableStatKind.Speed => GameTextCatalog.Get("ui.level_up.stat.speed", "Speed"),
                 LevelableStatKind.Luck => GameTextCatalog.Get("ui.level_up.stat.luck", "Luck"),
                 _ => stat.ToString()

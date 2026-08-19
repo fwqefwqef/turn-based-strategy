@@ -21,11 +21,11 @@ namespace Windy.Srpg.Game.Skills
             SkillRegistry.RegisterRange(catalog.ToRuntimeDefinitions());
 
             SkillEffectRegistry.Register("regen_self_10", () => new RestoreHitPointsSkillEffect(10));
-            SkillEffectRegistry.Register("heal_res_10", () => new ResistanceScalingHealSkillEffect(10));
-            SkillEffectRegistry.Register("heal_res_25", () => new ResistanceScalingHealSkillEffect(25));
-            SkillEffectRegistry.Register("sacrifice_heal_res_25", () => new SacrificeHealSkillEffect(25));
+            SkillEffectRegistry.Register("heal_mag_10", () => new MagicScalingHealSkillEffect(10));
+            SkillEffectRegistry.Register("heal_mag_25", () => new MagicScalingHealSkillEffect(25));
+            SkillEffectRegistry.Register("sacrifice_heal_mag_25", () => new SacrificeHealSkillEffect(25));
             SkillEffectRegistry.Register("immolate", () => new ImmolateSkillEffect());
-            SkillEffectRegistry.Register("ignore_def_res", () => new IgnoreDefResSkillEffect());
+            SkillEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMagSkillEffect());
             SkillEffectRegistry.Register("shove", () => new ShoveSkillEffect());
 
             isRegistered = true;
@@ -55,11 +55,11 @@ namespace Windy.Srpg.Game.Skills
             }
         }
 
-        private sealed class ResistanceScalingHealSkillEffect : IHealingSkillEffect
+        private sealed class MagicScalingHealSkillEffect : IHealingSkillEffect
         {
             private readonly int baseAmount;
 
-            public ResistanceScalingHealSkillEffect(int baseAmount)
+            public MagicScalingHealSkillEffect(int baseAmount)
             {
                 this.baseAmount = baseAmount;
             }
@@ -81,7 +81,7 @@ namespace Windy.Srpg.Game.Skills
                     return 0;
                 }
 
-                return Mathf.Max(0, user.Resistance + baseAmount);
+                return Mathf.Max(0, user.Magic + baseAmount);
             }
 
             public void Use(Unit user, SkillContext context)
@@ -125,7 +125,7 @@ namespace Windy.Srpg.Game.Skills
                     return 0;
                 }
 
-                return Mathf.Max(0, user.Resistance + baseAmount);
+                return Mathf.Max(0, user.Magic + baseAmount);
             }
 
             public void Use(Unit user, SkillContext context)
@@ -151,7 +151,7 @@ namespace Windy.Srpg.Game.Skills
             }
         }
 
-        private sealed class IgnoreDefResSkillEffect : ISkillEffect
+        private sealed class IgnoreDefMagSkillEffect : ISkillEffect
         {
             public bool CanUse(Unit user, SkillContext context)
             {

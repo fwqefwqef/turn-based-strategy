@@ -226,7 +226,6 @@ namespace Windy.Srpg.Game.Campaign
                     Strength = preset.BaseStats.Strength,
                     Defense = preset.BaseStats.Defense,
                     Magic = preset.BaseStats.Magic,
-                    Resistance = preset.BaseStats.Resistance,
                     Speed = preset.BaseStats.Speed,
                     Luck = preset.BaseStats.Luck
                 },
@@ -235,7 +234,6 @@ namespace Windy.Srpg.Game.Campaign
                     Strength = Mathf.Max(0, preset.GrowthRates.Strength),
                     Magic = Mathf.Max(0, preset.GrowthRates.Magic),
                     Defense = Mathf.Max(0, preset.GrowthRates.Defense),
-                    Resistance = Mathf.Max(0, preset.GrowthRates.Resistance),
                     Speed = Mathf.Max(0, preset.GrowthRates.Speed),
                     Luck = Mathf.Max(0, preset.GrowthRates.Luck)
                 },

@@ -45,7 +45,6 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private TMP_Text strengthText;
         [SerializeField] private TMP_Text magicText;
         [SerializeField] private TMP_Text defenseText;
-        [SerializeField] private TMP_Text resistanceText;
         [SerializeField] private TMP_Text speedText;
         [SerializeField] private TMP_Text luckText;
         [SerializeField] private TMP_Text movementText;
@@ -56,23 +55,6 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private GameObject detailPanelRoot;
         [SerializeField] private TMP_Text detailTitleText;
         [SerializeField] private TMP_Text detailBodyText;
-
-        [Header("Stat Detail Text")]
-        [SerializeField, TextArea] private string nameDescription = string.Empty;
-        [SerializeField, TextArea] private string levelDescription = string.Empty;
-        [SerializeField, TextArea] private string experienceDescription = string.Empty;
-        [SerializeField, TextArea] private string hitPointsDescription = string.Empty;
-        [SerializeField, TextArea] private string manaPointsDescription = string.Empty;
-        [SerializeField, TextArea] private string attackDescription = string.Empty;
-        [SerializeField, TextArea] private string equipDescription = string.Empty;
-        [SerializeField, TextArea] private string strengthDescription = string.Empty;
-        [SerializeField, TextArea] private string magicDescription = string.Empty;
-        [SerializeField, TextArea] private string defenseDescription = string.Empty;
-        [SerializeField, TextArea] private string resistanceDescription = string.Empty;
-        [SerializeField, TextArea] private string speedDescription = string.Empty;
-        [SerializeField, TextArea] private string luckDescription = string.Empty;
-        [SerializeField, TextArea] private string movementDescription = string.Empty;
-        [SerializeField, TextArea] private string rangeDescription = string.Empty;
 
         [Header("Lists")]
         [SerializeField] private UnitInspectEntryListUI inventoryList;
@@ -484,11 +466,6 @@ namespace Windy.Srpg.Game.UI
             if (defenseText != null)
             {
                 defenseText.text = GameTextCatalog.Format("ui.common.def_short", "Def: {0}", displayUnit.Defense);
-            }
-
-            if (resistanceText != null)
-            {
-                resistanceText.text = GameTextCatalog.Format("ui.common.res_short", "Res: {0}", displayUnit.Resistance);
             }
 
             if (speedText != null)
@@ -962,25 +939,24 @@ namespace Windy.Srpg.Game.UI
 
         private void RegisterClickableFields()
         {
-            RegisterDetailClick(nameText, "summary:name", GameTextCatalog.Get("ui.inspect.detail.name", "Name"), () => ResolveDetailDescription(nameDescription, "ui.inspect.description.name", "The unit's displayed name."));
-            RegisterDetailClick(levelText, "summary:level", GameTextCatalog.Get("ui.inspect.detail.level", "Level"), () => ResolveDetailDescription(levelDescription, "ui.inspect.description.level", "A unit's overall power level. Levels increase when enough EXP is gained."));
-            RegisterDetailClick(experienceText, "summary:exp", GameTextCatalog.Get("ui.inspect.detail.exp", "EXP"), () => ResolveDetailDescription(experienceDescription, "ui.inspect.description.exp", "Progress toward the next level. Enemy units always display 0 EXP."));
-            RegisterDetailClick(hitPointsText, "summary:hp", GameTextCatalog.Get("ui.inspect.detail.hp", "HP"), () => ResolveDetailDescription(hitPointsDescription, "ui.inspect.description.hp", "Current HP out of max HP. Units are defeated when HP reaches 0."));
-            RegisterDetailClick(manaPointsText, "summary:mp", GameTextCatalog.Get("ui.inspect.detail.mp", "MP"), () => ResolveDetailDescription(manaPointsDescription, "ui.inspect.description.mp", "Current MP out of max MP. Skills require enough MP to cast."));
-            RegisterDetailClick(attackText, "summary:atk", GameTextCatalog.Get("ui.inspect.detail.atk", "Atk"), () => ResolveDetailDescription(attackDescription, "ui.inspect.description.atk", "Base attack power before target mitigation. Specific combat previews show the exact resulting damage."));
+            RegisterDetailClick(nameText, "summary:name", GameTextCatalog.Get("ui.inspect.detail.name", "Name"), () => GetDetailDescription("ui.inspect.description.name", "The unit's name."));
+            RegisterDetailClick(levelText, "summary:level", GameTextCatalog.Get("ui.inspect.detail.level", "Level"), () => GetDetailDescription("ui.inspect.description.level", "The unit's current level."));
+            RegisterDetailClick(experienceText, "summary:exp", GameTextCatalog.Get("ui.inspect.detail.exp", "EXP"), () => GetDetailDescription("ui.inspect.description.exp", "Current EXP toward the next level. Enemy units display 0 EXP."));
+            RegisterDetailClick(hitPointsText, "summary:hp", GameTextCatalog.Get("ui.inspect.detail.hp", "HP"), () => GetDetailDescription("ui.inspect.description.hp", "Current HP out of max HP. Units are defeated when HP reaches 0."));
+            RegisterDetailClick(manaPointsText, "summary:mp", GameTextCatalog.Get("ui.inspect.detail.mp", "MP"), () => GetDetailDescription("ui.inspect.description.mp", "Current MP out of max MP. Skills require enough MP to cast."));
+            RegisterDetailClick(attackText, "summary:atk", GameTextCatalog.Get("ui.inspect.detail.atk", "Atk"), () => GetDetailDescription("ui.inspect.description.atk", "Weapon Might + Attacking Stat"));
             RegisterDetailClick(
                 equipText,
                 "summary:equip",
                 () => inspectedUnit?.EquippedWeapon?.Name ?? GameTextCatalog.Get("ui.common.none", "None"),
                 BuildEquippedItemDetailBody);
-            RegisterDetailClick(strengthText, "stat:str", GameTextCatalog.Get("ui.inspect.detail.strength", "Strength"), () => ResolveDetailDescription(strengthDescription, "ui.inspect.description.strength", "Strength supports physical damage output."));
-            RegisterDetailClick(magicText, "stat:mag", GameTextCatalog.Get("ui.inspect.detail.magic", "Magic"), () => ResolveDetailDescription(magicDescription, "ui.inspect.description.magic", "Magic supports magical damage and contributes to max MP."));
-            RegisterDetailClick(defenseText, "stat:def", GameTextCatalog.Get("ui.inspect.detail.defense", "Defense"), () => ResolveDetailDescription(defenseDescription, "ui.inspect.description.defense", "Defense reduces incoming physical damage."));
-            RegisterDetailClick(resistanceText, "stat:res", GameTextCatalog.Get("ui.inspect.detail.resistance", "Resistance"), () => ResolveDetailDescription(resistanceDescription, "ui.inspect.description.resistance", "Resistance reduces incoming magical damage, improves healing, and contributes to max MP."));
-            RegisterDetailClick(speedText, "stat:spd", GameTextCatalog.Get("ui.inspect.detail.speed", "Speed"), () => ResolveDetailDescription(speedDescription, "ui.inspect.description.speed", "Speed affects combat tempo and follow-up potential."));
-            RegisterDetailClick(luckText, "stat:lck", GameTextCatalog.Get("ui.inspect.detail.luck", "Luck"), () => ResolveDetailDescription(luckDescription, "ui.inspect.description.luck", "Luck supports accuracy, consistency, and resistance to enemy crits depending on the formula in use."));
-            RegisterDetailClick(movementText, "stat:mov", GameTextCatalog.Get("ui.inspect.detail.movement", "Movement"), () => ResolveDetailDescription(movementDescription, "ui.inspect.description.movement", "Movement determines how many tiles the unit can travel in a turn."));
-            RegisterDetailClick(rangeText, "stat:rng", GameTextCatalog.Get("ui.inspect.detail.range", "Range"), () => ResolveDetailDescription(rangeDescription, "ui.inspect.description.range", "The unit's currently available basic attack range with equipped gear."));
+            RegisterDetailClick(strengthText, "stat:str", GameTextCatalog.Get("ui.inspect.detail.strength", "Strength"), () => GetDetailDescription("ui.inspect.description.strength", "Physical Damage +1\n\nMax HP +1"));
+            RegisterDetailClick(magicText, "stat:mag", GameTextCatalog.Get("ui.inspect.detail.magic", "Magic"), () => GetDetailDescription("ui.inspect.description.magic", "Magic Damage +1\n\nMagic Defense +1\n\nMax MP +3\n\nHealing Power +1"));
+            RegisterDetailClick(defenseText, "stat:def", GameTextCatalog.Get("ui.inspect.detail.defense", "Defense"), () => GetDetailDescription("ui.inspect.description.defense", "Physical Defense +1\n\nMax HP +1"));
+            RegisterDetailClick(speedText, "stat:spd", GameTextCatalog.Get("ui.inspect.detail.speed", "Speed"), () => GetDetailDescription("ui.inspect.description.speed", "Accuracy/Evasion +5%\n\nIf Speed >= 5, follow-up attack occurs."));
+            RegisterDetailClick(luckText, "stat:lck", GameTextCatalog.Get("ui.inspect.detail.luck", "Luck"), () => GetDetailDescription("ui.inspect.description.luck", "Critical Chance / Critical Avoid +5%"));
+            RegisterDetailClick(movementText, "stat:mov", GameTextCatalog.Get("ui.inspect.detail.movement", "Movement"), () => GetDetailDescription("ui.inspect.description.movement", "Movement determines how many tiles the unit can travel in a turn."));
+            RegisterDetailClick(rangeText, "stat:rng", GameTextCatalog.Get("ui.inspect.detail.range", "Range"), () => GetDetailDescription("ui.inspect.description.range", "The unit's attack range with the currently equipped weapon."));
         }
 
         private void RegisterDetailClick(TMP_Text text, string detailId, string title, Func<string> bodyProvider)
@@ -1363,9 +1339,9 @@ namespace Windy.Srpg.Game.UI
             return GameTextCatalog.Format("ui.common.exp_value", "EXP: {0}", unit.Experience);
         }
 
-        private static string ResolveDetailDescription(string overrideText, string key, string fallback)
+        private static string GetDetailDescription(string key, string fallback)
         {
-            return GameTextCatalog.ResolveOverride(overrideText, key, fallback);
+            return GameTextCatalog.Get(key, fallback);
         }
     }
 }

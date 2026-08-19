@@ -21,7 +21,6 @@ namespace Windy.Srpg.Game.Editor
         private const string ReinforcementTilesParentName = "ReinforcementTiles";
 
         private static readonly FieldInfo UnitPresetField = typeof(Unit).GetField("preset", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        private static readonly FieldInfo UnitPresetOverrideField = typeof(Unit).GetField("presetOverride", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
         private enum PaintMode
         {
@@ -41,13 +40,11 @@ namespace Windy.Srpg.Game.Editor
         [SerializeField] private GameObject enemyUnitPrefab;
         [SerializeField] private UnitPreset friendlyUnitPreset;
         [SerializeField] private UnitPreset enemyUnitPreset;
-        [SerializeField] private UnitPresetOverride enemyUnitPresetOverride = new UnitPresetOverride();
         [SerializeField] private List<ReinforcementUnitEntry> reinforcementUnits = new List<ReinforcementUnitEntry>();
         [SerializeField] private List<int> reinforcementSpawnTurns = new List<int>();
         [SerializeField] private bool placeReinforcementSpawner;
         [SerializeField] private int reinforcementSpawnerPlayerNumber = 1;
         [SerializeField] private UnitPreset reinforcementSpawnerPreset;
-        [SerializeField] private UnitPresetOverride reinforcementSpawnerPresetOverride = new UnitPresetOverride();
         [SerializeField] private int mapWidth = 20;
         [SerializeField] private int mapHeight = 20;
         [SerializeField] private bool enableScenePainting = true;
@@ -187,7 +184,6 @@ namespace Windy.Srpg.Game.Editor
 
                 case PaintMode.Enemy:
                     enemyUnitPreset = (UnitPreset)EditorGUILayout.ObjectField("Enemy Preset", enemyUnitPreset, typeof(UnitPreset), false);
-                    DrawEnemyOverrideEditor();
                     break;
 
                 case PaintMode.Friendly:
@@ -251,27 +247,10 @@ namespace Windy.Srpg.Game.Editor
             }
         }
 
-        private void DrawEnemyOverrideEditor()
-        {
-            if (enemyUnitPresetOverride == null)
-            {
-                enemyUnitPresetOverride = new UnitPresetOverride();
-            }
-
-            EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Enemy Preset Override", EditorStyles.miniBoldLabel);
-            enemyUnitPresetOverride.OverrideWaitGroupId = EditorGUILayout.Toggle("Override Wait Group", enemyUnitPresetOverride.OverrideWaitGroupId);
-            if (enemyUnitPresetOverride.OverrideWaitGroupId)
-            {
-                enemyUnitPresetOverride.WaitGroupId = Mathf.Max(0, EditorGUILayout.IntField("Wait Group Id", enemyUnitPresetOverride.WaitGroupId));
-            }
-        }
-
         private void DrawReinforcementPalette()
         {
             reinforcementUnits ??= new List<ReinforcementUnitEntry>();
             reinforcementSpawnTurns ??= new List<int>();
-            reinforcementSpawnerPresetOverride ??= new UnitPresetOverride();
             int reinforcementUnitCountBeforeDrawing = reinforcementUnits.Count;
 
             EditorGUILayout.HelpBox(
@@ -301,12 +280,8 @@ namespace Windy.Srpg.Game.Editor
                 EditorGUILayout.PropertyField(
                     serializedWindow.FindProperty("reinforcementSpawnerPreset"),
                     new GUIContent("Spawner Preset"));
-                EditorGUILayout.PropertyField(
-                    serializedWindow.FindProperty("reinforcementSpawnerPresetOverride"),
-                    new GUIContent("Spawner Override"),
-                    includeChildren: true);
                 EditorGUILayout.HelpBox(
-                    "The spawner is created from this preset and override. Configure zero movement in either of those assets when the spawner should be immovable.",
+                    "The spawner is created from this preset. Configure zero movement on the preset when the spawner should be immovable.",
                     MessageType.Info);
             }
 
@@ -316,7 +291,6 @@ namespace Windy.Srpg.Game.Editor
             {
                 ReinforcementUnitEntry newEntry = reinforcementUnits[i] ?? new ReinforcementUnitEntry();
                 newEntry.PlayerNumber = 1;
-                newEntry.PresetOverride ??= new UnitPresetOverride();
                 reinforcementUnits[i] = newEntry;
             }
         }
@@ -423,10 +397,10 @@ namespace Windy.Srpg.Game.Editor
                     return PaintDeploymentSlotAt(context, coordinate);
 
                 case PaintMode.Enemy:
-                    return PaintSceneUnitAt(context, coordinate, enemyUnitPrefab, enemyUnitPreset, enemyUnitPresetOverride, playerNumber: 1, participatesInDeploymentRoster: false, includeInOwnedUnitSave: false);
+                    return PaintSceneUnitAt(context, coordinate, enemyUnitPrefab, enemyUnitPreset, playerNumber: 1, participatesInDeploymentRoster: false, includeInOwnedUnitSave: false);
 
                 case PaintMode.Friendly:
-                    return PaintSceneUnitAt(context, coordinate, friendlyUnitPrefab, friendlyUnitPreset, null, playerNumber: 0, participatesInDeploymentRoster: false, includeInOwnedUnitSave: false);
+                    return PaintSceneUnitAt(context, coordinate, friendlyUnitPrefab, friendlyUnitPreset, playerNumber: 0, participatesInDeploymentRoster: false, includeInOwnedUnitSave: false);
 
                 case PaintMode.Reinforcement:
                     return PaintReinforcementTileAt(context, coordinate);
@@ -646,8 +620,7 @@ namespace Windy.Srpg.Game.Editor
                 .Select(entry => new ReinforcementUnitEntry
                 {
                     PlayerNumber = Mathf.Max(0, entry.PlayerNumber),
-                    Preset = entry.Preset,
-                    PresetOverride = ClonePresetOverride(entry.PresetOverride)
+                    Preset = entry.Preset
                 })
                 .ToList();
             List<int> configuredTurns = (reinforcementSpawnTurns ?? new List<int>())
@@ -694,7 +667,6 @@ namespace Windy.Srpg.Game.Editor
                     coordinate,
                     spawnerUnitTemplate,
                     reinforcementSpawnerPreset,
-                    reinforcementSpawnerPresetOverride,
                     playerNumber: spawnerPlayerNumber,
                     participatesInDeploymentRoster: false,
                     includeInOwnedUnitSave: false))
@@ -742,7 +714,6 @@ namespace Windy.Srpg.Game.Editor
             Vector2Int coordinate,
             GameObject unitPrefab,
             UnitPreset preset,
-            UnitPresetOverride presetOverride,
             int playerNumber,
             bool participatesInDeploymentRoster,
             bool includeInOwnedUnitSave)
@@ -778,7 +749,7 @@ namespace Windy.Srpg.Game.Editor
                 return false;
             }
 
-            ApplyUnitStamp(unit, cell, preset, presetOverride, playerNumber, participatesInDeploymentRoster, includeInOwnedUnitSave);
+            ApplyUnitStamp(unit, cell, preset, playerNumber, participatesInDeploymentRoster, includeInOwnedUnitSave);
             unitObject.name = !string.IsNullOrWhiteSpace(preset?.UnitName)
                 ? $"{preset.UnitName}_{coordinate.x}_{coordinate.y}"
                 : $"{unitPrefab.name}_{coordinate.x}_{coordinate.y}";
@@ -791,7 +762,6 @@ namespace Windy.Srpg.Game.Editor
             Unit unit,
             Cell cell,
             UnitPreset preset,
-            UnitPresetOverride presetOverride,
             int playerNumber,
             bool participatesInDeploymentRoster,
             bool includeInOwnedUnitSave)
@@ -808,7 +778,6 @@ namespace Windy.Srpg.Game.Editor
             unit.IncludeInOwnedUnitSave = includeInOwnedUnitSave;
 
             UnitPresetField?.SetValue(unit, preset);
-            UnitPresetOverrideField?.SetValue(unit, ClonePresetOverride(presetOverride));
 
             if (preset != null)
             {
@@ -816,17 +785,6 @@ namespace Windy.Srpg.Game.Editor
             }
 
             EditorUtility.SetDirty(unit);
-        }
-
-        private static UnitPresetOverride ClonePresetOverride(UnitPresetOverride source)
-        {
-            if (source == null)
-            {
-                return new UnitPresetOverride();
-            }
-
-            string json = JsonUtility.ToJson(source);
-            return JsonUtility.FromJson<UnitPresetOverride>(json);
         }
 
         private static void InvokeEditorPresetRefresh(Unit unit, UnitPreset preset)

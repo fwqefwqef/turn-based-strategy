@@ -60,11 +60,6 @@ namespace Windy.Srpg.Game.Localization
                 : string.Format(CultureInfo.InvariantCulture, template, args);
         }
 
-        public static string ResolveOverride(string overrideText, string key, string fallback)
-        {
-            return string.IsNullOrWhiteSpace(overrideText) ? Get(key, fallback) : overrideText;
-        }
-
         public static string ResolveSceneText(TMP_Text text, string key, string fallback)
         {
             return text != null && !string.IsNullOrWhiteSpace(text.text)
@@ -136,7 +131,7 @@ namespace Windy.Srpg.Game.Localization
                         continue;
                     }
 
-                    localizedValues[header] = values[columnIndex];
+                    localizedValues[header] = UnescapeTextValue(values[columnIndex]);
                 }
 
                 Entries[key] = localizedValues;
@@ -216,6 +211,13 @@ namespace Windy.Srpg.Game.Localization
 
             values.Add(builder.ToString());
             return values;
+        }
+
+        private static string UnescapeTextValue(string value)
+        {
+            return string.IsNullOrEmpty(value)
+                ? value
+                : value.Replace("\\n", "\n");
         }
 
         private static string ResolveCsvPath()
