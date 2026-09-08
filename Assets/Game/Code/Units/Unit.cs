@@ -84,6 +84,9 @@ namespace Windy.Srpg.Game.Units
         public string unitName = "Ally";
         [Header("Unit Preset")]
         [SerializeField] internal UnitPreset preset;
+        [SerializeField] private UnitPresetOverride presetOverrides = new UnitPresetOverride();
+        public UnitPreset AssignedPreset => preset;
+        public UnitPresetOverride PresetOverrides => presetOverrides ??= new UnitPresetOverride();
         [Header("Save Identity")]
         [SerializeField] internal string unitId = string.Empty;
         [SerializeField] internal string visualId = string.Empty;

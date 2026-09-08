@@ -21,7 +21,10 @@ namespace Windy.Srpg.Game.Editor
             "preset",
             "startingInventory",
             "startingSkills",
-            "startingClassPassives"
+            "startingClassPassives",
+            "Obstructable",
+            "participatesInDeploymentRoster",
+            "MovementAnimationSpeed"
         };
 
         private Vector2 tileScrollPosition;

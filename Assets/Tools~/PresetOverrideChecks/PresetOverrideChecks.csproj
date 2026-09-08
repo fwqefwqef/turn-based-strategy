@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UnityManagedPath Condition="'$(UnityManagedPath)' == ''">C:/Program Files/Unity/Hub/Editor/6000.4.1f1/Editor/Data/Managed</UnityManagedPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../com.windy.srpg.game.csproj" />
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(UnityManagedPath)/UnityEngine/UnityEngine.CoreModule.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

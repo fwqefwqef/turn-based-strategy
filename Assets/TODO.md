@@ -2,10 +2,6 @@
 
 ## Next planned features ✔
 
-# Try implementing a pain debuff via skill or potion
-
-Make sure the debuff architecture is solid.
-
 # Add death's door mechanic
 Player units can enter <= 0HP once. If hit again at this state, die. Enemies die normally when they hit 0HP. Upon reaching death's door. Gain Str/Mag/Def/Spd/Lck -1 for this battle, stacking up to 5 times. 
 When at death's door, movement is lowered to 1.

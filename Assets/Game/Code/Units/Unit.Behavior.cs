@@ -738,20 +738,21 @@ namespace Windy.Srpg.Game.Units
             movementAiMode = preset.MovementAiMode;
             waitGroupId = Mathf.Max(0, preset.WaitGroupId);
             aiWaitTriggered = false;
-            MovementPoints = Mathf.Max(0f, preset.BaseStats.MovementPoints);
+            UnitStatBlock stats = PresetOverrides.ResolveStats(preset.BaseStats);
+            MovementPoints = Mathf.Max(0f, stats.MovementPoints);
 
             if (movementAiMode == UnitMovementAiMode.NotMove)
             {
                 MovementPoints = 0f;
             }
 
-            baseHitPoints = Mathf.Max(1, preset.BaseStats.HitPoints);
-            baseManaPoints = Mathf.Max(0, preset.BaseStats.ManaPoints);
-            baseStrength = preset.BaseStats.Strength;
-            baseDefense = preset.BaseStats.Defense;
-            baseMagic = preset.BaseStats.Magic;
-            baseSpeed = preset.BaseStats.Speed;
-            baseLuck = preset.BaseStats.Luck;
+            baseHitPoints = Mathf.Max(1, stats.HitPoints);
+            baseManaPoints = Mathf.Max(0, stats.ManaPoints);
+            baseStrength = stats.Strength;
+            baseDefense = stats.Defense;
+            baseMagic = stats.Magic;
+            baseSpeed = stats.Speed;
+            baseLuck = stats.Luck;
         }
         private void ApplyPresetGrowthRates(UnitPreset preset)
         {
@@ -854,12 +855,9 @@ namespace Windy.Srpg.Game.Units
         }
         private void ResolvePresetLoadout(UnitPreset preset)
         {
-            resolvedStartingInventory = new List<StartingInventoryItem>(
-                preset != null ? preset.StartingInventory : Enumerable.Empty<StartingInventoryItem>());
-            resolvedStartingSkills = new List<StartingSkillEntry>(
-                preset != null ? preset.StartingSkills : Enumerable.Empty<StartingSkillEntry>());
-            resolvedStartingClassPassives = new List<StartingPassiveEntry>(
-                preset != null ? preset.StartingClassPassives : Enumerable.Empty<StartingPassiveEntry>());
+            resolvedStartingInventory = PresetOverrides.ResolveInventory(preset?.StartingInventory);
+            resolvedStartingSkills = PresetOverrides.ResolveSkills(preset?.StartingSkills);
+            resolvedStartingClassPassives = PresetOverrides.ResolvePassives(preset?.StartingClassPassives);
         }
         public void ApplyBaseStatIncrease(LevelableStatKind stat, int amount)
         {
