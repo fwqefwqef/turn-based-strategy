@@ -11,13 +11,12 @@ internal sealed class MainForm : Form
         Color.FromArgb(206, 80, 74),
         Color.FromArgb(108, 96, 219),
         Color.FromArgb(66, 146, 215),
-        Color.FromArgb(52, 161, 118),
         Color.FromArgb(231, 171, 47),
         Color.FromArgb(182, 102, 201)
     ];
 
     private readonly string[] _statNames = StatGainCalculator.DefaultStatNames.ToArray();
-    private readonly int[] _growthRates = [25, 20, 15, 15, 15, 10];
+    private readonly int[] _growthRates = [20, 20, 20, 20, 20];
     private readonly GrowthBarControl[] _barControls = new GrowthBarControl[StatGainCalculator.ExpectedStatCount];
 
     private readonly Label _growthSummaryLabel;

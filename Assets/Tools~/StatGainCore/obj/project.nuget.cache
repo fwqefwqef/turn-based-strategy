@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "0RODqOuC7lo=",
+  "dgSpecHash": "o1+sF12JGMs=",
   "success": true,
   "projectFilePath": "C:\\Users\\sjkim\\Turn Based Strategy\\Assets\\Tools~\\StatGainCore\\StatGainCore.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\sjkim\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.18\\microsoft.netcore.app.ref.9.0.18.nupkg.sha512",
-    "C:\\Users\\sjkim\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.18\\microsoft.windowsdesktop.app.ref.9.0.18.nupkg.sha512",
-    "C:\\Users\\sjkim\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.18\\microsoft.aspnetcore.app.ref.9.0.18.nupkg.sha512"
+    "C:\\Users\\sjkim\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.19\\microsoft.netcore.app.ref.9.0.19.nupkg.sha512",
+    "C:\\Users\\sjkim\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.19\\microsoft.windowsdesktop.app.ref.9.0.19.nupkg.sha512",
+    "C:\\Users\\sjkim\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.19\\microsoft.aspnetcore.app.ref.9.0.19.nupkg.sha512"
   ],
   "logs": []
 }

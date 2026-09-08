@@ -9,3 +9,4 @@ C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\S
 C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\refint\StatGainCore.dll
 C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\StatGainCore.pdb
 C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\ref\StatGainCore.dll
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainCore\obj\Debug\net9.0\StatGainCore.sourcelink.json

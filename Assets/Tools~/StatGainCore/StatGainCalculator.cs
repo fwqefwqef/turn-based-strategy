@@ -19,14 +19,13 @@ public sealed record SequenceResult(
 
 public static class StatGainCalculator
 {
-    public const int ExpectedStatCount = 6;
+    public const int ExpectedStatCount = 5;
     public const int ExpectedGrowthTotal = 100;
     public static readonly IReadOnlyList<string> DefaultStatNames =
     [
         "Strength",
         "Magic",
         "Defense",
-        "Resistance",
         "Speed",
         "Luck"
     ];

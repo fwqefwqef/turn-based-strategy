@@ -85,7 +85,7 @@ static ParsedInput ParseInput(string[] args)
         if (string.IsNullOrWhiteSpace(line))
         {
             throw new ArgumentException(
-                "Provide 6 growth rates that add up to 100. Example: \"25 20 15 15 15 10\" or use --end-level 30.");
+                "Provide 5 growth rates that add up to 100. Example: \"20 20 20 20 20\" or use --end-level 30.");
         }
 
         valueTokens.AddRange(line.Split([' ', '\t', ','], StringSplitOptions.RemoveEmptyEntries));

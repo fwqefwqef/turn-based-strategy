@@ -16,3 +16,4 @@ C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainLab\obj\Debug\net9.0-wi
 C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainLab\obj\Debug\net9.0-windows\StatGainLab.pdb
 C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainLab\obj\Debug\net9.0-windows\StatGainLab.genruntimeconfig.cache
 C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainLab\obj\Debug\net9.0-windows\ref\StatGainLab.dll
+C:\Users\sjkim\Turn Based Strategy\Assets\Tools~\StatGainLab\obj\Debug\net9.0-windows\StatGainLab.sourcelink.json
