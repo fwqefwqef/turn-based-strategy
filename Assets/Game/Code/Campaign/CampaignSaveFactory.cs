@@ -12,7 +12,7 @@ namespace Windy.Srpg.Game.Campaign
 {
     public static class CampaignSaveFactory
     {
-        public const int CurrentSaveVersion = 5;
+        public const int CurrentSaveVersion = 6;
         public static CampaignSaveData CreateFromOwnedUnits(
             IEnumerable<Unit> ownedUnits,
             CampaignSaveData existingSave = null,
@@ -328,7 +328,8 @@ namespace Windy.Srpg.Game.Campaign
                 entries.Add(new SavedInventoryEntryData
                 {
                     ItemId = entry.ItemId,
-                    RemainingCharges = remainingCharges
+                    RemainingCharges = remainingCharges,
+                    IsDroppable = entry.IsDroppable
                 });
             }
 
@@ -431,7 +432,8 @@ namespace Windy.Srpg.Game.Campaign
                 .Select(entry => new SavedInventoryEntryData
                 {
                     ItemId = entry.ItemId,
-                    RemainingCharges = entry.RemainingCharges
+                    RemainingCharges = entry.RemainingCharges,
+                    IsDroppable = entry.IsDroppable
                 })
                 .ToArray()
                 ?? Array.Empty<SavedInventoryEntryData>();

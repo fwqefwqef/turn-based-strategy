@@ -27,6 +27,7 @@ namespace Windy.Srpg.Game.UI
         private static readonly Color InventorySelectedRowColor = new Color(1f, 0.95f, 0.05f, 0.95f);
         private static readonly Color InventoryDefaultRowColor = Color.white;
         private static readonly Color InventoryEmptySlotRowColor = new Color(0.6f, 0.6f, 0.65f, 0.8f);
+        private static readonly Color DroppableItemTextColor = new Color(0.1f, 0.55f, 0.18f, 1f);
 
         [Header("References")]
         [SerializeField] private Canvas canvas;
@@ -758,7 +759,8 @@ namespace Windy.Srpg.Game.UI
                     inventoryManagementOwnItemButtonTemplate,
                     ownItemsContainer,
                     itemLabel,
-                    () => BeginGiveInventoryAction(selectedUnit?.UnitId, sourceIndex, itemLabel));
+                    () => BeginGiveInventoryAction(selectedUnit?.UnitId, sourceIndex, itemLabel),
+                    textColor: indexedEntry.Entry.IsDroppable ? DroppableItemTextColor : null);
                 button.name = $"PreBattleInventoryOwn:{sourceIndex}";
                 buttonIndex++;
             }
@@ -803,7 +805,8 @@ namespace Windy.Srpg.Game.UI
                     otherItemsContainer,
                     itemLabel,
                     () => BeginTakeInventoryAction(selectedUnit?.UnitId, null, sourceIndex, sourceIsStorage: true, itemName),
-                    !targetInventoryFull);
+                    !targetInventoryFull,
+                    indexedEntry.Entry.IsDroppable ? DroppableItemTextColor : null);
                 button.name = $"PreBattleInventoryStorage:{sourceIndex}";
                 buttonIndex++;
             }
@@ -832,7 +835,8 @@ namespace Windy.Srpg.Game.UI
                         otherItemsContainer,
                         itemLabel,
                         () => BeginTakeInventoryAction(selectedUnit?.UnitId, unit.UnitId, sourceIndex, sourceIsStorage: false, itemName),
-                        !targetInventoryFull);
+                        !targetInventoryFull,
+                        indexedEntry.Entry.IsDroppable ? DroppableItemTextColor : null);
                     button.name = $"PreBattleInventoryOther:{unit.UnitId}:{sourceIndex}";
                     buttonIndex++;
                 }
@@ -850,7 +854,8 @@ namespace Windy.Srpg.Game.UI
                         otherItemsContainer,
                         itemLabel,
                         null,
-                        false);
+                        false,
+                        indexedEntry.Entry.IsDroppable ? DroppableItemTextColor : null);
                     button.name = $"PreBattleInventoryOther:{selectedCatalogUnit.UnitId}:{sourceIndex}";
                     buttonIndex++;
                 }
@@ -1830,7 +1835,7 @@ namespace Windy.Srpg.Game.UI
             return null;
         }
 
-        private Button CreateInventoryTemplateButton(Button template, RectTransform container, string label, Action onClick, bool interactable = true)
+        private Button CreateInventoryTemplateButton(Button template, RectTransform container, string label, Action onClick, bool interactable = true, Color? textColor = null)
         {
             if (template == null || container == null)
             {
@@ -1853,6 +1858,10 @@ namespace Windy.Srpg.Game.UI
             if (text != null)
             {
                 text.text = label;
+                if (textColor.HasValue)
+                {
+                    text.color = textColor.Value;
+                }
             }
 
             return button;

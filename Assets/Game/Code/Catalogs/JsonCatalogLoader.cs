@@ -452,6 +452,10 @@ namespace Windy.Srpg.Game.Catalogs
         public string Name = "buff_name";
         public string Description = "buff_desc";
         public int Duration = 1;
+        public string Category = nameof(BuffCategory.Buff);
+        public int MaxStacks = 1;
+        public bool Removable = true;
+        public string StackKey;
         public PrimaryStatModifiers PrimaryStatModifiers;
         public SecondaryStatModifiers SecondaryStatModifiers;
         public string EffectId;
@@ -464,6 +468,10 @@ namespace Windy.Srpg.Game.Catalogs
                 Name = Name,
                 Description = Description,
                 Duration = Duration,
+                Category = CatalogResourceLoader.ParseEnum(Category, BuffCategory.Buff),
+                MaxStacks = Math.Max(1, MaxStacks),
+                Removable = Removable,
+                StackKey = CatalogResourceLoader.NormalizeOptionalString(StackKey),
                 PrimaryStatModifiers = PrimaryStatModifiers,
                 SecondaryStatModifiers = SecondaryStatModifiers,
                 EffectId = CatalogResourceLoader.NormalizeOptionalString(EffectId)

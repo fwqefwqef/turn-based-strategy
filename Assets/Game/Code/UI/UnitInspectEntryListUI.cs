@@ -19,6 +19,7 @@ namespace Windy.Srpg.Game.UI
             public Image Background;
             public TMP_Text Label;
             public string BaseLabel;
+            public Color BaseTextColor;
         }
 
         public readonly struct EntryData
@@ -27,13 +28,27 @@ namespace Windy.Srpg.Game.UI
             public readonly string DisplayName;
             public readonly string DetailTitle;
             public readonly string DetailBody;
+            public readonly bool HasTextColor;
+            public readonly Color TextColor;
 
             public EntryData(string id, string displayName, string detailTitle, string detailBody)
+                : this(id, displayName, detailTitle, detailBody, false, Color.black)
+            {
+            }
+
+            public EntryData(string id, string displayName, string detailTitle, string detailBody, Color textColor)
+                : this(id, displayName, detailTitle, detailBody, true, textColor)
+            {
+            }
+
+            private EntryData(string id, string displayName, string detailTitle, string detailBody, bool hasTextColor, Color textColor)
             {
                 Id = id ?? string.Empty;
                 DisplayName = displayName ?? string.Empty;
                 DetailTitle = string.IsNullOrWhiteSpace(detailTitle) ? DisplayName : detailTitle;
                 DetailBody = detailBody ?? string.Empty;
+                HasTextColor = hasTextColor;
+                TextColor = textColor;
             }
         }
 
@@ -204,10 +219,11 @@ namespace Windy.Srpg.Game.UI
                     rowButton.colors = colors;
 
                     TMP_Text label = rowButton.GetComponentInChildren<TMP_Text>(true);
+                    Color baseTextColor = entry.HasTextColor ? entry.TextColor : TextNormalColor;
                     if (label != null)
                     {
                         label.text = entry.DisplayName;
-                        label.color = TextNormalColor;
+                        label.color = baseTextColor;
                         label.fontStyle = FontStyles.Normal;
                     }
 
@@ -219,7 +235,8 @@ namespace Windy.Srpg.Game.UI
                         Button = rowButton,
                         Background = background,
                         Label = label,
-                        BaseLabel = entry.DisplayName
+                        BaseLabel = entry.DisplayName,
+                        BaseTextColor = baseTextColor
                     });
                 }
             }
@@ -490,7 +507,7 @@ namespace Windy.Srpg.Game.UI
             }
 
             rowState.Label.text = rowState.BaseLabel;
-            rowState.Label.color = highlighted ? TextHighlightColor : TextNormalColor;
+            rowState.Label.color = highlighted ? TextHighlightColor : rowState.BaseTextColor;
             rowState.Label.fontStyle = highlighted ? FontStyles.Bold : FontStyles.Normal;
         }
 

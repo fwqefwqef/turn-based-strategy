@@ -379,6 +379,41 @@ namespace Windy.Srpg.Game.Units
 
             return removed;
         }
+
+        public int RemoveRemovableBuffs(params BuffCategory[] categories)
+        {
+            EnsureBuffList();
+            int removedCount = BuffList.RemoveRemovableBuffs(categories);
+            if (removedCount > 0)
+            {
+                RefreshHealthState();
+                RaiseBuffsChanged();
+            }
+
+            return removedCount;
+        }
+
+        public int RemoveRemovableDebuffs()
+        {
+            EnsureBuffList();
+            int removedCount = BuffList.RemoveRemovableDebuffs();
+            if (removedCount > 0)
+            {
+                RefreshHealthState();
+                RaiseBuffsChanged();
+            }
+
+            return removedCount;
+        }
+
+        public void TickBuffDotEffects(BuffCategory category = BuffCategory.Pain)
+        {
+            EnsureBuffList();
+            BuffList.OnDotTick(category);
+            RefreshHealthState();
+            RaiseBuffsChanged();
+        }
+
         public Item AddInventoryItem(ItemData data, int? remainingChargesOverride = null)
         {
             EnsureInventory();
@@ -493,7 +528,8 @@ namespace Windy.Srpg.Game.Units
                 .Select(entry => new SavedInventoryEntryData
                 {
                     ItemId = entry.ItemId,
-                    RemainingCharges = entry.RemainingCharges
+                    RemainingCharges = entry.RemainingCharges,
+                    IsDroppable = entry.IsDroppable
                 })
                 .ToArray()
                 ?? Array.Empty<SavedInventoryEntryData>();
@@ -1645,9 +1681,7 @@ namespace Windy.Srpg.Game.Units
                         continue;
                     }
 
-                    yield return entry.IsInfinite
-                        ? data.Name
-                        : $"{data.Name} ({entry.RemainingDuration})";
+                    yield return BuildActiveBuffDisplayName(entry);
                 }
             }
         }
@@ -1665,7 +1699,7 @@ namespace Windy.Srpg.Game.Units
                         continue;
                     }
 
-                    lines.Add(data.Name);
+                    lines.Add(BuildActiveBuffDisplayName(entry));
                     lines.Add(data.Description);
                     lines.Add(string.Empty);
                 }
@@ -1682,6 +1716,20 @@ namespace Windy.Srpg.Game.Units
             }
 
             return "Current Buffs:\n\n" + string.Join("\n", lines);
+        }
+
+        private static string BuildActiveBuffDisplayName(RuntimeBuff entry)
+        {
+            BuffData data = entry?.Data;
+            if (data == null)
+            {
+                return string.Empty;
+            }
+
+            string stackSuffix = entry.Stacks > 1 ? $" x{entry.Stacks}" : string.Empty;
+            return entry.IsInfinite
+                ? $"{data.Name}{stackSuffix}"
+                : $"{data.Name}{stackSuffix} ({Mathf.Max(0, entry.RemainingDuration)})";
         }
         private void RaiseHealthChanged(int previousHitPoints, int currentHitPoints, Unit source)
         {

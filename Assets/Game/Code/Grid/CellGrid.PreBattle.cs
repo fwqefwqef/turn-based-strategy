@@ -53,6 +53,11 @@ namespace Windy.Srpg.Game.Grid
             }
 
             CampaignSaveData existingSave = LoadSeededCampaignSave();
+            if (markCurrentChapterCleared)
+            {
+                MergePendingBattleStorageIntoSave(existingSave);
+            }
+
             string[] authoredRoster = GetEditableDeploymentRoster(existingSave, GetDeploymentSlotCount());
             CampaignSaveData save = CampaignSaveFactory.CreateFromOwnedUnits(
                 deployedUnits,
@@ -69,6 +74,11 @@ namespace Windy.Srpg.Game.Grid
             }
 
             SaveCampaignDataImmediate(save);
+            if (markCurrentChapterCleared)
+            {
+                ClearPendingBattleStorageItems();
+            }
+
             Debug.Log($"CellGrid: Wrote owned unit save to '{CampaignSaveManager.SavePath}'.");
         }
 
@@ -595,7 +605,8 @@ namespace Windy.Srpg.Game.Grid
             return new SavedInventoryEntryData
             {
                 ItemId = entry.ItemId,
-                RemainingCharges = entry.RemainingCharges
+                RemainingCharges = entry.RemainingCharges,
+                IsDroppable = entry.IsDroppable
             };
         }
 

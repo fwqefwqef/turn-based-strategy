@@ -59,6 +59,21 @@ namespace Windy.Srpg.Game.Inventory
                 Luck = left.Luck + right.Luck
             };
         }
+
+        public static PrimaryStatModifiers operator *(PrimaryStatModifiers modifiers, int multiplier)
+        {
+            return new PrimaryStatModifiers
+            {
+                MaxHitPoints = modifiers.MaxHitPoints * multiplier,
+                MaxManaPoints = modifiers.MaxManaPoints * multiplier,
+                Attack = modifiers.Attack * multiplier,
+                Strength = modifiers.Strength * multiplier,
+                Defense = modifiers.Defense * multiplier,
+                Magic = modifiers.Magic * multiplier,
+                Speed = modifiers.Speed * multiplier,
+                Luck = modifiers.Luck * multiplier
+            };
+        }
     }
 
     [Serializable]
@@ -77,6 +92,17 @@ namespace Windy.Srpg.Game.Inventory
                 Crit = left.Crit + right.Crit,
                 CritAvoid = left.CritAvoid + right.CritAvoid,
                 AttackRange = left.AttackRange + right.AttackRange
+            };
+        }
+
+        public static SecondaryStatModifiers operator *(SecondaryStatModifiers modifiers, int multiplier)
+        {
+            return new SecondaryStatModifiers
+            {
+                Accuracy = modifiers.Accuracy * multiplier,
+                Crit = modifiers.Crit * multiplier,
+                CritAvoid = modifiers.CritAvoid * multiplier,
+                AttackRange = modifiers.AttackRange * multiplier
             };
         }
     }
@@ -140,6 +166,7 @@ namespace Windy.Srpg.Game.Inventory
     {
         public string ItemId;
         public int InitialCharges;
+        public bool IsDroppable;
 
         [HideInInspector]
         public bool ChargesInitialized;

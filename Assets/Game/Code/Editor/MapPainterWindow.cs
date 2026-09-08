@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Windy.Srpg.Game.Chapters;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 
@@ -183,7 +184,7 @@ namespace Windy.Srpg.Game.Editor
                     break;
 
                 case PaintMode.Enemy:
-                    enemyUnitPreset = (UnitPreset)EditorGUILayout.ObjectField("Enemy Preset", enemyUnitPreset, typeof(UnitPreset), false);
+                    DrawEnemyPresetPalette();
                     break;
 
                 case PaintMode.Friendly:
@@ -244,6 +245,76 @@ namespace Windy.Srpg.Game.Editor
                 {
                     selectedTilePreset = tilePreset;
                 }
+            }
+        }
+
+        private void DrawEnemyPresetPalette()
+        {
+            ChapterData chapterData = GetCurrentChapterData();
+            if (chapterData == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "No Chapter Data component was found in the active scene. Add Chapter Data to use a scene-specific enemy preset palette.",
+                    MessageType.Info);
+                enemyUnitPreset = (UnitPreset)EditorGUILayout.ObjectField("Selected Enemy Preset", enemyUnitPreset, typeof(UnitPreset), false);
+                return;
+            }
+
+            SerializedObject serializedChapterData = new SerializedObject(chapterData);
+            serializedChapterData.Update();
+            EditorGUILayout.PropertyField(
+                serializedChapterData.FindProperty("enemyPaintPresets"),
+                new GUIContent("Enemy Paint Presets"),
+                includeChildren: true);
+            serializedChapterData.ApplyModifiedProperties();
+
+            List<UnitPreset> paintPresets = chapterData.EnemyPaintPresets
+                .Where(preset => preset != null)
+                .Distinct()
+                .OrderBy(preset => preset.name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (paintPresets.Count == 0)
+            {
+                EditorGUILayout.HelpBox("Add enemy presets to Chapter Data, then select one here before painting enemies.", MessageType.Info);
+            }
+            else
+            {
+                if (enemyUnitPreset == null || !paintPresets.Contains(enemyUnitPreset))
+                {
+                    enemyUnitPreset = paintPresets[0];
+                }
+
+                foreach (UnitPreset preset in paintPresets)
+                {
+                    DrawEnemyPresetButton(preset);
+                }
+            }
+
+            enemyUnitPreset = (UnitPreset)EditorGUILayout.ObjectField("Selected Enemy Preset", enemyUnitPreset, typeof(UnitPreset), false);
+        }
+
+        private void DrawEnemyPresetButton(UnitPreset preset)
+        {
+            bool isSelected = enemyUnitPreset == preset;
+            GUIStyle style = new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fixedHeight = 28f
+            };
+
+            Rect rowRect = EditorGUILayout.GetControlRect(false, 28f);
+            if (isSelected)
+            {
+                EditorGUI.DrawRect(rowRect, new Color(0.55f, 0.75f, 1f, 0.45f));
+            }
+
+            string label = !string.IsNullOrWhiteSpace(preset.UnitName)
+                ? $"{preset.UnitName}  |  Lv {Mathf.Max(1, preset.BaseLevel)}  |  {preset.name}"
+                : $"{preset.name}  |  Lv {Mathf.Max(1, preset.BaseLevel)}";
+            if (GUI.Button(rowRect, label, style))
+            {
+                enemyUnitPreset = preset;
             }
         }
 
@@ -1179,7 +1250,14 @@ namespace Windy.Srpg.Game.Editor
 
         private MapPainterSceneContext GetCurrentContext()
         {
-            return UnityEngine.Object.FindFirstObjectByType<MapPainterSceneContext>();
+            return UnityEngine.Object.FindAnyObjectByType<MapPainterSceneContext>();
+        }
+
+        private ChapterData GetCurrentChapterData()
+        {
+            MapPainterSceneContext context = GetCurrentContext();
+            CellGrid cellGrid = context != null ? context.CellGrid : UnityEngine.Object.FindAnyObjectByType<CellGrid>();
+            return ChapterData.FindForGrid(cellGrid);
         }
 
         private bool TryGetCoreSceneReferences(
@@ -1200,7 +1278,7 @@ namespace Windy.Srpg.Game.Editor
             out Transform unitsParent,
             out Transform deploymentSlotsParent)
         {
-            cellGrid = context != null ? context.CellGrid : UnityEngine.Object.FindFirstObjectByType<CellGrid>();
+            cellGrid = context != null ? context.CellGrid : UnityEngine.Object.FindAnyObjectByType<CellGrid>();
             sceneUnitGenerator = context != null ? context.SceneUnitGenerator : null;
             cellsParent = null;
             unitsParent = null;

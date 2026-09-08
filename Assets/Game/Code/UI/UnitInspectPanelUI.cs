@@ -20,6 +20,7 @@ namespace Windy.Srpg.Game.UI
     public class UnitInspectPanelUI : MonoBehaviour
     {
         private static readonly Color InspectFocusColor = new Color(0.63f, 0.84f, 1f, 1f);
+        private static readonly Color DroppableItemTextColor = new Color(0.1f, 0.55f, 0.18f, 1f);
 
         public static event Action<Unit> SelectionTargetChanged;
         public static event Action<Unit> InspectTargetChanged;
@@ -794,6 +795,17 @@ namespace Windy.Srpg.Game.UI
                     ? $" x{entry.RemainingCharges}"
                     : string.Empty;
 
+                if (entry.IsDroppable)
+                {
+                    yield return new UnitInspectEntryListUI.EntryData(
+                        $"item:{entry.Data.Id}:{prefix}",
+                        $"{prefix}{entry.Data.Name}{suffix}",
+                        entry.Data.Name,
+                        BuildItemDetailBody(entry),
+                        DroppableItemTextColor);
+                    continue;
+                }
+
                 yield return new UnitInspectEntryListUI.EntryData(
                     $"item:{entry.Data.Id}:{prefix}",
                     $"{prefix}{entry.Data.Name}{suffix}",
@@ -867,7 +879,7 @@ namespace Windy.Srpg.Game.UI
                     $"buff:{buff.BuffId}:{displayName}",
                     displayName,
                     buff.Data.Name,
-                    buff.Data.Description);
+                    BuildBuffDetailBody(buff));
             }
         }
 
@@ -950,10 +962,10 @@ namespace Windy.Srpg.Game.UI
                 "summary:equip",
                 () => inspectedUnit?.EquippedWeapon?.Name ?? GameTextCatalog.Get("ui.common.none", "None"),
                 BuildEquippedItemDetailBody);
-            RegisterDetailClick(strengthText, "stat:str", GameTextCatalog.Get("ui.inspect.detail.strength", "Strength"), () => GetDetailDescription("ui.inspect.description.strength", "Physical Damage +1\n\nMax HP +1"));
-            RegisterDetailClick(magicText, "stat:mag", GameTextCatalog.Get("ui.inspect.detail.magic", "Magic"), () => GetDetailDescription("ui.inspect.description.magic", "Magic Damage +1\n\nMagic Defense +1\n\nMax MP +3\n\nHealing Power +1"));
-            RegisterDetailClick(defenseText, "stat:def", GameTextCatalog.Get("ui.inspect.detail.defense", "Defense"), () => GetDetailDescription("ui.inspect.description.defense", "Physical Defense +1\n\nMax HP +1"));
-            RegisterDetailClick(speedText, "stat:spd", GameTextCatalog.Get("ui.inspect.detail.speed", "Speed"), () => GetDetailDescription("ui.inspect.description.speed", "Accuracy/Evasion +5%\n\nIf Speed >= 5, follow-up attack occurs."));
+            RegisterDetailClick(strengthText, "stat:str", GameTextCatalog.Get("ui.inspect.detail.strength", "Strength"), () => GetDetailDescription("ui.inspect.description.strength", "Physical Damage +1\n\nOn level up: Max HP +1"));
+            RegisterDetailClick(magicText, "stat:mag", GameTextCatalog.Get("ui.inspect.detail.magic", "Magic"), () => GetDetailDescription("ui.inspect.description.magic", "Magic Damage +1\n\nMagic Defense +1\n\nHealing Power +1\n\nOn level up: Max MP +3"));
+            RegisterDetailClick(defenseText, "stat:def", GameTextCatalog.Get("ui.inspect.detail.defense", "Defense"), () => GetDetailDescription("ui.inspect.description.defense", "Physical Defense +1\n\nOn level up: Max HP +1"));
+            RegisterDetailClick(speedText, "stat:spd", GameTextCatalog.Get("ui.inspect.detail.speed", "Speed"), () => GetDetailDescription("ui.inspect.description.speed", "Accuracy/Evasion +3%\n\nIf Speed >= 5, follow-up attack occurs."));
             RegisterDetailClick(luckText, "stat:lck", GameTextCatalog.Get("ui.inspect.detail.luck", "Luck"), () => GetDetailDescription("ui.inspect.description.luck", "Critical Chance / Critical Avoid +5%"));
             RegisterDetailClick(movementText, "stat:mov", GameTextCatalog.Get("ui.inspect.detail.movement", "Movement"), () => GetDetailDescription("ui.inspect.description.movement", "Movement determines how many tiles the unit can travel in a turn."));
             RegisterDetailClick(rangeText, "stat:rng", GameTextCatalog.Get("ui.inspect.detail.range", "Range"), () => GetDetailDescription("ui.inspect.description.range", "The unit's attack range with the currently equipped weapon."));
@@ -1203,12 +1215,37 @@ namespace Windy.Srpg.Game.UI
                 return string.Empty;
             }
 
-            if (buff.IsInfinite)
+            string stackSuffix = buff.Stacks > 1 ? $" x{buff.Stacks}" : string.Empty;
+            return buff.IsInfinite
+                ? $"{buff.Data.Name}{stackSuffix}"
+                : $"{buff.Data.Name}{stackSuffix} ({Mathf.Max(0, buff.RemainingDuration)})";
+        }
+
+        private static string BuildBuffDetailBody(RuntimeBuff buff)
+        {
+            if (buff?.Data == null)
             {
-                return buff.Data.Name;
+                return string.Empty;
             }
 
-            return $"{buff.Data.Name} ({Mathf.Max(0, buff.RemainingDuration)})";
+            string removableValue = GameTextCatalog.Get(
+                buff.Removable ? "ui.common.yes" : "ui.common.no",
+                buff.Removable ? "Yes" : "No");
+
+            List<string> lines = new List<string>
+            {
+                GameTextCatalog.Format("ui.buff.detail.category", "Category: {0}", buff.Category),
+                GameTextCatalog.Format("ui.buff.detail.stacks", "Stacks: {0}/{1}", buff.Stacks, buff.MaxStacks),
+                GameTextCatalog.Format("ui.buff.detail.removable", "Removable: {0}", removableValue)
+            };
+
+            if (!string.IsNullOrWhiteSpace(buff.Data.Description))
+            {
+                lines.Add(string.Empty);
+                lines.Add(buff.Data.Description);
+            }
+
+            return string.Join("\n", lines);
         }
 
         private string BuildEquippedItemDetailBody()

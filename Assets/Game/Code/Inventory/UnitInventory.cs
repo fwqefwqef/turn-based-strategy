@@ -14,9 +14,12 @@ namespace Windy.Srpg.Game.Inventory
         private string itemId;
         [SerializeField]
         private int remainingCharges;
+        [SerializeField]
+        private bool isDroppable;
 
         public string ItemId => itemId;
         public int RemainingCharges => remainingCharges;
+        public bool IsDroppable => isDroppable;
         public ItemData Data => ItemRegistry.Get(itemId);
         public WeaponData Weapon => Data as WeaponData;
         public AccessoryData Accessory => Data as AccessoryData;
@@ -28,13 +31,14 @@ namespace Windy.Srpg.Game.Inventory
         {
         }
 
-        public Item(string itemId, int remainingCharges)
+        public Item(string itemId, int remainingCharges, bool isDroppable = false)
         {
             this.itemId = itemId;
             this.remainingCharges = remainingCharges;
+            this.isDroppable = isDroppable;
         }
 
-        public Item(ItemData data, int? remainingChargesOverride = null)
+        public Item(ItemData data, int? remainingChargesOverride = null, bool isDroppable = false)
         {
             if (data == null)
             {
@@ -50,11 +54,18 @@ namespace Windy.Srpg.Game.Inventory
             {
                 remainingCharges = -1;
             }
+
+            this.isDroppable = isDroppable;
         }
 
         public void SetRemainingCharges(int value)
         {
             remainingCharges = value;
+        }
+
+        public void SetDroppable(bool value)
+        {
+            isDroppable = value;
         }
 
         public bool ConsumeCharge()
@@ -108,7 +119,7 @@ namespace Windy.Srpg.Game.Inventory
 
             foreach (var item in startingItems)
             {
-                AddItemById(item.ItemId, item.HasInitialChargesOverride ? (int?)item.InitialCharges : null, notifyOwner: false);
+                AddItemById(item.ItemId, item.HasInitialChargesOverride ? (int?)item.InitialCharges : null, notifyOwner: false, isDroppable: item.IsDroppable);
             }
 
             AutoEquipIfNeeded();
@@ -150,14 +161,14 @@ namespace Windy.Srpg.Game.Inventory
                     break;
                 }
 
-                entries.Add(new Item(item.ItemId, item.RemainingCharges));
+                entries.Add(new Item(item.ItemId, item.RemainingCharges, item.IsDroppable));
             }
 
             AutoEquipIfNeeded();
             NotifyInventoryChanged();
         }
 
-        public Item AddItem(ItemData data, int? remainingChargesOverride = null, bool notifyOwner = true)
+        public Item AddItem(ItemData data, int? remainingChargesOverride = null, bool notifyOwner = true, bool isDroppable = false)
         {
             if (data == null || string.IsNullOrWhiteSpace(data.Id) || IsFull)
             {
@@ -170,7 +181,7 @@ namespace Windy.Srpg.Game.Inventory
             }
 
             ItemRegistry.Register(data);
-            var entry = new Item(data, remainingChargesOverride);
+            var entry = new Item(data, remainingChargesOverride, isDroppable);
             entries.Add(entry);
             AutoEquipIfNeeded();
 
@@ -182,7 +193,7 @@ namespace Windy.Srpg.Game.Inventory
             return entry;
         }
 
-        public Item AddItemById(string itemId, int? remainingChargesOverride = null, bool notifyOwner = true)
+        public Item AddItemById(string itemId, int? remainingChargesOverride = null, bool notifyOwner = true, bool isDroppable = false)
         {
             if (!ItemRegistry.TryGet(itemId, out var data))
             {
@@ -190,7 +201,7 @@ namespace Windy.Srpg.Game.Inventory
                 return null;
             }
 
-            return AddItem(data, remainingChargesOverride, notifyOwner);
+            return AddItem(data, remainingChargesOverride, notifyOwner, isDroppable);
         }
 
         public bool RemoveItem(Item entry)

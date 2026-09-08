@@ -2807,7 +2807,7 @@ namespace Windy.Srpg.Game.Abilities
             profile = new ResolvedAttackProfile
             {
                 Damage = offensiveStat + data.AttackProfile.Might,
-                Accuracy = UnitReference.Speed * 5 + data.AttackProfile.Accuracy,
+                Accuracy = UnitReference.Speed * Unit.AccuracyPerSpeedPoint + data.AttackProfile.Accuracy,
                 Crit = UnitReference.Luck * 5 + data.AttackProfile.Crit,
                 NumHits = Mathf.Max(1, data.AttackProfile.NumHits),
                 IsMagic = isMagic,

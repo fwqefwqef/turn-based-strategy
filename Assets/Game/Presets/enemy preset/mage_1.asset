@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
-  m_Name: mage
+  m_Name: mage_1
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
   PresetId: mage
   UnitName: Mage
@@ -43,7 +43,7 @@ MonoBehaviour:
   StartingInventory:
   - ItemId: magic_sword
     InitialCharges: -1
-    IsDroppable: 0
+    IsDroppable: 1
     ChargesInitialized: 1
   StartingSkills: []
   StartingClassPassives: []

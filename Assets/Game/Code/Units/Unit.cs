@@ -168,10 +168,10 @@ namespace Windy.Srpg.Game.Units
         public virtual bool CanCounterAttack => HasUsableWeapon && GetActiveWeapon().CanCounterAttack;
         public virtual bool PreventsCounterattack => HasUsableWeapon && GetActiveWeapon().PreventsCounterattack;
         public virtual int BaseHitPoints => baseHitPoints;
-        public virtual int MaxHitPoints => Mathf.Max(1, BaseHitPoints + GetPrimaryStatModifiers().MaxHitPoints + Strength);
+        public virtual int MaxHitPoints => Mathf.Max(1, BaseHitPoints + GetPrimaryStatModifiers().MaxHitPoints);
         public int HitPoints { get; set; }
         public virtual int BaseManaPoints => baseManaPoints;
-        public virtual int MaxManaPoints => Mathf.Max(0, BaseManaPoints + GetPrimaryStatModifiers().MaxManaPoints + (Magic * 3));
+        public virtual int MaxManaPoints => Mathf.Max(0, BaseManaPoints + GetPrimaryStatModifiers().MaxManaPoints);
         public int CurrentManaPoints { get; internal set; }
         public int Level => Mathf.Clamp(level, 1, ExperienceCalculator.MaxLevel);
         public int Experience => Level >= ExperienceCalculator.MaxLevel ? 0 : Mathf.Clamp(experience, 0, ExperienceCalculator.MaxGain - 1);
@@ -203,21 +203,21 @@ namespace Windy.Srpg.Game.Units
         public virtual int Luck => BaseLuck + GetPrimaryStatModifiers().Luck;
         public virtual int Attack => (IsMagic ? Magic : Strength) + Might + GetPrimaryStatModifiers().Attack;
 
-        private const int AccuracyPerSpeed = 5;
+        public const int AccuracyPerSpeedPoint = 3;
         private const int CritPerLuck = 5;
 
         public virtual int Accuracy
         {
             get
             {
-                return GetAttackBaseAccuracy() + GetSecondaryStatModifiers().Accuracy + Speed * AccuracyPerSpeed;
+                return GetAttackBaseAccuracy() + GetSecondaryStatModifiers().Accuracy + Speed * AccuracyPerSpeedPoint;
             }
         }
         public virtual int Evade
         {
             get
             {
-                return Speed * AccuracyPerSpeed;
+                return Speed * AccuracyPerSpeedPoint;
             }
         }
         public virtual int Crit
@@ -491,7 +491,7 @@ namespace Windy.Srpg.Game.Units
         {
             return saveData?.Inventory?
                 .Where(entry => entry != null && !string.IsNullOrWhiteSpace(entry.ItemId))
-                .Select(entry => new Item(entry.ItemId, entry.RemainingCharges))
+                .Select(entry => new Item(entry.ItemId, entry.RemainingCharges, entry.IsDroppable))
                 .ToArray()
                 ?? Array.Empty<Item>();
         }
@@ -698,12 +698,15 @@ namespace Windy.Srpg.Game.Units
             {
                 case LevelableStatKind.Strength:
                     baseStrength += amount;
+                    baseHitPoints = Mathf.Max(1, baseHitPoints + amount);
                     break;
                 case LevelableStatKind.Magic:
                     baseMagic += amount;
+                    baseManaPoints = Mathf.Max(0, baseManaPoints + amount * 3);
                     break;
                 case LevelableStatKind.Defense:
                     baseDefense += amount;
+                    baseHitPoints = Mathf.Max(1, baseHitPoints + amount);
                     break;
                 case LevelableStatKind.Speed:
                     baseSpeed += amount;
@@ -794,7 +797,7 @@ namespace Windy.Srpg.Game.Units
                 return 0;
             }
 
-            return weapon.Accuracy + GetSecondaryStatModifiers().Accuracy + GetSpeedForWeapon(weapon) * AccuracyPerSpeed;
+            return weapon.Accuracy + GetSecondaryStatModifiers().Accuracy + GetSpeedForWeapon(weapon) * AccuracyPerSpeedPoint;
         }
 
         public int GetCritForWeapon(WeaponData weapon)

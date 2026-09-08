@@ -3,8 +3,11 @@ using System.Linq;
 using System;
 using UnityEngine;
 using Windy.Srpg.Game.Abilities;
+using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Grid.States;
+using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Players;
+using Windy.Srpg.Game.UI;
 using Windy.Srpg.Game.Units;
 
 namespace Windy.Srpg.Game.Grid
@@ -13,6 +16,19 @@ namespace Windy.Srpg.Game.Grid
     {
         private readonly Queue<Func<System.Collections.IEnumerator>> pendingTurnStartPresentations =
             new Queue<Func<System.Collections.IEnumerator>>();
+        private readonly Queue<DroppedItemStorageChoiceRequest> pendingDroppedItemStorageChoiceRequests =
+            new Queue<DroppedItemStorageChoiceRequest>();
+        private readonly List<SavedInventoryEntryData> pendingBattleStorageItems =
+            new List<SavedInventoryEntryData>();
+        private int pendingDroppedItemStorageChoices;
+        private bool isResolvingDroppedItemStorageChoices;
+
+        private sealed class DroppedItemStorageChoiceRequest
+        {
+            public Unit Recipient;
+            public string SourceName;
+            public SavedInventoryEntryData DroppedEntry;
+        }
 
         // --- Unity lifecycle and scene input dispatch ---
         public void InitializeBattle() => InitializeBattleScene();
@@ -172,11 +188,237 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
+            AwardDroppableItems(e.Attacker, defender);
             defender.CombatDestroyed -= OnCombatDestroyed;
             subscribedUnits.Remove(defender);
             defender.GetAbilities().ForEach(action => action.OnOwnerDestroyed(this));
             Units.Remove(defender);
             RequestBattleOutcomeEvaluation();
+        }
+
+        private void AwardDroppableItems(Unit attacker, Unit defender)
+        {
+            if (attacker == null
+                || defender == null
+                || attacker.PlayerNumber != 0
+                || defender.PlayerNumber == 0
+                || defender.Inventory?.Entries == null)
+            {
+                return;
+            }
+
+            List<Item> droppableItems = defender.Inventory.Entries
+                .Where(entry => entry != null && entry.IsDroppable)
+                .ToList();
+            if (droppableItems.Count == 0)
+            {
+                return;
+            }
+
+            foreach (Item item in droppableItems)
+            {
+                AwardDroppableItem(attacker, defender, item);
+            }
+        }
+
+        private void AwardDroppableItem(Unit attacker, Unit defender, Item item)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.ItemId))
+            {
+                return;
+            }
+
+            string itemName = !string.IsNullOrWhiteSpace(item.Data?.Name) ? item.Data.Name : item.ItemId;
+            if (attacker.Inventory != null
+                && !attacker.Inventory.IsFull
+                && defender.Inventory.TransferEntryTo(item, attacker.Inventory))
+            {
+                item.SetDroppable(false);
+                BattleLog.Log("Loot", $"{attacker.name} obtained {itemName} from {defender.name}.");
+                return;
+            }
+
+            QueueDroppedItemStorageChoice(attacker, defender, item);
+        }
+
+        private void QueueDroppedItemStorageChoice(Unit recipient, Unit source, Item item)
+        {
+            SavedInventoryEntryData droppedEntry = CreateStorageEntryFromDroppedItem(item);
+            if (droppedEntry == null)
+            {
+                return;
+            }
+
+            string sourceName = source != null && !string.IsNullOrWhiteSpace(source.unitName) ? source.unitName : source != null ? source.name : "Enemy";
+            source?.Inventory?.RemoveItem(item);
+            pendingDroppedItemStorageChoices++;
+            pendingDroppedItemStorageChoiceRequests.Enqueue(new DroppedItemStorageChoiceRequest
+            {
+                Recipient = recipient,
+                SourceName = sourceName,
+                DroppedEntry = droppedEntry
+            });
+
+            if (!isResolvingDroppedItemStorageChoices)
+            {
+                StartCoroutine(ProcessDroppedItemStorageChoices());
+            }
+        }
+
+        private System.Collections.IEnumerator ProcessDroppedItemStorageChoices()
+        {
+            isResolvingDroppedItemStorageChoices = true;
+
+            while (pendingDroppedItemStorageChoiceRequests.Count > 0)
+            {
+                DroppedItemStorageChoiceRequest request = pendingDroppedItemStorageChoiceRequests.Dequeue();
+                yield return StartCoroutine(ResolveDroppedItemStorageChoice(request));
+                pendingDroppedItemStorageChoices = Mathf.Max(0, pendingDroppedItemStorageChoices - 1);
+                RequestBattleOutcomeEvaluation();
+            }
+
+            isResolvingDroppedItemStorageChoices = false;
+        }
+
+        private System.Collections.IEnumerator ResolveDroppedItemStorageChoice(DroppedItemStorageChoiceRequest request)
+        {
+            bool resolved = false;
+            DroppedItemStorageChoiceUI choiceUi = FindAnyObjectByType<DroppedItemStorageChoiceUI>(FindObjectsInactive.Include);
+            if (choiceUi == null)
+            {
+                StageSavedInventoryEntryForBattleStorage(request.DroppedEntry);
+                BattleLog.Log("Loot", $"{FormatSavedInventoryEntryName(request.DroppedEntry)} from {request.SourceName} will be sent to storage on victory.");
+                resolved = true;
+            }
+            else
+            {
+                choiceUi.Show(request.Recipient, request.DroppedEntry, request.SourceName, itemToStore =>
+                {
+                    ResolveDroppedItemStorageSelection(request.Recipient, request.DroppedEntry, itemToStore, request.SourceName);
+                    resolved = true;
+                });
+            }
+
+            while (!resolved)
+            {
+                yield return null;
+            }
+        }
+
+        private void ResolveDroppedItemStorageSelection(Unit recipient, SavedInventoryEntryData droppedEntry, Item itemToStore, string sourceName)
+        {
+            if (recipient == null || recipient.Inventory == null)
+            {
+                StageSavedInventoryEntryForBattleStorage(droppedEntry);
+                BattleLog.Log("Loot", $"{FormatSavedInventoryEntryName(droppedEntry)} from {sourceName} will be sent to storage on victory.");
+                return;
+            }
+
+            if (itemToStore == null)
+            {
+                StageSavedInventoryEntryForBattleStorage(droppedEntry);
+                BattleLog.Log("Loot", $"{FormatSavedInventoryEntryName(droppedEntry)} from {sourceName} will be sent to storage on victory.");
+                return;
+            }
+
+            SavedInventoryEntryData storedEntry = CreateStorageEntryFromDroppedItem(itemToStore);
+            if (storedEntry == null || !recipient.Inventory.RemoveItem(itemToStore))
+            {
+                StageSavedInventoryEntryForBattleStorage(droppedEntry);
+                BattleLog.Log("Loot", $"{FormatSavedInventoryEntryName(droppedEntry)} from {sourceName} will be sent to storage on victory.");
+                return;
+            }
+
+            StageSavedInventoryEntryForBattleStorage(storedEntry);
+            Item addedItem = recipient.Inventory.AddItemById(droppedEntry.ItemId, droppedEntry.RemainingCharges, isDroppable: false);
+            if (addedItem == null)
+            {
+                StageSavedInventoryEntryForBattleStorage(droppedEntry);
+                BattleLog.Log("Loot", $"{FormatSavedInventoryEntryName(droppedEntry)} from {sourceName} will be sent to storage on victory.");
+                return;
+            }
+
+            BattleLog.Log(
+                "Loot",
+                $"{recipient.name} obtained {FormatSavedInventoryEntryName(droppedEntry)} from {sourceName}; {FormatSavedInventoryEntryName(storedEntry)} will be sent to storage on victory.");
+        }
+
+        private void StageSavedInventoryEntryForBattleStorage(SavedInventoryEntryData entry)
+        {
+            SavedInventoryEntryData storageEntry = CloneDroppedInventoryEntry(entry);
+            if (storageEntry == null)
+            {
+                return;
+            }
+
+            pendingBattleStorageItems.Add(storageEntry);
+        }
+
+        private void MergePendingBattleStorageIntoSave(CampaignSaveData save)
+        {
+            if (save == null || pendingBattleStorageItems.Count == 0)
+            {
+                return;
+            }
+
+            List<SavedInventoryEntryData> storageItems = (save.StorageItems ?? Array.Empty<SavedInventoryEntryData>())
+                .Where(existingEntry => existingEntry != null && !string.IsNullOrWhiteSpace(existingEntry.ItemId))
+                .Select(CloneDroppedInventoryEntry)
+                .Where(existingEntry => existingEntry != null)
+                .ToList();
+
+            storageItems.AddRange(
+                pendingBattleStorageItems
+                    .Select(CloneDroppedInventoryEntry)
+                    .Where(entry => entry != null));
+
+            save.StorageItems = storageItems.ToArray();
+        }
+
+        private void ClearPendingBattleStorageItems()
+        {
+            pendingBattleStorageItems.Clear();
+        }
+
+        private static SavedInventoryEntryData CloneDroppedInventoryEntry(SavedInventoryEntryData entry)
+        {
+            if (entry == null || string.IsNullOrWhiteSpace(entry.ItemId))
+            {
+                return null;
+            }
+
+            return new SavedInventoryEntryData
+            {
+                ItemId = entry.ItemId,
+                RemainingCharges = entry.RemainingCharges,
+                IsDroppable = false
+            };
+        }
+
+        private static string FormatSavedInventoryEntryName(SavedInventoryEntryData entry)
+        {
+            if (entry == null)
+            {
+                return "Item";
+            }
+
+            ItemData data = ItemRegistry.Get(entry.ItemId);
+            return !string.IsNullOrWhiteSpace(data?.Name) ? data.Name : entry.ItemId;
+        }
+
+        private static SavedInventoryEntryData CreateStorageEntryFromDroppedItem(Item item)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.ItemId))
+            {
+                return null;
+            }
+
+            return new SavedInventoryEntryData
+            {
+                ItemId = item.ItemId,
+                RemainingCharges = item.RemainingCharges,
+                IsDroppable = false
+            };
         }
 
         private void OnUnitDestroyed(object sender, UnitDestroyedEventArgs e)
@@ -812,6 +1054,11 @@ namespace Windy.Srpg.Game.Grid
         internal bool CheckGameFinished()
         {
             if (Unit.IsAnyCombatPresentationActive)
+            {
+                return false;
+            }
+
+            if (pendingDroppedItemStorageChoices > 0)
             {
                 return false;
             }

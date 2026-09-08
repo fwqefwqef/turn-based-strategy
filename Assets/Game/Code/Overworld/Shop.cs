@@ -270,7 +270,8 @@ namespace Windy.Srpg.Game.Overworld
             return new SavedInventoryEntryData
             {
                 ItemId = item.Id,
-                RemainingCharges = remainingCharges
+                RemainingCharges = remainingCharges,
+                IsDroppable = false
             };
         }
 

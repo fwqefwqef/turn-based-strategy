@@ -16,12 +16,20 @@ namespace Windy.Srpg.Game.Buffs
         [SerializeField]
         private int remainingDuration;
 
+        [SerializeField]
+        private int stacks = 1;
+
         [NonSerialized]
         private IP_BuffEffect effectInstance;
 
         public string BuffId => buffId;
         public BuffData Data => BuffRegistry.Get(buffId);
         public int RemainingDuration => remainingDuration;
+        public int Stacks => Mathf.Clamp(stacks <= 0 ? 1 : stacks, 1, MaxStacks);
+        public int MaxStacks => Mathf.Max(1, Data?.MaxStacks ?? 1);
+        public BuffCategory Category => Data?.Category ?? BuffCategory.Buff;
+        public bool Removable => Data?.Removable ?? true;
+        public string StackingId => Data?.StackingId ?? buffId;
         public bool IsInfinite => Data != null && Data.Duration == 0;
         public IP_BuffEffect EffectInstance => effectInstance;
 
@@ -33,6 +41,7 @@ namespace Windy.Srpg.Game.Buffs
         {
             this.buffId = buffId;
             remainingDuration = Mathf.Max(0, Data?.Duration ?? 0);
+            stacks = 1;
             TryCreateEffectInstance();
         }
 
@@ -45,6 +54,7 @@ namespace Windy.Srpg.Game.Buffs
 
             buffId = data.Id;
             remainingDuration = Mathf.Max(0, data.Duration);
+            stacks = 1;
             TryCreateEffectInstance();
         }
 
@@ -61,6 +71,18 @@ namespace Windy.Srpg.Game.Buffs
             }
 
             remainingDuration--;
+        }
+
+        public bool ApplyAdditionalStack(BuffData appliedData, out int previousStacks, out int currentStacks)
+        {
+            previousStacks = Stacks;
+            BuffData data = appliedData ?? Data;
+            int maxStacks = Mathf.Max(1, data?.MaxStacks ?? MaxStacks);
+            stacks = Mathf.Clamp(previousStacks + 1, 1, maxStacks);
+            currentStacks = Stacks;
+            remainingDuration = Mathf.Max(0, data?.Duration ?? Data?.Duration ?? remainingDuration);
+
+            return previousStacks != currentStacks;
         }
 
         private void TryCreateEffectInstance()
@@ -94,7 +116,20 @@ namespace Windy.Srpg.Game.Buffs
                 return null;
             }
 
+            data.MaxStacks = Mathf.Max(1, data.MaxStacks);
             BuffRegistry.Register(data);
+
+            Buff existingEntry = entries.FirstOrDefault(entry => HasSameStackingId(entry, data));
+            if (existingEntry != null)
+            {
+                bool stackChanged = existingEntry.ApplyAdditionalStack(data, out int previousStacks, out int currentStacks);
+                if (stackChanged && existingEntry.EffectInstance is IP_BuffStackChanged stackChangedEffect)
+                {
+                    stackChangedEffect.OnStackChanged(owner, existingEntry, previousStacks, currentStacks);
+                }
+
+                return existingEntry;
+            }
 
             var entry = new Buff(data);
             entries.Add(entry);
@@ -128,18 +163,44 @@ namespace Windy.Srpg.Game.Buffs
         {
             RemoveExpiredEntries();
 
-            foreach (var entry in entries)
+            foreach (var entry in entries.ToList())
             {
+                if (entry == null || !entries.Contains(entry))
+                {
+                    continue;
+                }
+
                 entry.EffectInstance?.OnTurnStart(owner, entry);
             }
         }
 
         public void OnTurnEnd()
         {
-            foreach (var entry in entries)
+            foreach (var entry in entries.ToList())
             {
+                if (entry == null || !entries.Contains(entry))
+                {
+                    continue;
+                }
+
                 entry.EffectInstance?.OnTurnEnd(owner, entry);
                 entry.DecrementDuration();
+            }
+        }
+
+        public void OnDotTick(BuffCategory category = BuffCategory.Pain)
+        {
+            foreach (var entry in entries.ToList())
+            {
+                if (entry == null || !entries.Contains(entry) || entry.Category != category)
+                {
+                    continue;
+                }
+
+                if (entry.EffectInstance is IP_DotTick dotTickEffect)
+                {
+                    dotTickEffect.OnDotTick(owner, entry);
+                }
             }
         }
 
@@ -170,7 +231,7 @@ namespace Windy.Srpg.Game.Buffs
                     continue;
                 }
 
-                modifiers += entry.Data.PrimaryStatModifiers;
+                modifiers += entry.Data.PrimaryStatModifiers * entry.Stacks;
             }
 
             return modifiers;
@@ -187,10 +248,56 @@ namespace Windy.Srpg.Game.Buffs
                     continue;
                 }
 
-                modifiers += entry.Data.SecondaryStatModifiers;
+                modifiers += entry.Data.SecondaryStatModifiers * entry.Stacks;
             }
 
             return modifiers;
+        }
+
+        public bool HasBuff(string buffId)
+        {
+            return !string.IsNullOrWhiteSpace(buffId)
+                && entries.Any(entry => entry != null && string.Equals(entry.BuffId, buffId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public int RemoveRemovableBuffs(params BuffCategory[] categories)
+        {
+            HashSet<BuffCategory> categorySet = categories != null && categories.Length > 0
+                ? new HashSet<BuffCategory>(categories)
+                : null;
+
+            return RemoveWhere(entry => entry != null
+                && entry.Removable
+                && (categorySet == null || categorySet.Contains(entry.Category)));
+        }
+
+        public int RemoveRemovableDebuffs()
+        {
+            return RemoveRemovableBuffs(BuffCategory.Weakening, BuffCategory.CC, BuffCategory.Pain, BuffCategory.Misc);
+        }
+
+        private int RemoveWhere(Func<Buff, bool> predicate)
+        {
+            if (predicate == null)
+            {
+                return 0;
+            }
+
+            int removedCount = 0;
+            foreach (Buff entry in entries.ToList())
+            {
+                if (!predicate(entry))
+                {
+                    continue;
+                }
+
+                if (RemoveBuff(entry))
+                {
+                    removedCount++;
+                }
+            }
+
+            return removedCount;
         }
 
         private void RemoveExpiredEntries()
@@ -205,6 +312,15 @@ namespace Windy.Srpg.Game.Buffs
 
                 RemoveBuff(entry);
             }
+        }
+
+        private static bool HasSameStackingId(Buff entry, BuffData data)
+        {
+            string existingStackingId = entry?.StackingId;
+            string incomingStackingId = data?.StackingId;
+            return !string.IsNullOrWhiteSpace(existingStackingId)
+                && !string.IsNullOrWhiteSpace(incomingStackingId)
+                && string.Equals(existingStackingId, incomingStackingId, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

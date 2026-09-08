@@ -37,6 +37,7 @@ namespace Windy.Srpg.Game.Campaign
     {
         public string ItemId;
         public int RemainingCharges = -1;
+        public bool IsDroppable;
     }
 
     public static class CampaignProgressUtility

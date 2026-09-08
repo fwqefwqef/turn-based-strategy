@@ -16,6 +16,13 @@ namespace Windy.Srpg.Game.Editor
     {
         private const float ObjectListWidth = 330f;
         private const float OutlinePadding = 0.14f;
+        private static readonly HashSet<string> HiddenUnitFields = new HashSet<string>
+        {
+            "preset",
+            "startingInventory",
+            "startingSkills",
+            "startingClassPassives"
+        };
 
         private Vector2 tileScrollPosition;
         private Vector2 unitScrollPosition;
@@ -235,7 +242,14 @@ namespace Windy.Srpg.Game.Editor
                 EditorGUILayout.ObjectField("Object", selectedComponent.gameObject, typeof(GameObject), true);
                 EditorGUILayout.ObjectField("Component", selectedComponent, selectedComponent.GetType(), true);
                 EditorGUILayout.Space(4f);
-                DrawSerializedObject(selectedComponent, drawScriptField: true);
+                if (selectedComponent is Unit selectedUnit)
+                {
+                    DrawUnitInspector(selectedUnit);
+                }
+                else
+                {
+                    DrawSerializedObject(selectedComponent, drawScriptField: true);
+                }
 
                 EditorGUILayout.EndScrollView();
             }
@@ -269,7 +283,41 @@ namespace Windy.Srpg.Game.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawSerializedObject(UnityEngine.Object target, bool drawScriptField)
+        private void DrawUnitInspector(Unit unit)
+        {
+            DrawAssignedPresetReference(unit);
+            DrawSerializedObject(unit, drawScriptField: true, HiddenUnitFields);
+        }
+
+        private void DrawAssignedPresetReference(Unit unit)
+        {
+            UnitPreset preset = GetAssignedUnitPreset(unit);
+            EditorGUILayout.Space(8f);
+            EditorGUILayout.LabelField("Assigned Preset", EditorStyles.boldLabel);
+            if (preset == null)
+            {
+                EditorGUILayout.HelpBox("This unit has no assigned UnitPreset.", MessageType.Info);
+                return;
+            }
+
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUILayout.ObjectField("Preset", preset, typeof(UnitPreset), false);
+            }
+        }
+
+        private static UnitPreset GetAssignedUnitPreset(Unit unit)
+        {
+            if (unit == null)
+            {
+                return null;
+            }
+
+            SerializedObject serializedUnit = new SerializedObject(unit);
+            return serializedUnit.FindProperty("preset")?.objectReferenceValue as UnitPreset;
+        }
+
+        private void DrawSerializedObject(UnityEngine.Object target, bool drawScriptField, ISet<string> skippedPropertyPaths = null)
         {
             if (target == null)
             {
@@ -286,6 +334,11 @@ namespace Windy.Srpg.Game.Editor
                 enterChildren = false;
                 bool isScriptField = property.propertyPath == "m_Script";
                 if (isScriptField && !drawScriptField)
+                {
+                    continue;
+                }
+
+                if (skippedPropertyPaths != null && skippedPropertyPaths.Contains(property.propertyPath))
                 {
                     continue;
                 }

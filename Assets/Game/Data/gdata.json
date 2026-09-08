@@ -693,6 +693,9 @@
         "Name": "Attack Up",
         "Description": "Increases attack power for one turn.",
         "Duration": 1,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": true,
         "PrimaryStatModifiers": {
           "Attack": 2
         }
@@ -702,6 +705,9 @@
         "Name": "Guard Up",
         "Description": "Increases defense for one turn.",
         "Duration": 1,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": true,
         "PrimaryStatModifiers": {
           "Defense": 2
         }
@@ -711,6 +717,9 @@
         "Name": "Haste",
         "Description": "Increases speed for one turn.",
         "Duration": 1,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": true,
         "PrimaryStatModifiers": {
           "Speed": 2
         }
@@ -720,6 +729,9 @@
         "Name": "Focus",
         "Description": "Improves hit and crit for one turn.",
         "Duration": 1,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": true,
         "SecondaryStatModifiers": {
           "Accuracy": 10,
           "Crit": 10
@@ -730,6 +742,9 @@
         "Name": "Invulnerable",
         "Description": "Incoming damage is reduced to 1 for one turn.",
         "Duration": 1,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": true,
         "EffectId": "damage_to_one"
       },
       {
@@ -737,6 +752,9 @@
         "Name": "Luna",
         "Description": "Ignores Def/Mag for one round of initiated combat.",
         "Duration": 1,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": true,
         "EffectId": "ignore_def_mag"
       }
     ]

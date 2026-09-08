@@ -112,6 +112,7 @@ namespace Windy.Srpg.Game.Chapters
         [SerializeField] private bool replayable = true;
         [SerializeField] private float unlockRequiredChapterId;
         [SerializeField] private int averageEnemyLevel = 1;
+        [SerializeField] private List<UnitPreset> enemyPaintPresets = new List<UnitPreset>();
         [SerializeField] private List<ChapterBattleCondition> battleConditions = CreateDefaultBattleConditions();
 
         public string ChapterName => string.IsNullOrWhiteSpace(chapterName) ? gameObject.scene.name : chapterName;
@@ -119,6 +120,7 @@ namespace Windy.Srpg.Game.Chapters
         public bool Replayable => replayable;
         public float UnlockRequiredChapterId => Mathf.Max(0f, unlockRequiredChapterId);
         public int AverageEnemyLevel => Mathf.Max(1, averageEnemyLevel);
+        public IReadOnlyList<UnitPreset> EnemyPaintPresets => enemyPaintPresets ??= new List<UnitPreset>();
         public IReadOnlyList<ChapterBattleCondition> BattleConditions => GetEffectiveBattleConditions();
 
         public BattleOutcome EvaluateBattleOutcome(CellGrid grid)
@@ -193,6 +195,7 @@ namespace Windy.Srpg.Game.Chapters
             replayable = true;
             unlockRequiredChapterId = 0f;
             averageEnemyLevel = 1;
+            enemyPaintPresets = new List<UnitPreset>();
             battleConditions = CreateDefaultBattleConditions();
         }
 
@@ -205,6 +208,8 @@ namespace Windy.Srpg.Game.Chapters
             {
                 battleConditions = CreateDefaultBattleConditions();
             }
+
+            enemyPaintPresets ??= new List<UnitPreset>();
         }
     }
 }

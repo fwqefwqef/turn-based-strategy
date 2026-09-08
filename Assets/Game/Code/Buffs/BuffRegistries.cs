@@ -12,6 +12,16 @@ namespace Windy.Srpg.Game.Buffs
         void OnTurnEnd(Unit unit, Buff entry);
     }
 
+    public interface IP_BuffStackChanged
+    {
+        void OnStackChanged(Unit unit, Buff entry, int previousStacks, int currentStacks);
+    }
+
+    public interface IP_DotTick
+    {
+        void OnDotTick(Unit unit, Buff entry);
+    }
+
     public abstract class BuffEffectBase : IP_BuffEffect
     {
         protected Unit Owner { get; private set; }
@@ -58,6 +68,10 @@ namespace Windy.Srpg.Game.Buffs
                 Name = template.Name,
                 Description = template.Description,
                 Duration = durationOverride ?? template.Duration,
+                Category = template.Category,
+                MaxStacks = template.MaxStacks,
+                Removable = template.Removable,
+                StackKey = template.StackingId,
                 PrimaryStatModifiers = template.PrimaryStatModifiers,
                 SecondaryStatModifiers = template.SecondaryStatModifiers,
                 EffectId = template.EffectId
