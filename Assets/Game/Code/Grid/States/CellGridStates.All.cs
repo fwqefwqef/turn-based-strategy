@@ -83,7 +83,7 @@ namespace Windy.Srpg.Game.Grid.States
         public override void OnUnitClicked(Unit customUnit)
         {
             bool willSelect = _cellGrid.GetCurrentPlayerUnits().Contains(customUnit)
-                && !customUnit.IsFinishedForTurn;
+                && customUnit.CanStartActionThisTurn;
 
             if (willSelect)
             {
@@ -347,7 +347,7 @@ namespace Windy.Srpg.Game.Grid.States
 
             if (unit != null
                 && _cellGrid.GetCurrentPlayerUnits().Contains(unit)
-                && !unit.IsFinishedForTurn)
+                && unit.CanStartActionThisTurn)
             {
                 _cellGrid.EnterSelectedState(unit);
                 return;

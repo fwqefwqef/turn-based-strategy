@@ -22,6 +22,8 @@ namespace Windy.Srpg.Game.Buffs
         [NonSerialized]
         private IP_BuffEffect effectInstance;
 
+        [NonSerialized] private bool controlTurnStarted;
+
         public string BuffId => buffId;
         public BuffData Data => BuffRegistry.Get(buffId);
         public int RemainingDuration => remainingDuration;
@@ -73,6 +75,16 @@ namespace Windy.Srpg.Game.Buffs
             remainingDuration--;
         }
 
+        public void BeginOwnerTurn() { controlTurnStarted = true; }
+
+        public void EndOwnerTurn()
+        {
+            // Pain ages with actual ticks; CC must survive a complete upcoming turn.
+            if (Category != BuffCategory.Pain && (Category != BuffCategory.CC || controlTurnStarted))
+                DecrementDuration();
+            controlTurnStarted = false;
+        }
+
         public bool ApplyAdditionalStack(BuffData appliedData, out int previousStacks, out int currentStacks)
         {
             previousStacks = Stacks;
@@ -81,6 +93,7 @@ namespace Windy.Srpg.Game.Buffs
             stacks = Mathf.Clamp(previousStacks + 1, 1, maxStacks);
             currentStacks = Stacks;
             remainingDuration = Mathf.Max(0, data?.Duration ?? Data?.Duration ?? remainingDuration);
+            controlTurnStarted = false;
 
             return previousStacks != currentStacks;
         }
@@ -170,6 +183,7 @@ namespace Windy.Srpg.Game.Buffs
                     continue;
                 }
 
+                entry.BeginOwnerTurn();
                 entry.EffectInstance?.OnTurnStart(owner, entry);
             }
         }
@@ -184,7 +198,8 @@ namespace Windy.Srpg.Game.Buffs
                 }
 
                 entry.EffectInstance?.OnTurnEnd(owner, entry);
-                entry.DecrementDuration();
+                entry.EndOwnerTurn();
+                if (entry.Category == BuffCategory.CC && entry.HasExpired()) RemoveBuff(entry);
             }
         }
 
@@ -192,7 +207,8 @@ namespace Windy.Srpg.Game.Buffs
         {
             foreach (var entry in entries.ToList())
             {
-                if (entry == null || !entries.Contains(entry) || entry.Category != category)
+                if (owner == null || owner.HitPoints <= 0) break;
+                if (entry == null || !entries.Contains(entry) || entry.HasExpired() || entry.Category != category)
                 {
                     continue;
                 }
@@ -200,6 +216,8 @@ namespace Windy.Srpg.Game.Buffs
                 if (entry.EffectInstance is IP_DotTick dotTickEffect)
                 {
                     dotTickEffect.OnDotTick(owner, entry);
+                    entry.DecrementDuration();
+                    if (entry.HasExpired()) RemoveBuff(entry);
                 }
             }
         }

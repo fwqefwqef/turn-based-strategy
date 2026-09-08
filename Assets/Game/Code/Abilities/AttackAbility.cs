@@ -42,7 +42,7 @@ namespace Windy.Srpg.Game.Abilities
         {
             if (cellGrid != null
                 && cellGrid.GetCurrentPlayerUnits().Contains(unit)
-                && !unit.IsFinishedForTurn)
+                && unit.CanStartActionThisTurn)
             {
                 cellGrid.EnterSelectedState(unit);
             }

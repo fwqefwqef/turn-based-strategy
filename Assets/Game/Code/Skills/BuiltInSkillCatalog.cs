@@ -27,8 +27,24 @@ namespace Windy.Srpg.Game.Skills
             SkillEffectRegistry.Register("immolate", () => new ImmolateSkillEffect());
             SkillEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMagSkillEffect());
             SkillEffectRegistry.Register("shove", () => new ShoveSkillEffect());
+            SkillEffectRegistry.Register("cleanse", () => new CleanseSkillEffect());
 
             isRegistered = true;
+        }
+
+        private sealed class CleanseSkillEffect : ISkillEffect
+        {
+            public bool CanUse(Unit user, SkillContext context)
+            {
+                Unit target = context?.PrimaryTargetUnit;
+                return user != null && target != null && target.HitPoints > 0
+                    && target.PlayerNumber == user.PlayerNumber && target.HasRemovableDebuffs;
+            }
+
+            public void Use(Unit user, SkillContext context)
+            {
+                if (CanUse(user, context)) context.PrimaryTargetUnit.RemoveRemovableDebuffs();
+            }
         }
 
         private sealed class RestoreHitPointsSkillEffect : ISkillEffect

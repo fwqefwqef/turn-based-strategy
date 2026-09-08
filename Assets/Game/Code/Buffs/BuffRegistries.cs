@@ -22,6 +22,9 @@ namespace Windy.Srpg.Game.Buffs
         void OnDotTick(Unit unit, Buff entry);
     }
 
+    // Implemented by effects that block voluntary actions and counterattacks.
+    public interface IP_ActionBlocker { }
+
     public abstract class BuffEffectBase : IP_BuffEffect
     {
         protected Unit Owner { get; private set; }

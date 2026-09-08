@@ -14,6 +14,16 @@ namespace Windy.Srpg.Game.UI
     {
         public static event Action<bool> VisibilityChanged;
         public static bool IsVisible { get; private set; }
+        private bool showingPain;
+
+        public void ShowPain(Unit unit)
+        {
+            if (unit == null) return;
+            OnCombatSequenceStarted(this, new CombatSequenceEventArgs(unit, unit));
+            showingPain = true;
+            SetCombatants(unit, null);
+            RefreshPanels();
+        }
 
         public enum PreviewFaction
         {
@@ -173,6 +183,7 @@ namespace Windy.Srpg.Game.UI
 
         private void OnCombatSequenceStarted(object sender, CombatSequenceEventArgs e)
         {
+            showingPain = false;
             if (e == null || e.Attacker == null || e.Defender == null)
             {
                 return;
@@ -265,6 +276,7 @@ namespace Windy.Srpg.Game.UI
         private void OnUnitDestroyed(object sender, UnitDestroyedEventArgs e)
         {
             RefreshPanels();
+            if (showingPain) return;
 
             if (_hideCoroutine != null)
             {
@@ -573,6 +585,7 @@ namespace Windy.Srpg.Game.UI
 
         private void HideImmediate()
         {
+            showingPain = false;
             if (root != null)
             {
                 root.SetActive(false);

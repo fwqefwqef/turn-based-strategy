@@ -14,6 +14,11 @@ namespace Windy.Srpg.Game.Inventory
     {
     }
 
+    public interface IWeaponHitEffect : IUnitPassive
+    {
+        void OnWeaponHit(Unit attacker, Unit target);
+    }
+
     public static class ItemRegistry
     {
         private static readonly Dictionary<string, ItemData> Definitions = new Dictionary<string, ItemData>(StringComparer.OrdinalIgnoreCase);

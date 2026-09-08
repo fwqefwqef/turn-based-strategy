@@ -598,6 +598,7 @@ namespace Windy.Srpg.Game.AI
                     ResolvedAttackProfile candidateProfile = new ResolvedAttackProfile
                     {
                         Damage = actor.GetAttackForWeapon(weaponEntry.Weapon) + data.AttackProfile.Might,
+                        UsesWeaponEffects = true,
                         Accuracy = actor.GetAccuracyForWeapon(weaponEntry.Weapon) + data.AttackProfile.Accuracy,
                         Crit = actor.GetCritForWeapon(weaponEntry.Weapon) + data.AttackProfile.Crit,
                         NumHits = Mathf.Max(1, data.AttackProfile.NumHits),

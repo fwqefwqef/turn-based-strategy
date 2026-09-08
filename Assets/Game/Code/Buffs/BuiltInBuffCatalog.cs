@@ -19,8 +19,20 @@ namespace Windy.Srpg.Game.Buffs
 
             BuffEffectRegistry.Register("damage_to_one", () => new DamageToOneBuffEffect());
             BuffEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMag());
+            BuffEffectRegistry.Register("toxic", () => new ToxicBuffEffect());
+            BuffEffectRegistry.Register("stun", () => new StunBuffEffect());
             isRegistered = true;
         }
+
+        private sealed class ToxicBuffEffect : BuffEffectBase, IP_DotTick
+        {
+            public void OnDotTick(Unit unit, Buff entry)
+            {
+                unit.ApplyPainDamage(5 * entry.Stacks);
+            }
+        }
+
+        private sealed class StunBuffEffect : BuffEffectBase, IP_ActionBlocker { }
 
         private sealed class DamageToOneBuffEffect : BuffEffectBase, IP_TakeDamageChange
         {

@@ -963,21 +963,26 @@ namespace Windy.Srpg.Game.Grid
             SceneTurnEnded?.Invoke(this, isNetworkInvoked);
             BattleLog.Log("BattleFlow", $"Turn advanced. Current player: {currentPlayerNumber}.");
 
-            if (syncUnitTurnHooks)
-            {
-                foreach (Unit unit in playableUnitsAccessor())
-                {
-                    if (unit == null)
-                    {
-                        continue;
-                    }
+            QueueTurnStartPresentation(() => ProcessIncomingTurn(syncUnitTurnHooks));
+            RunTurnStartPresentationsThenPlay(kickPlayerPlay);
+        }
 
-                    NotifyAbilitiesTurnStarted(unit);
-                    unit.OnTurnStart();
-                }
+        private System.Collections.IEnumerator ProcessIncomingTurn(bool syncUnitTurnHooks)
+        {
+            // DoT affects the incoming side, including units unable to act.
+            foreach (Unit unit in GetAllUnits().Where(unit => unit != null && unit.PlayerNumber == currentPlayerNumber).ToList())
+            {
+                if (gameFinished) yield break;
+                if (unit != null && unit.HitPoints > 0) yield return unit.PresentPainTick();
             }
 
-            RunTurnStartPresentationsThenPlay(kickPlayerPlay);
+            if (CheckGameFinished() || !syncUnitTurnHooks) yield break;
+            foreach (Unit unit in playableUnitsAccessor())
+            {
+                if (unit == null || unit.HitPoints <= 0) continue;
+                NotifyAbilitiesTurnStarted(unit);
+                unit.OnTurnStart();
+            }
         }
 
         internal void QueueTurnStartPresentation(Func<System.Collections.IEnumerator> presentationFactory)
@@ -1083,6 +1088,8 @@ namespace Windy.Srpg.Game.Grid
             }
 
             gameFinished = true;
+            foreach (Unit unit in GetAllUnits().ToList())
+                if (unit != null && unit.HitPoints > 0) unit.ClearBattleBuffs();
             IReadOnlyList<int> winningPlayers = outcome.WinningPlayerIds ?? Array.Empty<int>();
             IReadOnlyList<int> losingPlayers = outcome.DefeatedPlayerIds ?? Array.Empty<int>();
             Debug.Log(

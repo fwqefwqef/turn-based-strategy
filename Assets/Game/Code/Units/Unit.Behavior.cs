@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,10 +49,12 @@ namespace Windy.Srpg.Game.Units
         }
         public virtual void EndTurnForUnit()
         {
+            turnSkippedByDebuff = false;
             SetTurnStateKind(UnitTurnStateKind.Finished);
         }
         public virtual void ResetTurnState()
         {
+            turnSkippedByDebuff = false;
             MovementPoints = ComputedTotalMovementPoints;
             SetTurnStateKind(UnitTurnStateKind.Normal);
         }
@@ -270,6 +272,8 @@ namespace Windy.Srpg.Game.Units
             RaiseUnitDehighlighted();
             UnitDehighlighted?.Invoke(this, EventArgs.Empty);
         }
+        private bool turnSkippedByDebuff;
+
         public void OnTurnStart()
         {
             cachedPaths = null;
@@ -279,7 +283,8 @@ namespace Windy.Srpg.Game.Units
             RefreshHealthState();
             SkillList?.ResetTurnUsage();
             RaiseBuffsChanged();
-            SetTurnStateKind(UnitTurnStateKind.Friendly);
+            turnSkippedByDebuff = IsActionBlocked;
+            SetTurnStateKind(turnSkippedByDebuff ? UnitTurnStateKind.Finished : UnitTurnStateKind.Friendly);
         }
         private void OnValidate()
         {
@@ -399,6 +404,12 @@ namespace Windy.Srpg.Game.Units
             int removedCount = BuffList.RemoveRemovableDebuffs();
             if (removedCount > 0)
             {
+                // Cleansing a skipped turn restores the action only if stun consumed it.
+                if (turnSkippedByDebuff && !IsActionBlocked && FindSceneCellGrid()?.CurrentPlayerNumber == PlayerNumber)
+                {
+                    turnSkippedByDebuff = false;
+                    SetTurnStateKind(UnitTurnStateKind.Friendly);
+                }
                 RefreshHealthState();
                 RaiseBuffsChanged();
             }
@@ -410,6 +421,52 @@ namespace Windy.Srpg.Game.Units
         {
             EnsureBuffList();
             BuffList.OnDotTick(category);
+            RefreshHealthState();
+            RaiseBuffsChanged();
+        }
+
+        public void ApplyPainDamage(int amount)
+        {
+            if (HitPoints <= 0 || amount <= 0) return;
+            int previous = HitPoints;
+            HitPoints = Mathf.Max(0, HitPoints - amount);
+            RaiseHealthChanged(previous, HitPoints, null);
+            if (HitPoints <= 0)
+            {
+                DestroyedInCombat?.Invoke(this, new UnitDestroyedEventArgs(null, this, amount));
+                CombatDestroyed?.Invoke(this, new AttackEventArgs(null, this, amount));
+                OnDestroyed();
+            }
+        }
+
+        public IEnumerator PresentPainTick()
+        {
+            if (HitPoints <= 0 || BuffList == null || !BuffList.Entries.Any(entry =>
+                entry.Category == BuffCategory.Pain && !entry.HasExpired() && entry.EffectInstance is IP_DotTick))
+                yield break;
+
+            BeginCombatPresentation();
+            CombatSequenceUI hud = FindSceneCombatSequenceUi();
+            try
+            {
+                RequestCombatCameraFocus(transform.position);
+                yield return GameplayCameraController.WaitForFocusSettled();
+                hud?.ShowPain(this);
+                yield return new WaitForSecondsRealtime(0.3f);
+                TickBuffDotEffects();
+                yield return new WaitForSecondsRealtime(0.65f);
+            }
+            finally
+            {
+                hud?.Hide();
+                ReleaseCombatCameraFocus();
+                EndCombatPresentation();
+            }
+        }
+
+        public void ClearBattleBuffs()
+        {
+            BuffList?.Clear();
             RefreshHealthState();
             RaiseBuffsChanged();
         }
@@ -1346,7 +1403,8 @@ namespace Windy.Srpg.Game.Units
                 IsMagic = IsMagic,
                 CanPursuitAttack = CanPursuitAttack,
                 PreventsCounterattack = PreventsCounterattack,
-                EndsTurn = true
+                EndsTurn = true,
+                UsesWeaponEffects = true
             };
         }
         private IEnumerator AttackSequenceRoutine(Unit unitToAttack, ResolvedAttackProfile attackProfile)
@@ -1389,12 +1447,15 @@ namespace Windy.Srpg.Game.Units
                 InvokeBeforeCombatSequenceAsDefender(unitToAttack, preCombatContext);
 
                 int baseDamage = attackProfile.Damage;
+                int initialOffense = attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength);
+                int initialAccuracy = Accuracy;
+                int initialCrit = Crit;
                 BattleLog.Log("Combat", $"{name} starts a {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
 
                 int initialHits = Mathf.Max(1, attackProfile.NumHits);
                 for (int i = 0; i < initialHits; i++)
                 {
-                    if (unitToAttack == null || HitPoints <= 0 || unitToAttack.HitPoints <= 0)
+                    if (IsActionBlocked || unitToAttack == null || HitPoints <= 0 || unitToAttack.HitPoints <= 0)
                     {
                         break;
                     }
@@ -1403,12 +1464,13 @@ namespace Windy.Srpg.Game.Units
                     yield return StartCoroutine(PlayAttackLungeAnimation(unitToAttack));
                     unitToAttack.DefendHandler(
                         this,
-                        baseDamage,
-                        attackProfile.Accuracy,
-                        attackProfile.Crit,
+                        baseDamage + (attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength)) - initialOffense,
+                        attackProfile.Accuracy + Accuracy - initialAccuracy,
+                        attackProfile.Crit + Crit - initialCrit,
                         isMagicAttack: attackProfile.IsMagic,
                         isCounterAttack: false,
-                        simulateOnly: false);
+                        simulateOnly: false,
+                        applyWeaponEffects: attackProfile.UsesWeaponEffects);
 
                     if (attackHitPauseSeconds > 0f)
                     {
@@ -1427,13 +1489,13 @@ namespace Windy.Srpg.Game.Units
                     && attackProfile.CanPursuitAttack
                     && Speed >= unitToAttack.Speed + PursuitAttackSpeedThreshold;
 
-                if (pursuitAttack && HitPoints > 0 && unitToAttack != null && unitToAttack.HitPoints > 0)
+                if (pursuitAttack && !IsActionBlocked && HitPoints > 0 && unitToAttack != null && unitToAttack.HitPoints > 0)
                 {
                     BattleLog.Log("Combat", $"{name} starts a pursuit {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
                     int pursuitHits = Mathf.Max(1, attackProfile.NumHits);
                     for (int i = 0; i < pursuitHits; i++)
                     {
-                        if (unitToAttack == null || HitPoints <= 0 || unitToAttack.HitPoints <= 0)
+                        if (IsActionBlocked || unitToAttack == null || HitPoints <= 0 || unitToAttack.HitPoints <= 0)
                         {
                             break;
                         }
@@ -1442,12 +1504,13 @@ namespace Windy.Srpg.Game.Units
                         yield return StartCoroutine(PlayAttackLungeAnimation(unitToAttack));
                         unitToAttack.DefendHandler(
                             this,
-                            baseDamage,
-                            attackProfile.Accuracy,
-                            attackProfile.Crit,
+                            baseDamage + (attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength)) - initialOffense,
+                            attackProfile.Accuracy + Accuracy - initialAccuracy,
+                            attackProfile.Crit + Crit - initialCrit,
                             isMagicAttack: attackProfile.IsMagic,
                             isCounterAttack: false,
-                            simulateOnly: false);
+                            simulateOnly: false,
+                            applyWeaponEffects: attackProfile.UsesWeaponEffects);
 
                         if (attackHitPauseSeconds > 0f)
                         {
@@ -1543,7 +1606,7 @@ namespace Windy.Srpg.Game.Units
 
             transform.localPosition = startPos;
         }
-        public int DefendHandler(Unit aggressor, int damage, int aggressorHit, int aggressorCrit, bool isMagicAttack = false, bool isCounterAttack = false, bool simulateOnly = false)
+        public int DefendHandler(Unit aggressor, int damage, int aggressorHit, int aggressorCrit, bool isMagicAttack = false, bool isCounterAttack = false, bool simulateOnly = false, bool applyWeaponEffects = true)
         {
             if (aggressor == null)
             {
@@ -1624,6 +1687,13 @@ namespace Windy.Srpg.Game.Units
                     HitPoints = simulatedHitPoints;
                     DefenceActionPerformed();
                     RaiseHealthChanged(previousHitPoints, HitPoints, aggressor);
+
+                    if (damageContext.IsHit && HitPoints > 0 && applyWeaponEffects
+                        && UnitPassiveRegistry.TryCreate(aggressor.GetActiveWeapon()?.EffectId, out var weaponEffect)
+                        && weaponEffect is IWeaponHitEffect hitEffect)
+                    {
+                        hitEffect.OnWeaponHit(aggressor, this);
+                    }
 
                     if (HitPoints <= 0)
                     {

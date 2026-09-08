@@ -43,12 +43,13 @@ namespace Windy.Srpg.Game.AI
 
             foreach (Unit unit in units)
             {
+                if (unit == null || unit.HitPoints <= 0 || !unit.CanStartActionThisTurn) continue;
                 AiDecisionAction[] actions = unit.GetComponentsInChildren<AiDecisionAction>(true)
                     ?? Array.Empty<AiDecisionAction>();
 
                 foreach (AiDecisionAction action in actions)
                 {
-                    if (action == null || unit == null)
+                    if (action == null || unit == null || unit.HitPoints <= 0 || unit.IsActionBlocked)
                     {
                         break;
                     }

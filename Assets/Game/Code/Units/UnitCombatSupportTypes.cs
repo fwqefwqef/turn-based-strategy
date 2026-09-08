@@ -13,6 +13,7 @@ namespace Windy.Srpg.Game.Units
         public bool CanPursuitAttack;
         public bool PreventsCounterattack;
         public bool EndsTurn;
+        public bool UsesWeaponEffects;
     }
 
     public enum DamageChangePhase

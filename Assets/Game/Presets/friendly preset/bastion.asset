@@ -41,49 +41,18 @@ MonoBehaviour:
     Speed: 20
     Luck: 20
   StartingInventory:
-  - ItemId: iron_sword
+  - ItemId: toxic_sword
     InitialCharges: -1
+    IsDroppable: 0
     ChargesInitialized: 1
-  - ItemId: magic_sword
+  - ItemId: stun_sword
     InitialCharges: -1
+    IsDroppable: 0
     ChargesInitialized: 1
-  - ItemId: super_bow
+  - ItemId: weakening_sword
     InitialCharges: -1
-    ChargesInitialized: 1
-  - ItemId: potion
-    InitialCharges: -1
-    ChargesInitialized: 1
-  - ItemId: super_potion
-    InitialCharges: -1
-    ChargesInitialized: 1
-  - ItemId: invulnerability_potion
-    InitialCharges: -1
-    ChargesInitialized: 1
-  - ItemId: shield
-    InitialCharges: -1
-    ChargesInitialized: 1
-  - ItemId: cloak
-    InitialCharges: -1
+    IsDroppable: 0
     ChargesInitialized: 1
   StartingSkills:
-  - SkillId: wrath_strike
-  - SkillId: astra
-  - SkillId: snipe_shot
-  - SkillId: tempest_lance
-  - SkillId: smash
-  - SkillId: luna
-  - SkillId: close_range_volley
-  - SkillId: fireball
-  - SkillId: thunder
-  - SkillId: heal
-  - SkillId: mend
-  - SkillId: physic
-  - SkillId: affection
-  - SkillId: fortify
-  - SkillId: sacrifice
-  - SkillId: meteor
-  - SkillId: disintegrate
-  - SkillId: immolate
-  - SkillId: regen
-  - SkillId: shove
+  - SkillId: cleanse
   StartingClassPassives: []

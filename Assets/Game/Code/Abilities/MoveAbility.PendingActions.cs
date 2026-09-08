@@ -1804,7 +1804,8 @@ namespace Windy.Srpg.Game.Abilities
                                         profile.Crit,
                                         isMagicAttack: profile.IsMagic,
                                         isCounterAttack: false,
-                                        simulateOnly: false);
+                                        simulateOnly: false,
+                                        applyWeaponEffects: profile.UsesWeaponEffects);
                                 },
                                 skill.Data,
                                 cellGrid);
@@ -2790,6 +2791,7 @@ namespace Windy.Srpg.Game.Abilities
                 profile = new ResolvedAttackProfile
                 {
                     Damage = UnitReference.GetAttackForWeapon(weapon) + data.AttackProfile.Might,
+                    UsesWeaponEffects = true,
                     Accuracy = UnitReference.GetAccuracyForWeapon(weapon) + data.AttackProfile.Accuracy,
                     Crit = UnitReference.GetCritForWeapon(weapon) + data.AttackProfile.Crit,
                     NumHits = Mathf.Max(1, data.AttackProfile.NumHits),

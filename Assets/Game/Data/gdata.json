@@ -4,6 +4,63 @@
     "CTRL_F_WEAPONS_SECTION": "CTRL+F: WEAPONS",
     "Weapons": [
       {
+        "Id": "toxic_sword",
+        "Name": "Toxic Sword",
+        "Description": "Applies Toxic on each successful weapon hit.",
+        "Value": 100,
+        "WeaponType": "Sword",
+        "DamageType": "Physical",
+        "Might": 5,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": [],
+        "EffectId": "apply_toxic"
+      },
+      {
+        "Id": "stun_sword",
+        "Name": "Stun Sword",
+        "Description": "Applies Stun on each successful weapon hit.",
+        "Value": 100,
+        "WeaponType": "Sword",
+        "DamageType": "Physical",
+        "Might": 5,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": [],
+        "EffectId": "apply_stun"
+      },
+      {
+        "Id": "weakening_sword",
+        "Name": "Weakening Sword",
+        "Description": "Applies Weakening on each successful weapon hit.",
+        "Value": 100,
+        "WeaponType": "Sword",
+        "DamageType": "Physical",
+        "Might": 5,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": [],
+        "EffectId": "apply_weakening"
+      },
+      {
         "Id": "iron_sword",
         "Name": "Iron Sword",
         "Description": "A simple physical weapon.",
@@ -115,6 +172,30 @@
   "CTRL_F_SKILLS_SECTION": "CTRL+F: SKILLS",
   "Skills": {
     "Skills": [
+      {
+        "Id": "cleanse",
+        "Name": "Cleanse",
+        "Description": "Remove all removable debuffs from an adjacent ally.",
+        "Category": "Spell",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "cleanse",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
       {
         "Id": "wrath_strike",
         "Name": "Wrath Strike",
@@ -688,6 +769,42 @@
   "Buffs": {
     "CTRL_F_BUFF_LIST_SECTION": "CTRL+F: BUFF_LIST",
     "Buffs": [
+      {
+        "Id": "toxic",
+        "Name": "Toxic",
+        "Description": "Takes 5 direct damage per stack before each own turn. Reapplication refreshes all stacks to 3 ticks.",
+        "Duration": 3,
+        "Category": "Pain",
+        "MaxStacks": 5,
+        "Removable": true,
+        "EffectId": "toxic"
+      },
+      {
+        "Id": "stun",
+        "Name": "Stun",
+        "Description": "Cannot act or counterattack. Skips the next full turn.",
+        "Duration": 1,
+        "Category": "CC",
+        "MaxStacks": 1,
+        "Removable": true,
+        "EffectId": "stun"
+      },
+      {
+        "Id": "weakening",
+        "Name": "Weakening",
+        "Description": "Str/Mag/Def/Spd/Lck -1 per stack until cleansed or battle ends.",
+        "Duration": 0,
+        "Category": "Weakening",
+        "MaxStacks": 5,
+        "Removable": true,
+        "PrimaryStatModifiers": {
+          "Strength": -1,
+          "Magic": -1,
+          "Defense": -1,
+          "Speed": -1,
+          "Luck": -1
+        }
+      },
       {
         "Id": "attack_up",
         "Name": "Attack Up",

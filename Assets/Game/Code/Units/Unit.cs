@@ -49,7 +49,9 @@ namespace Windy.Srpg.Game.Units
         public bool IsReachableEnemyForTurn => currentTurnStateKind == UnitTurnStateKind.ReachableEnemy;
         public bool IsFriendlyForTurn => currentTurnStateKind == UnitTurnStateKind.Friendly;
         public bool IsFinishedForTurn => currentTurnStateKind == UnitTurnStateKind.Finished;
-        public bool CanStartActionThisTurn => !IsFinishedForTurn;
+        public bool IsActionBlocked => BuffList != null && BuffList.GetActiveEffects().Any(effect => effect is IP_ActionBlocker);
+        public bool HasRemovableDebuffs => BuffList != null && BuffList.Entries.Any(entry => entry.Removable && entry.Category != BuffCategory.Buff);
+        public bool CanStartActionThisTurn => !IsFinishedForTurn && !IsActionBlocked;
 
         internal int customTotalHitPoints;
         internal int customTotalManaPoints;
@@ -165,7 +167,7 @@ namespace Windy.Srpg.Game.Units
         public int AttackRange => MaxAttackRange;
         public virtual int NumHits => HasUsableWeapon ? Mathf.Max(1, GetActiveWeapon().NumHits) : 0;
         public virtual bool CanPursuitAttack => HasUsableWeapon && GetActiveWeapon().CanPursuitAttack;
-        public virtual bool CanCounterAttack => HasUsableWeapon && GetActiveWeapon().CanCounterAttack;
+        public virtual bool CanCounterAttack => !IsActionBlocked && HasUsableWeapon && GetActiveWeapon().CanCounterAttack;
         public virtual bool PreventsCounterattack => HasUsableWeapon && GetActiveWeapon().PreventsCounterattack;
         public virtual int BaseHitPoints => baseHitPoints;
         public virtual int MaxHitPoints => Mathf.Max(1, BaseHitPoints + GetPrimaryStatModifiers().MaxHitPoints);

@@ -23,8 +23,22 @@ namespace Windy.Srpg.Game.Inventory
             ConsumableEffectRegistry.Register("heal_10", () => new HealConsumableEffect(10));
             ConsumableEffectRegistry.Register("heal_20", () => new HealConsumableEffect(20));
             ConsumableEffectRegistry.Register("apply_invulnerable_buff", () => new ApplyBuffConsumableEffect("invulnerable"));
+            UnitPassiveRegistry.Register("apply_toxic", () => new ApplyDebuffOnHit("toxic"));
+            UnitPassiveRegistry.Register("apply_stun", () => new ApplyDebuffOnHit("stun"));
+            UnitPassiveRegistry.Register("apply_weakening", () => new ApplyDebuffOnHit("weakening"));
 
             isRegistered = true;
+        }
+
+        private sealed class ApplyDebuffOnHit : IWeaponHitEffect
+        {
+            private readonly string buffId;
+            public ApplyDebuffOnHit(string buffId) { this.buffId = buffId; }
+            public void OnWeaponHit(Unit attacker, Unit target)
+            {
+                if (target != null && target.HitPoints > 0)
+                    target.AddBuffById(buffId);
+            }
         }
 
         private sealed class HealConsumableEffect : IConsumableEffect
