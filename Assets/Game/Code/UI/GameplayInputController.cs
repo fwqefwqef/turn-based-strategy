@@ -1076,7 +1076,7 @@ namespace Windy.Srpg.Game.UI
 
             Dictionary<Cell, EnemyRangeOverlayKind> overlayByCell = new Dictionary<Cell, EnemyRangeOverlayKind>();
             List<Unit> enemyUnits = cellGrid.GetAllUnits()
-                .Where(unit => unit != null && unit.PlayerNumber != 0 && unit.HitPoints > 0)
+                .Where(unit => unit != null && unit.PlayerNumber != 0 && unit.IsAliveForBattle)
                 .ToList();
             Dictionary<Unit, HashSet<Cell>> threatenedCellsByUnit = EnemyRangeOverlayUtility.GetThreatenedCellsByUnit(enemyUnits, cellGrid);
 

@@ -25,6 +25,12 @@ namespace Windy.Srpg.Game.Buffs
     // Implemented by effects that block voluntary actions and counterattacks.
     public interface IP_ActionBlocker { }
 
+    // Implemented by effects that cap the owner's available movement points.
+    public interface IP_MovementPointCap
+    {
+        float GetMovementPointCap(Unit unit, Buff entry, float currentCap);
+    }
+
     public abstract class BuffEffectBase : IP_BuffEffect
     {
         protected Unit Owner { get; private set; }

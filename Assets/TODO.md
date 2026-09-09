@@ -2,10 +2,6 @@
 
 ## Next planned features ✔
 
-# Add death's door mechanic
-Player units can enter <= 0HP once. If hit again at this state, die. Enemies die normally when they hit 0HP. Upon reaching death's door. Gain Str/Mag/Def/Spd/Lck -1 for this battle, stacking up to 5 times. 
-When at death's door, movement is lowered to 1.
-
 # Black Fog mechanic
 Black fog encroaches on the map little by little, at the start of each player turn. Black Fog damages the player after the enemy's turn ends and before the player's next turn starts, and this should apply to all DoT effects in the future. 
 Implement it like this: While the unit is standing in Black Fog, gain a Black Fog debuff. It cleanses itself when you exit Black Fog.

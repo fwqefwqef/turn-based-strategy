@@ -42,7 +42,7 @@ Death's Door, Black Fog, and multi-tile boss support are planned but are not imp
 
 - `Assets/Game/Code` — gameplay code in the `com.windy.srpg.game` assembly
 - `Assets/Game/Data/gdata.json` — unified item, skill, passive, and buff catalog
-- `Assets/Game/Presets` — friendly units, enemies, and tile presets
+- `Assets/Game/Data/Preset Data (Unit, Tile)` — friendly units, enemies, and tile presets
 - `Assets/Scenes/Level` — chapter and free-battle scenes
 - `Assets/Notes` — architecture and mechanic documentation
 - `Assets/Tools~` — standalone tuning and verification utilities excluded from Unity asset import

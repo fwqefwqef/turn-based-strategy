@@ -207,7 +207,7 @@ namespace Windy.Srpg.Game.Buffs
         {
             foreach (var entry in entries.ToList())
             {
-                if (owner == null || owner.HitPoints <= 0) break;
+                if (owner == null || !owner.IsAliveForBattle) break;
                 if (entry == null || !entries.Contains(entry) || entry.HasExpired() || entry.Category != category)
                 {
                     continue;
@@ -236,6 +236,22 @@ namespace Windy.Srpg.Game.Buffs
                 .Select(entry => entry?.EffectInstance)
                 .Where(effect => effect != null)
                 .ToList();
+        }
+
+        public float ApplyMovementPointCaps(float movementPoints)
+        {
+            float cappedMovementPoints = movementPoints;
+            foreach (Buff entry in entries)
+            {
+                if (entry?.EffectInstance is IP_MovementPointCap movementCap)
+                {
+                    cappedMovementPoints = Math.Min(
+                        cappedMovementPoints,
+                        movementCap.GetMovementPointCap(owner, entry, cappedMovementPoints));
+                }
+            }
+
+            return cappedMovementPoints;
         }
 
         public PrimaryStatModifiers GetPrimaryStatModifiers()
@@ -276,6 +292,13 @@ namespace Windy.Srpg.Game.Buffs
         {
             return !string.IsNullOrWhiteSpace(buffId)
                 && entries.Any(entry => entry != null && string.Equals(entry.BuffId, buffId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public Buff GetBuff(string buffId)
+        {
+            return string.IsNullOrWhiteSpace(buffId)
+                ? null
+                : entries.FirstOrDefault(entry => entry != null && string.Equals(entry.BuffId, buffId, StringComparison.OrdinalIgnoreCase));
         }
 
         public int RemoveRemovableBuffs(params BuffCategory[] categories)

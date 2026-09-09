@@ -10,7 +10,8 @@ dotnet build com.windy.srpg.game.editor.csproj --no-restore
 The console checks compile the actual buff engine, built-in buff and weapon effects,
 and item definitions against small host adapters. They read the real `gdata.json`.
 They cover stacking, duration refresh, three Toxic ticks, stun duration when applied
-during the target's turn, stat reductions, cleansing filters, and battle cleanup.
+during the target's turn, stat reductions, cleansing filters, Death's Door status
+separation, Toxic application at negative HP, movement capping, and battle cleanup.
 They do not exercise Unity's scene lifecycle, input, AI, or HUD.
 
 ## Play Mode checks

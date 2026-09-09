@@ -29,9 +29,9 @@ MonoBehaviour:
     HitPoints: 100
     ManaPoints: 20
     MovementPoints: 5
-    Strength: 0
+    Strength: 99
     Defense: 0
-    Magic: 5
+    Magic: 99
     Speed: 0
     Luck: 0
   GrowthRates:
@@ -41,7 +41,7 @@ MonoBehaviour:
     Speed: 20
     Luck: 20
   StartingInventory:
-  - ItemId: stun_sword
+  - ItemId: iron_sword
     InitialCharges: -1
     IsDroppable: 1
     ChargesInitialized: 1

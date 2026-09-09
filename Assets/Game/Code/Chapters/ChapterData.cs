@@ -99,7 +99,7 @@ namespace Windy.Srpg.Game.Chapters
         private static List<Unit> GetAliveBattleUnits(CellGrid grid)
         {
             return grid.GetAllUnits()
-                .Where(unit => unit != null && !unit.ExcludedFromBattle && unit.HitPoints > 0)
+                .Where(unit => unit != null && !unit.ExcludedFromBattle && unit.IsAliveForBattle)
                 .ToList();
         }
     }

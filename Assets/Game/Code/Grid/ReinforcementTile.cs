@@ -270,7 +270,7 @@ namespace Windy.Srpg.Game.Grid
 
         private bool IsSpawnerAlive()
         {
-            return spawner != null && !spawner.ExcludedFromBattle && spawner.HitPoints > 0;
+            return spawner != null && !spawner.ExcludedFromBattle && spawner.IsAliveForBattle;
         }
 
         private Cell ResolveSpawnCell()

@@ -806,6 +806,32 @@
         }
       },
       {
+        "Id": "death_door",
+        "Name": "Death's Door",
+        "Description": "Survives at 0 HP or below. Taking damage again is fatal. Movement is lowered to 1.",
+        "Duration": 0,
+        "Category": "Misc",
+        "MaxStacks": 1,
+        "Removable": false,
+        "EffectId": "movement_cap_1"
+      },
+      {
+        "Id": "death_door_penalty",
+        "Name": "Death's Door Penalty",
+        "Description": "Str/Mag/Def/Spd/Lck -1 per Death's Door entry, up to 5 stacks. Lasts until battle ends.",
+        "Duration": 0,
+        "Category": "Weakening",
+        "MaxStacks": 5,
+        "Removable": false,
+        "PrimaryStatModifiers": {
+          "Strength": -1,
+          "Magic": -1,
+          "Defense": -1,
+          "Speed": -1,
+          "Luck": -1
+        }
+      },
+      {
         "Id": "attack_up",
         "Name": "Attack Up",
         "Description": "Increases attack power for one turn.",

@@ -36,7 +36,7 @@ namespace Windy.Srpg.Game.Inventory
             public ApplyDebuffOnHit(string buffId) { this.buffId = buffId; }
             public void OnWeaponHit(Unit attacker, Unit target)
             {
-                if (target != null && target.HitPoints > 0)
+                if (target != null && target.IsAliveForBattle)
                     target.AddBuffById(buffId);
             }
         }
@@ -52,7 +52,7 @@ namespace Windy.Srpg.Game.Inventory
 
             public bool CanUse(Unit user, Unit target)
             {
-                return user != null && target != null && target.HitPoints > 0 && target.HitPoints < target.ComputedTotalHitPoints;
+                return user != null && target != null && target.IsAliveForBattle && target.HitPoints < target.ComputedTotalHitPoints;
             }
 
             public void Use(Unit user, Unit target)
@@ -72,7 +72,7 @@ namespace Windy.Srpg.Game.Inventory
 
             public bool CanUse(Unit user, Unit target)
             {
-                return user != null && target != null && target.HitPoints > 0 && target == user;
+                return user != null && target != null && target.IsAliveForBattle && target == user;
             }
 
             public void Use(Unit user, Unit target)

@@ -89,7 +89,7 @@ namespace Windy.Srpg.Game.AI
         public static bool TryFindBestPlan(Unit actor, Player player, CellGrid grid, Cell actingCell, UnitActionAiMode actionMode, out AiCombatPlan plan, bool breakTiesRandomly = false)
         {
             plan = null;
-            if (actor == null || player == null || grid == null || actingCell == null || actor.HitPoints <= 0)
+            if (actor == null || player == null || grid == null || actingCell == null || !actor.IsAliveForBattle)
             {
                 return false;
             }
@@ -132,7 +132,7 @@ namespace Windy.Srpg.Game.AI
         private static List<AiCombatPlan> BuildPlans(Unit actor, Player player, CellGrid grid, Cell actingCell, UnitActionAiMode actionMode)
         {
             List<Unit> enemyUnits = grid.GetEnemyUnits(player)
-                .Where(unit => unit != null && unit.HitPoints > 0 && unit.Cell != null && !unit.ExcludedFromBattle)
+                .Where(unit => unit != null && unit.IsAliveForBattle && unit.Cell != null && !unit.ExcludedFromBattle)
                 .ToList();
 
             List<AiCombatPlan> options = new List<AiCombatPlan>();
@@ -144,7 +144,7 @@ namespace Windy.Srpg.Game.AI
             if (actionMode == UnitActionAiMode.Heal)
             {
                 List<Unit> alliedUnits = grid.GetUnitsForPlayer(player)
-                    .Where(unit => unit != null && unit.HitPoints > 0 && unit.Cell != null && !unit.ExcludedFromBattle)
+                    .Where(unit => unit != null && unit.IsAliveForBattle && unit.Cell != null && !unit.ExcludedFromBattle)
                     .ToList();
 
                 AddHealingPlans(actor, actingCell, grid, alliedUnits, options);
@@ -345,7 +345,7 @@ namespace Windy.Srpg.Game.AI
         private static bool TryBuildSkillPlan(Unit actor, Cell actingCell, CellGrid grid, Skill skill, Unit target, out AiCombatPlan plan)
         {
             plan = null;
-            if (actor == null || skill?.Data == null || target == null || target.HitPoints <= 0)
+            if (actor == null || skill?.Data == null || target == null || !target.IsAliveForBattle)
             {
                 return false;
             }
@@ -385,7 +385,7 @@ namespace Windy.Srpg.Game.AI
         private static bool TryBuildHealingSkillPlan(Unit actor, Cell actingCell, CellGrid grid, Skill skill, Unit target, out AiCombatPlan plan)
         {
             plan = null;
-            if (actor == null || skill?.Data == null || target == null || target == actor || target.HitPoints <= 0)
+            if (actor == null || skill?.Data == null || target == null || target == actor || !target.IsAliveForBattle)
             {
                 return false;
             }
@@ -705,7 +705,7 @@ namespace Windy.Srpg.Game.AI
         private static bool TryGetHealingAmount(Unit actor, Skill skill, Unit target, CellGrid grid, out int healingAmount)
         {
             healingAmount = 0;
-            if (actor == null || skill?.Data == null || target == null || target.HitPoints <= 0)
+            if (actor == null || skill?.Data == null || target == null || !target.IsAliveForBattle)
             {
                 return false;
             }
@@ -747,7 +747,7 @@ namespace Windy.Srpg.Game.AI
             bool canUse = false;
             foreach (Unit target in targets)
             {
-                if (target == null || target.HitPoints <= 0)
+                if (target == null || !target.IsAliveForBattle)
                 {
                     continue;
                 }
@@ -847,7 +847,7 @@ namespace Windy.Srpg.Game.AI
 
             foreach (Unit unit in grid.GetAllUnits())
             {
-                if (unit == null || unit.HitPoints <= 0)
+                if (unit == null || !unit.IsAliveForBattle)
                 {
                     continue;
                 }
@@ -1041,7 +1041,7 @@ namespace Windy.Srpg.Game.AI
                 return false;
             }
 
-            if (!defender.CanCounterAttack || defender.HitPoints <= 0 || aggressor.HitPoints <= 0)
+            if (!defender.CanCounterAttack || !defender.IsAliveForBattle || !aggressor.IsAliveForBattle)
             {
                 return false;
             }

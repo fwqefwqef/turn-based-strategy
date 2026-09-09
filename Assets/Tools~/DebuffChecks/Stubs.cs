@@ -31,6 +31,8 @@ namespace Windy.Srpg.Game.Units
         public int Defense;
         public UnitBuffList Buffs;
         public Unit() { Buffs = new UnitBuffList(this); }
+        public bool IsAtDeathsDoor => Buffs.HasBuff("death_door");
+        public bool IsAliveForBattle => HitPoints > 0 || IsAtDeathsDoor;
         public Buff AddBuffById(string id) => Buffs.AddBuffById(id);
         public bool RemoveBuff(Buff entry) => Buffs.RemoveBuff(entry);
         public void ApplyPainDamage(int damage) => HitPoints = Math.Max(0, HitPoints - damage);

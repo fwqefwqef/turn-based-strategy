@@ -7,8 +7,8 @@ namespace Windy.Srpg.Game.Editor
 {
     public sealed class UnitPresetCreatorWindow : EditorWindow
     {
-        private const string DefaultEnemyPresetFolder = "Assets/Game/Presets/enemy preset";
-        private const string DefaultFriendlyPresetFolder = "Assets/Game/Presets/friendly preset";
+        private const string DefaultEnemyPresetFolder = "Assets/Game/Data/Preset Data (Unit, Tile)/enemy preset";
+        private const string DefaultFriendlyPresetFolder = "Assets/Game/Data/Preset Data (Unit, Tile)/friendly preset";
 
         [SerializeField] private UnitPreset importPreset;
         [SerializeField] private string outputFolder = DefaultEnemyPresetFolder;

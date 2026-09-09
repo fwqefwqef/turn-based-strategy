@@ -19,7 +19,7 @@ namespace Windy.Srpg.Game.Grid
         {
             Dictionary<Unit, HashSet<Cell>> results = new Dictionary<Unit, HashSet<Cell>>();
             List<Unit> resolvedUnits = units?
-                .Where(unit => unit != null && unit.HitPoints > 0 && !unit.ExcludedFromBattle)
+                .Where(unit => unit != null && unit.IsAliveForBattle && !unit.ExcludedFromBattle)
                 .Distinct()
                 .ToList()
                 ?? new List<Unit>();
@@ -41,7 +41,7 @@ namespace Windy.Srpg.Game.Grid
         public static HashSet<Cell> GetThreatenedCells(Unit unit, CellGrid grid)
         {
             HashSet<Cell> threatenedCells = new HashSet<Cell>();
-            if (unit == null || grid == null || unit.HitPoints <= 0)
+            if (unit == null || grid == null || !unit.IsAliveForBattle)
             {
                 return threatenedCells;
             }
@@ -105,7 +105,7 @@ namespace Windy.Srpg.Game.Grid
 
                 foreach (Unit unit in grid.GetAllUnits())
                 {
-                    if (unit == null || unit.ExcludedFromBattle || unit.HitPoints <= 0)
+                    if (unit == null || unit.ExcludedFromBattle || !unit.IsAliveForBattle)
                     {
                         continue;
                     }

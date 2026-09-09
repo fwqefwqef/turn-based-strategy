@@ -25,6 +25,14 @@ namespace Windy.Srpg.Game.Units
     [ExecuteInEditMode]
     public partial class Unit : MonoBehaviour
     {
+        public const string DeathsDoorBuffId = "death_door";
+        public const string DeathsDoorPenaltyBuffId = "death_door_penalty";
+        private const bool AlliesUseDeathsDoorByDefault = true;
+        private const bool EnemiesUseDeathsDoorByDefault = false;
+
+        internal static bool AlliesUseDeathsDoor => AlliesUseDeathsDoorByDefault;
+        internal static bool EnemiesUseDeathsDoor => EnemiesUseDeathsDoorByDefault;
+
 // Search for "CTRL+F:" to jump between major gameplay systems in this file.
         #region CTRL+F: Events / Runtime State / Serialized Fields
         internal Dictionary<Cell, IList<Cell>> cachedPaths = null;
@@ -51,6 +59,8 @@ namespace Windy.Srpg.Game.Units
         public bool IsFinishedForTurn => currentTurnStateKind == UnitTurnStateKind.Finished;
         public bool IsActionBlocked => BuffList != null && BuffList.GetActiveEffects().Any(effect => effect is IP_ActionBlocker);
         public bool HasRemovableDebuffs => BuffList != null && BuffList.Entries.Any(entry => entry.Removable && entry.Category != BuffCategory.Buff);
+        public bool IsAtDeathsDoor => BuffList != null && BuffList.HasBuff(DeathsDoorBuffId);
+        public bool IsAliveForBattle => HitPoints > 0 || IsAtDeathsDoor;
         public bool CanStartActionThisTurn => !IsFinishedForTurn && !IsActionBlocked;
 
         internal int customTotalHitPoints;
@@ -69,7 +79,7 @@ namespace Windy.Srpg.Game.Units
         }
         public float ComputedTotalMovementPoints
         {
-            get => customTotalMovementPoints;
+            get => BuffList != null ? BuffList.ApplyMovementPointCaps(customTotalMovementPoints) : customTotalMovementPoints;
             internal set => customTotalMovementPoints = value;
         }
 
@@ -998,7 +1008,7 @@ namespace Windy.Srpg.Game.Units
 
         public virtual float MovementPoints
         {
-            get => movementPointsStorage;
+            get => BuffList != null ? BuffList.ApplyMovementPointCaps(movementPointsStorage) : movementPointsStorage;
             set => movementPointsStorage = value;
         }
 

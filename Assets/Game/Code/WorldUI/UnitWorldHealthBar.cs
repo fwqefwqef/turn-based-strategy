@@ -211,7 +211,7 @@ namespace Windy.Srpg.Game.UI
 
             if (_root != null)
             {
-                _root.gameObject.SetActive(!hideWhenDead || _unit.HitPoints > 0);
+                _root.gameObject.SetActive(!hideWhenDead || _unit.IsAliveForBattle);
             }
 
             _lastRenderedHitPoints = _unit.HitPoints;

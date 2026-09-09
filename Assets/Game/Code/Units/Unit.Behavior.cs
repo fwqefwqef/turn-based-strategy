@@ -425,23 +425,83 @@ namespace Windy.Srpg.Game.Units
             RaiseBuffsChanged();
         }
 
+        private bool TryEnterDeathsDoor(Unit source, int damageAmount)
+        {
+            if (IsAtDeathsDoor || !CanUseDeathsDoor())
+            {
+                return false;
+            }
+
+            RuntimeBuff deathDoorEntry = AddBuffById(DeathsDoorBuffId);
+            if (deathDoorEntry == null || !IsAtDeathsDoor)
+            {
+                return false;
+            }
+
+            AddBuffById(DeathsDoorPenaltyBuffId);
+            BattleLog.Log("Combat", $"{name} enters Death's Door instead of being defeated. (unitId={UnitID}, sourceId={source?.UnitID}, damage={damageAmount})");
+            return true;
+        }
+
+        private bool CanUseDeathsDoor()
+        {
+            return PlayerNumber == 0 ? AlliesUseDeathsDoor : EnemiesUseDeathsDoor;
+        }
+
+        private void ClearDeathsDoorIfHealedAboveZero()
+        {
+            if (HitPoints <= 0 || BuffList == null)
+            {
+                return;
+            }
+
+            RuntimeBuff deathDoorEntry = BuffList.GetBuff(DeathsDoorBuffId);
+            if (deathDoorEntry == null)
+            {
+                return;
+            }
+
+            BuffList.RemoveBuff(deathDoorEntry);
+            BattleLog.Log("Combat", $"{name} recovers from Death's Door. (unitId={UnitID})");
+            RaiseBuffsChanged();
+            RaiseStatsChanged();
+        }
+
+        private void ClearDeathsDoorOnDefeat()
+        {
+            if (BuffList == null)
+            {
+                return;
+            }
+
+            RuntimeBuff deathDoorEntry = BuffList.GetBuff(DeathsDoorBuffId);
+            if (deathDoorEntry != null)
+            {
+                RemoveBuff(deathDoorEntry);
+            }
+        }
+
         public void ApplyPainDamage(int amount)
         {
-            if (HitPoints <= 0 || amount <= 0) return;
+            if (!IsAliveForBattle || amount <= 0) return;
             int previous = HitPoints;
-            HitPoints = Mathf.Max(0, HitPoints - amount);
+            HitPoints -= amount;
             RaiseHealthChanged(previous, HitPoints, null);
             if (HitPoints <= 0)
             {
-                DestroyedInCombat?.Invoke(this, new UnitDestroyedEventArgs(null, this, amount));
-                CombatDestroyed?.Invoke(this, new AttackEventArgs(null, this, amount));
-                OnDestroyed();
+                if (!TryEnterDeathsDoor(null, amount))
+                {
+                    ClearDeathsDoorOnDefeat();
+                    DestroyedInCombat?.Invoke(this, new UnitDestroyedEventArgs(null, this, amount));
+                    CombatDestroyed?.Invoke(this, new AttackEventArgs(null, this, amount));
+                    OnDestroyed();
+                }
             }
         }
 
         public IEnumerator PresentPainTick()
         {
-            if (HitPoints <= 0 || BuffList == null || !BuffList.Entries.Any(entry =>
+            if (!IsAliveForBattle || BuffList == null || !BuffList.Entries.Any(entry =>
                 entry.Category == BuffCategory.Pain && !entry.HasExpired() && entry.EffectInstance is IP_DotTick))
                 yield break;
 
@@ -975,8 +1035,8 @@ namespace Windy.Srpg.Game.Units
             return weapon != null
                 && other != null
                 && weapon.CanPursuitAttack
-                && HitPoints > 0
-                && other.HitPoints > 0
+                && IsAliveForBattle
+                && other.IsAliveForBattle
                 && GetSpeedForWeapon(weapon) >= other.Speed + PursuitAttackSpeedThreshold;
         }
         public bool HasAnyWeaponThatCanAttack(IEnumerable<Unit> potentialTargets, Cell sourceCell)
@@ -1060,13 +1120,14 @@ namespace Windy.Srpg.Game.Units
         }
         public void RestoreHitPoints(int amount, Unit source = null)
         {
-            if (amount <= 0 || HitPoints <= 0)
+            if (amount <= 0 || !IsAliveForBattle)
             {
                 return;
             }
 
             int previousHitPoints = HitPoints;
-            HitPoints = Mathf.Clamp(HitPoints + amount, 0, ComputedTotalHitPoints);
+            HitPoints = Mathf.Min(HitPoints + amount, ComputedTotalHitPoints);
+            ClearDeathsDoorIfHealedAboveZero();
             RaiseHealthChanged(previousHitPoints, HitPoints, source);
         }
         public void SetCurrentHitPoints(int value, Unit source = null)
@@ -1453,7 +1514,7 @@ namespace Windy.Srpg.Game.Units
                 int initialHits = Mathf.Max(1, attackProfile.NumHits);
                 for (int i = 0; i < initialHits; i++)
                 {
-                    if (IsActionBlocked || unitToAttack == null || HitPoints <= 0 || unitToAttack.HitPoints <= 0)
+                    if (IsActionBlocked || unitToAttack == null || !IsAliveForBattle || !unitToAttack.IsAliveForBattle)
                     {
                         break;
                     }
@@ -1476,7 +1537,7 @@ namespace Windy.Srpg.Game.Units
                     }
                 }
 
-                if (unitToAttack != null && HitPoints > 0 && unitToAttack.HitPoints > 0)
+                if (unitToAttack != null && IsAliveForBattle && unitToAttack.IsAliveForBattle)
                 {
                     yield return StartCoroutine(unitToAttack.CounterAttack(this, attackProfile.PreventsCounterattack));
                 }
@@ -1487,13 +1548,13 @@ namespace Windy.Srpg.Game.Units
                     && attackProfile.CanPursuitAttack
                     && Speed >= unitToAttack.Speed + PursuitAttackSpeedThreshold;
 
-                if (pursuitAttack && !IsActionBlocked && HitPoints > 0 && unitToAttack != null && unitToAttack.HitPoints > 0)
+                if (pursuitAttack && !IsActionBlocked && IsAliveForBattle && unitToAttack != null && unitToAttack.IsAliveForBattle)
                 {
                     BattleLog.Log("Combat", $"{name} starts a pursuit {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
                     int pursuitHits = Mathf.Max(1, attackProfile.NumHits);
                     for (int i = 0; i < pursuitHits; i++)
                     {
-                        if (IsActionBlocked || unitToAttack == null || HitPoints <= 0 || unitToAttack.HitPoints <= 0)
+                        if (IsActionBlocked || unitToAttack == null || !IsAliveForBattle || !unitToAttack.IsAliveForBattle)
                         {
                             break;
                         }
@@ -1522,7 +1583,7 @@ namespace Windy.Srpg.Game.Units
                 {
                     if (!targetWasDefeated && unitToAttack != null)
                     {
-                        targetWasDefeated = unitToAttack.HitPoints <= 0;
+                        targetWasDefeated = !unitToAttack.IsAliveForBattle;
                     }
 
                     experienceAward = BuildCombatExperienceAward(experienceTarget, experienceTargetLevel, targetWasDefeated);
@@ -1614,7 +1675,7 @@ namespace Windy.Srpg.Game.Units
             int simulatedHitPoints = HitPoints;
             int damageTaken = 0;
 
-            if (simulatedHitPoints > 0 && aggressor.HitPoints > 0)
+            if (IsAliveForBattle && aggressor.IsAliveForBattle)
             {
                 if (!simulateOnly)
                 {
@@ -1686,18 +1747,23 @@ namespace Windy.Srpg.Game.Units
                     DefenceActionPerformed();
                     RaiseHealthChanged(previousHitPoints, HitPoints, aggressor);
 
-                    if (damageContext.IsHit && HitPoints > 0 && applyWeaponEffects
+                    bool tookDamage = damageContext.IsHit && damageTaken > 0;
+                    if (tookDamage && HitPoints <= 0)
+                    {
+                        if (!TryEnterDeathsDoor(aggressor, damageTaken))
+                        {
+                            ClearDeathsDoorOnDefeat();
+                            DestroyedInCombat?.Invoke(this, new UnitDestroyedEventArgs(aggressor, this, damageTaken));
+                            CombatDestroyed?.Invoke(this, new AttackEventArgs(aggressor, this, damageTaken));
+                            OnDestroyed();
+                        }
+                    }
+
+                    if (damageContext.IsHit && IsAliveForBattle && applyWeaponEffects
                         && UnitPassiveRegistry.TryCreate(aggressor.GetActiveWeapon()?.EffectId, out var weaponEffect)
                         && weaponEffect is IWeaponHitEffect hitEffect)
                     {
                         hitEffect.OnWeaponHit(aggressor, this);
-                    }
-
-                    if (HitPoints <= 0)
-                    {
-                        DestroyedInCombat?.Invoke(this, new UnitDestroyedEventArgs(aggressor, this, damageTaken));
-                        CombatDestroyed?.Invoke(this, new AttackEventArgs(aggressor, this, damageTaken));
-                        OnDestroyed();
                     }
                 }
             }
@@ -1724,6 +1790,7 @@ namespace Windy.Srpg.Game.Units
             }
 
             HitPoints = Mathf.Min(HitPoints, currentMaxHitPoints);
+            ClearDeathsDoorIfHealedAboveZero();
 
             if (currentMaxManaPoints < previousMaxManaPoints && previousManaPoints == previousMaxManaPoints)
             {
@@ -1944,7 +2011,7 @@ namespace Windy.Srpg.Game.Units
 
                 if (!targetWasDefeated && experienceTarget != null)
                 {
-                    targetWasDefeated = experienceTarget.HitPoints <= 0;
+                    targetWasDefeated = !experienceTarget.IsAliveForBattle;
                 }
 
                 ExperienceAwardResult experienceAward = BuildCombatExperienceAward(
@@ -1968,9 +2035,9 @@ namespace Windy.Srpg.Game.Units
         {
             return !counterPrevented
                 && CanCounterAttack
-                && HitPoints > 0
+                && IsAliveForBattle
                 && aggressor != null
-                && aggressor.HitPoints > 0
+                && aggressor.IsAliveForBattle
                 && IsAggressorInCounterRange(aggressor);
         }
         public bool CanCounterAttackAgainst(Unit aggressor, bool counterPrevented = false)
@@ -1981,8 +2048,8 @@ namespace Windy.Srpg.Game.Units
         {
             return other != null
                 && CanPursuitAttack
-                && HitPoints > 0
-                && other.HitPoints > 0
+                && IsAliveForBattle
+                && other.IsAliveForBattle
                 && Speed >= other.Speed + PursuitAttackSpeedThreshold;
         }
         private bool IsAggressorInCounterRange(Unit aggressor)
@@ -2320,12 +2387,12 @@ namespace Windy.Srpg.Game.Units
                         continue;
                     }
 
-                    bool targetWasAliveBefore = target.HitPoints > 0;
+                    bool targetWasAliveBefore = target.IsAliveForBattle;
                     CombatSequenceStarted?.Invoke(this, new CombatSequenceEventArgs(this, target));
                     resolvePerTarget?.Invoke(target);
                     CombatSequenceEnded?.Invoke(this, new CombatSequenceEventArgs(this, target));
 
-                    if (targetWasAliveBefore && target.HitPoints <= 0)
+                    if (targetWasAliveBefore && !target.IsAliveForBattle)
                     {
                         killedAtLeastOneTarget = true;
                     }

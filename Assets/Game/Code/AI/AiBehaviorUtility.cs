@@ -89,7 +89,7 @@ namespace Windy.Srpg.Game.AI
             List<Unit> groupUnits = grid.GetUnitsForPlayer(player)
                 .Where(candidate =>
                     candidate != null
-                    && candidate.HitPoints > 0
+                    && candidate.IsAliveForBattle
                     && !candidate.ExcludedFromBattle
                     && candidate.WaitGroupId == unit.WaitGroupId
                     && candidate.MovementAiMode == UnitMovementAiMode.WaitGroup)

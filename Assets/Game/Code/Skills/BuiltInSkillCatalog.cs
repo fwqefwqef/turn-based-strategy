@@ -37,7 +37,7 @@ namespace Windy.Srpg.Game.Skills
             public bool CanUse(Unit user, SkillContext context)
             {
                 Unit target = context?.PrimaryTargetUnit;
-                return user != null && target != null && target.HitPoints > 0
+                return user != null && target != null && target.IsAliveForBattle
                     && target.PlayerNumber == user.PlayerNumber && target.HasRemovableDebuffs;
             }
 
@@ -61,7 +61,7 @@ namespace Windy.Srpg.Game.Skills
                 var target = context?.PrimaryTargetUnit;
                 return user != null
                     && target != null
-                    && target.HitPoints > 0
+                    && target.IsAliveForBattle
                     && target.HitPoints < target.ComputedTotalHitPoints;
             }
 
@@ -86,7 +86,7 @@ namespace Windy.Srpg.Game.Skills
                 return user != null
                     && target != null
                     && target.PlayerNumber == user.PlayerNumber
-                    && target.HitPoints > 0
+                    && target.IsAliveForBattle
                     && target.HitPoints < target.ComputedTotalHitPoints;
             }
 
@@ -130,7 +130,7 @@ namespace Windy.Srpg.Game.Skills
                     && target != null
                     && target != user
                     && target.PlayerNumber == user.PlayerNumber
-                    && target.HitPoints > 0
+                    && target.IsAliveForBattle
                     && target.HitPoints < target.ComputedTotalHitPoints;
             }
 
@@ -174,7 +174,7 @@ namespace Windy.Srpg.Game.Skills
                 return user != null
                     && context?.PrimaryTargetUnit != null
                     && context.PrimaryTargetUnit.PlayerNumber != user.PlayerNumber
-                    && context.PrimaryTargetUnit.HitPoints > 0;
+                    && context.PrimaryTargetUnit.IsAliveForBattle;
             }
 
             public void Use(Unit user, SkillContext context)

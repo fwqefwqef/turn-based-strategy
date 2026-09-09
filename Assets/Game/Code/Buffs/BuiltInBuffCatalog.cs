@@ -21,6 +21,7 @@ namespace Windy.Srpg.Game.Buffs
             BuffEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMag());
             BuffEffectRegistry.Register("toxic", () => new ToxicBuffEffect());
             BuffEffectRegistry.Register("stun", () => new StunBuffEffect());
+            BuffEffectRegistry.Register("movement_cap_1", () => new MovementCapBuffEffect(1f));
             isRegistered = true;
         }
 
@@ -33,6 +34,21 @@ namespace Windy.Srpg.Game.Buffs
         }
 
         private sealed class StunBuffEffect : BuffEffectBase, IP_ActionBlocker { }
+
+        private sealed class MovementCapBuffEffect : BuffEffectBase, IP_MovementPointCap
+        {
+            private readonly float cap;
+
+            public MovementCapBuffEffect(float cap)
+            {
+                this.cap = cap;
+            }
+
+            public float GetMovementPointCap(Unit unit, Buff entry, float currentCap)
+            {
+                return cap;
+            }
+        }
 
         private sealed class DamageToOneBuffEffect : BuffEffectBase, IP_TakeDamageChange
         {

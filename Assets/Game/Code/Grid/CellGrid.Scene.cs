@@ -973,13 +973,13 @@ namespace Windy.Srpg.Game.Grid
             foreach (Unit unit in GetAllUnits().Where(unit => unit != null && unit.PlayerNumber == currentPlayerNumber).ToList())
             {
                 if (gameFinished) yield break;
-                if (unit != null && unit.HitPoints > 0) yield return unit.PresentPainTick();
+                if (unit != null && unit.IsAliveForBattle) yield return unit.PresentPainTick();
             }
 
             if (CheckGameFinished() || !syncUnitTurnHooks) yield break;
             foreach (Unit unit in playableUnitsAccessor())
             {
-                if (unit == null || unit.HitPoints <= 0) continue;
+                if (unit == null || !unit.IsAliveForBattle) continue;
                 NotifyAbilitiesTurnStarted(unit);
                 unit.OnTurnStart();
             }
@@ -1089,7 +1089,7 @@ namespace Windy.Srpg.Game.Grid
 
             gameFinished = true;
             foreach (Unit unit in GetAllUnits().ToList())
-                if (unit != null && unit.HitPoints > 0) unit.ClearBattleBuffs();
+                if (unit != null && unit.IsAliveForBattle) unit.ClearBattleBuffs();
             IReadOnlyList<int> winningPlayers = outcome.WinningPlayerIds ?? Array.Empty<int>();
             IReadOnlyList<int> losingPlayers = outcome.DefeatedPlayerIds ?? Array.Empty<int>();
             Debug.Log(

@@ -1035,7 +1035,7 @@ namespace Windy.Srpg.Game.Abilities
 
             foreach (var unit in GetAllBattleUnits(cellGrid))
             {
-                if (unit == null || unit.HitPoints <= 0)
+                if (unit == null || !unit.IsAliveForBattle)
                 {
                     continue;
                 }
@@ -1792,7 +1792,7 @@ namespace Windy.Srpg.Game.Abilities
                                 skill.Data.EndsTurn,
                                 target =>
                                 {
-                                    if (target == null || target.HitPoints <= 0)
+                                    if (target == null || !target.IsAliveForBattle)
                                     {
                                         return;
                                     }
@@ -2155,7 +2155,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             return GetAllBattleUnits(cellGrid)
-                .Where(unit => unit != null && unit.HitPoints > 0 && unit.PlayerNumber != UnitReference.PlayerNumber);
+                .Where(unit => unit != null && unit.IsAliveForBattle && unit.PlayerNumber != UnitReference.PlayerNumber);
         }
 
         private IEnumerable<Unit> GetAllySkillTargetCandidates(CellGrid cellGrid)
@@ -2166,7 +2166,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             return GetAllBattleUnits(cellGrid)
-                .Where(unit => unit != null && unit != UnitReference && unit.HitPoints > 0 && unit.PlayerNumber == UnitReference.PlayerNumber);
+                .Where(unit => unit != null && unit != UnitReference && unit.IsAliveForBattle && unit.PlayerNumber == UnitReference.PlayerNumber);
         }
 
         private IEnumerable<Unit> GetAnySkillTargetCandidates(CellGrid cellGrid)
@@ -2177,7 +2177,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             return GetAllBattleUnits(cellGrid)
-                .Where(unit => unit != null && unit != UnitReference && unit.HitPoints > 0);
+                .Where(unit => unit != null && unit != UnitReference && unit.IsAliveForBattle);
         }
 
         private bool CanSkillTargetUnit(Skill skill, Unit target, CellGrid cellGrid)

@@ -66,6 +66,23 @@ Check(weakened.Buffs.GetPrimaryStatModifiers().Strength == 0, "Cleansing restore
 weakened.Buffs.Clear();
 Check(weakened.Buffs.Entries.Count == 0, "Battle cleanup removes every status");
 
+var deathsDoor = new Unit { HitPoints = -4 };
+deathsDoor.AddBuffById("death_door");
+Check(deathsDoor.IsAliveForBattle, "Death's Door keeps a unit alive at negative HP");
+Check(deathsDoor.Buffs.ApplyMovementPointCaps(6f) == 1f, "Death's Door caps movement at one");
+Hit("toxic_sword", deathsDoor);
+Check(deathsDoor.Buffs.HasBuff("toxic"), "Weapon debuffs can apply to a living Death's Door unit");
+deathsDoor.AddBuffById("death_door_penalty");
+deathsDoor.AddBuffById("death_door_penalty");
+var deathsDoorPenalty = deathsDoor.Buffs.GetBuff("death_door_penalty");
+Check(deathsDoorPenalty.Stacks == 2 && !deathsDoorPenalty.Removable
+    && deathsDoor.Buffs.GetPrimaryStatModifiers().Strength == -2,
+    "Death's Door penalty stacks independently from ordinary Weakening");
+Check(deathsDoor.Buffs.RemoveRemovableDebuffs() == 1
+    && deathsDoor.Buffs.HasBuff("death_door")
+    && deathsDoor.Buffs.HasBuff("death_door_penalty"),
+    "Cleanse removes Toxic but preserves both non-removable Death's Door statuses");
+
 var cloneUnit = new Unit();
 cloneUnit.AddBuffById("weakening");
 cloneUnit.Buffs.AddBuff(BuffRegistry.CreateRuntimeInstance(BuffRegistry.Get("weakening")));
