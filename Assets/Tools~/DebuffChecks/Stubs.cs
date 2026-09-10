@@ -14,6 +14,7 @@ namespace UnityEngine
     {
         public static int Max(int a, int b) => Math.Max(a, b);
         public static int Clamp(int value, int min, int max) => Math.Clamp(value, min, max);
+        public static int CeilToInt(float value) => (int)Math.Ceiling(value);
     }
     public static class Debug
     {
@@ -29,10 +30,16 @@ namespace Windy.Srpg.Game.Units
         public int ComputedTotalHitPoints = 200;
         public int Magic;
         public int Defense;
+        public int? BlackFogDepth;
         public UnitBuffList Buffs;
         public Unit() { Buffs = new UnitBuffList(this); }
         public bool IsAtDeathsDoor => Buffs.HasBuff("death_door");
         public bool IsAliveForBattle => HitPoints > 0 || IsAtDeathsDoor;
+        internal bool TryGetBlackFogDepth(out int depth)
+        {
+            depth = BlackFogDepth ?? 0;
+            return BlackFogDepth.HasValue;
+        }
         public Buff AddBuffById(string id) => Buffs.AddBuffById(id);
         public bool RemoveBuff(Buff entry) => Buffs.RemoveBuff(entry);
         public void ApplyPainDamage(int damage) => HitPoints = Math.Max(0, HitPoints - damage);

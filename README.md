@@ -26,17 +26,19 @@ The older parallel runtime/mirror grid has been removed. New battle features sho
 
 - Pending-move previews followed by action confirmation
 - Weapon attacks, combat arts, single-target skills, and area skills
+- Skills that do not end the unit's action are inherently limited to one use per turn
 - Inventory, equipment, trading, shops, and dropped-item handling
 - Class and equip passives
 - Five-stat progression: Strength, Magic, Defense, Speed, and Luck; Magic also provides magical defense
 - EXP, level-ups, and growth-rate-based stat gains
 - Stackable buffs and debuffs with categories, duration refresh, cleansing, crowd control, and damage-over-time processing
+- Chapter-configured Black Fog with directional expansion, depth-scaled damage, and persistent tile overlays
 - Combat-aware enemy AI with attack/heal action modes and Move, Wait, WaitGroup, and NotMove movement modes
 - Pre-battle roster deployment and unit configuration
 - Campaign saves, chapter unlocking, replayable chapters, battle results, and victory progression
 - Unit preset inheritance with additive per-instance stat and loadout overrides
 
-Death's Door, Black Fog, and multi-tile boss support are planned but are not implemented yet.
+Multi-tile boss support is planned but is not implemented yet. Death's Door and Black Fog are implemented and awaiting broader Play Mode validation.
 
 ## Project Layout
 
@@ -75,6 +77,7 @@ Run focused checks:
 ```powershell
 dotnet run --project 'Assets/Tools~/DebuffChecks/DebuffChecks.csproj'
 dotnet run --project 'Assets/Tools~/PresetOverrideChecks/PresetOverrideChecks.csproj'
+dotnet run --project 'Assets/Tools~/SkillUsageChecks/SkillUsageChecks.csproj'
 ```
 
 Run the five-stat growth preview from the command line:

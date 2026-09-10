@@ -6,6 +6,7 @@ namespace Windy.Srpg.Game.Grid
     {
         private const string OverlayObjectName = "RuntimeOverlay";
         private const string EnemyRangeOverlayObjectName = "EnemyRangeOverlay";
+        private const string BlackFogOverlayObjectName = "BlackFogOverlay";
         private const string EnemyRangeBorderTopName = "EnemyRangeBorderTop";
         private const string EnemyRangeBorderRightName = "EnemyRangeBorderRight";
         private const string EnemyRangeBorderBottomName = "EnemyRangeBorderBottom";
@@ -16,6 +17,7 @@ namespace Windy.Srpg.Game.Grid
         private const string BorderLeftName = "BorderLeft";
 
         private static readonly Color HiddenOverlayColor = new Color(1f, 1f, 1f, 0f);
+        private static readonly Color BlackFogColor = new Color(0.015f, 0.02f, 0.025f, 0.62f);
         private static readonly Color EnemyThreatCollectiveColor = new Color(1f, 0.56f, 0.78f, 0.28f);
         private static readonly Color EnemyThreatCollectiveBorderColor = new Color(1f, 0.56f, 0.78f, 0.95f);
         private static readonly Color EnemyThreatIndividualColor = new Color(1f, 0.46f, 0.46f, 0.32f);
@@ -31,6 +33,7 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private Renderer baseRenderer;
         [SerializeField] private Renderer overlayRenderer;
         [SerializeField] private Renderer enemyRangeOverlayRenderer;
+        [SerializeField] private Renderer blackFogOverlayRenderer;
         [SerializeField] private SpriteRenderer topBorderRenderer;
         [SerializeField] private SpriteRenderer rightBorderRenderer;
         [SerializeField] private SpriteRenderer bottomBorderRenderer;
@@ -43,14 +46,17 @@ namespace Windy.Srpg.Game.Grid
         private SpriteRenderer baseSpriteRenderer;
         private SpriteRenderer overlaySpriteRenderer;
         private SpriteRenderer enemyRangeOverlaySpriteRenderer;
+        private SpriteRenderer blackFogOverlaySpriteRenderer;
 
         private void Awake()
         {
             CacheRenderers();
             EnsureOverlayRenderer();
             EnsureEnemyRangeOverlayRenderer();
+            EnsureBlackFogOverlayRenderer();
             SetOverlayColor(HiddenOverlayColor);
             SetEnemyRangeOverlayColor(HiddenOverlayColor);
+            SetBlackFogOverlayColor(HiddenOverlayColor);
         }
 
         private void OnValidate()
@@ -58,8 +64,10 @@ namespace Windy.Srpg.Game.Grid
             CacheRenderers();
             BindExistingOverlayRenderer();
             BindExistingEnemyRangeOverlayRenderer();
+            BindExistingBlackFogOverlayRenderer();
             SetOverlayColor(HiddenOverlayColor);
             SetEnemyRangeOverlayColor(HiddenOverlayColor);
+            SetBlackFogOverlayColor(HiddenOverlayColor);
         }
 
         public override void Apply(Cell cell, CellHighlightKind highlightKind)
@@ -103,6 +111,18 @@ namespace Windy.Srpg.Game.Grid
             SetEnemyRangeBorderState(false, false, false, false, Color.clear, false);
         }
 
+        public override void ApplyBlackFogOverlay(Cell cell)
+        {
+            EnsureBlackFogOverlayRenderer();
+            SetBlackFogOverlayColor(BlackFogColor);
+        }
+
+        public override void ClearBlackFogOverlay(Cell cell)
+        {
+            EnsureBlackFogOverlayRenderer();
+            SetBlackFogOverlayColor(HiddenOverlayColor);
+        }
+
         public override void ShowCursorBorder(Cell cell, Color color)
         {
             ShowPreviewBorder(true, true, true, true, color);
@@ -140,6 +160,8 @@ namespace Windy.Srpg.Game.Grid
 
             baseSpriteRenderer = baseRenderer as SpriteRenderer;
             overlaySpriteRenderer = overlayRenderer as SpriteRenderer;
+            enemyRangeOverlaySpriteRenderer = enemyRangeOverlayRenderer as SpriteRenderer;
+            blackFogOverlaySpriteRenderer = blackFogOverlayRenderer as SpriteRenderer;
         }
 
         private void EnsureOverlayRenderer()
@@ -238,6 +260,54 @@ namespace Windy.Srpg.Game.Grid
             enemyRangeOverlaySpriteRenderer = enemyRangeOverlayRenderer as SpriteRenderer;
             ConfigureEnemyRangeOverlayTransform();
             return enemyRangeOverlayRenderer != null;
+        }
+
+        private void EnsureBlackFogOverlayRenderer()
+        {
+            if (blackFogOverlayRenderer != null || baseSpriteRenderer == null)
+            {
+                blackFogOverlaySpriteRenderer = blackFogOverlayRenderer as SpriteRenderer;
+                ConfigureBlackFogOverlayTransform();
+                return;
+            }
+
+            if (BindExistingBlackFogOverlayRenderer())
+            {
+                return;
+            }
+
+            GameObject overlayObject = new GameObject(BlackFogOverlayObjectName);
+            overlayObject.transform.SetParent(transform, false);
+
+            blackFogOverlaySpriteRenderer = overlayObject.AddComponent<SpriteRenderer>();
+            blackFogOverlaySpriteRenderer.sprite = GetBorderSprite();
+            blackFogOverlaySpriteRenderer.color = HiddenOverlayColor;
+            blackFogOverlaySpriteRenderer.flipX = baseSpriteRenderer.flipX;
+            blackFogOverlaySpriteRenderer.flipY = baseSpriteRenderer.flipY;
+            blackFogOverlaySpriteRenderer.drawMode = SpriteDrawMode.Simple;
+            blackFogOverlaySpriteRenderer.size = Vector2.one;
+            blackFogOverlaySpriteRenderer.maskInteraction = baseSpriteRenderer.maskInteraction;
+            blackFogOverlaySpriteRenderer.sortingLayerID = baseSpriteRenderer.sortingLayerID;
+            blackFogOverlaySpriteRenderer.sortingOrder = baseSpriteRenderer.sortingOrder + 1;
+            blackFogOverlaySpriteRenderer.spriteSortPoint = baseSpriteRenderer.spriteSortPoint;
+            blackFogOverlayRenderer = blackFogOverlaySpriteRenderer;
+            ConfigureBlackFogOverlayTransform();
+        }
+
+        private bool BindExistingBlackFogOverlayRenderer()
+        {
+            Transform existingOverlay = transform.Find(BlackFogOverlayObjectName);
+            if (existingOverlay == null)
+            {
+                blackFogOverlayRenderer = null;
+                blackFogOverlaySpriteRenderer = null;
+                return false;
+            }
+
+            blackFogOverlayRenderer = existingOverlay.GetComponent<Renderer>();
+            blackFogOverlaySpriteRenderer = blackFogOverlayRenderer as SpriteRenderer;
+            ConfigureBlackFogOverlayTransform();
+            return blackFogOverlayRenderer != null;
         }
 
         private void EnsureBorderRenderers()
@@ -395,6 +465,19 @@ namespace Windy.Srpg.Game.Grid
             enemyRangeOverlaySpriteRenderer.transform.localScale = inverseParentScale;
         }
 
+        private void ConfigureBlackFogOverlayTransform()
+        {
+            if (blackFogOverlaySpriteRenderer == null)
+            {
+                return;
+            }
+
+            Vector3 inverseParentScale = ResolveInverseParentScale(blackFogOverlaySpriteRenderer.transform.parent);
+            blackFogOverlaySpriteRenderer.transform.localPosition = Vector3.Scale(new Vector3(0f, 0f, -0.005f), inverseParentScale);
+            blackFogOverlaySpriteRenderer.transform.localRotation = Quaternion.identity;
+            blackFogOverlaySpriteRenderer.transform.localScale = inverseParentScale;
+        }
+
         private static Sprite GetBorderSprite()
         {
             if (borderSprite != null)
@@ -457,6 +540,18 @@ namespace Windy.Srpg.Game.Grid
             else if (enemyRangeOverlayRenderer != null)
             {
                 enemyRangeOverlayRenderer.material.color = color;
+            }
+        }
+
+        private void SetBlackFogOverlayColor(Color color)
+        {
+            if (blackFogOverlaySpriteRenderer != null)
+            {
+                blackFogOverlaySpriteRenderer.color = color;
+            }
+            else if (blackFogOverlayRenderer != null)
+            {
+                blackFogOverlayRenderer.material.color = color;
             }
         }
 

@@ -41,17 +41,9 @@ MonoBehaviour:
     Speed: 20
     Luck: 20
   StartingInventory:
-  - ItemId: toxic_sword
+  - ItemId: iron_sword
     InitialCharges: -1
-    IsDroppable: 0
-    ChargesInitialized: 1
-  - ItemId: stun_sword
-    InitialCharges: -1
-    IsDroppable: 0
-    ChargesInitialized: 1
-  - ItemId: weakening_sword
-    InitialCharges: -1
-    IsDroppable: 0
+    IsDroppable: 1
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: cleanse

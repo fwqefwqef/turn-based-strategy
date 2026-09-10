@@ -20,6 +20,14 @@ namespace Windy.Srpg.Game.Chapters
         LoseAllAllies
     }
 
+    public enum BlackFogDirection
+    {
+        Left,
+        Right,
+        Up,
+        Down
+    }
+
     [Serializable]
     public sealed class ChapterBattleCondition
     {
@@ -112,6 +120,10 @@ namespace Windy.Srpg.Game.Chapters
         [SerializeField] private bool replayable = true;
         [SerializeField] private float unlockRequiredChapterId;
         [SerializeField] private int averageEnemyLevel = 1;
+        [Header("Black Fog")]
+        [SerializeField] private int blackFogTurn = 6;
+        [SerializeField] private BlackFogDirection blackFogDirection = BlackFogDirection.Left;
+        [SerializeField] private int blackFogExpansionDistance = 2;
         [SerializeField] private List<UnitPreset> enemyPaintPresets = new List<UnitPreset>();
         [SerializeField] private List<ChapterBattleCondition> battleConditions = CreateDefaultBattleConditions();
 
@@ -120,6 +132,9 @@ namespace Windy.Srpg.Game.Chapters
         public bool Replayable => replayable;
         public float UnlockRequiredChapterId => Mathf.Max(0f, unlockRequiredChapterId);
         public int AverageEnemyLevel => Mathf.Max(1, averageEnemyLevel);
+        public int BlackFogTurn => Mathf.Max(1, blackFogTurn);
+        public BlackFogDirection BlackFogDirection => blackFogDirection;
+        public int BlackFogExpansionDistance => Mathf.Max(1, blackFogExpansionDistance);
         public IReadOnlyList<UnitPreset> EnemyPaintPresets => enemyPaintPresets ??= new List<UnitPreset>();
         public IReadOnlyList<ChapterBattleCondition> BattleConditions => GetEffectiveBattleConditions();
 
@@ -195,6 +210,9 @@ namespace Windy.Srpg.Game.Chapters
             replayable = true;
             unlockRequiredChapterId = 0f;
             averageEnemyLevel = 1;
+            blackFogTurn = 6;
+            blackFogDirection = BlackFogDirection.Left;
+            blackFogExpansionDistance = 2;
             enemyPaintPresets = new List<UnitPreset>();
             battleConditions = CreateDefaultBattleConditions();
         }
@@ -204,6 +222,8 @@ namespace Windy.Srpg.Game.Chapters
             chapterId = Mathf.Max(0f, chapterId);
             unlockRequiredChapterId = Mathf.Max(0f, unlockRequiredChapterId);
             averageEnemyLevel = Mathf.Max(1, averageEnemyLevel);
+            blackFogTurn = Mathf.Max(1, blackFogTurn);
+            blackFogExpansionDistance = Mathf.Max(1, blackFogExpansionDistance);
             if (battleConditions == null || battleConditions.Count == 0)
             {
                 battleConditions = CreateDefaultBattleConditions();

@@ -1,5 +1,6 @@
 using Windy.Srpg.Game.Catalogs;
 using Windy.Srpg.Game.Units;
+using UnityEngine;
 
 namespace Windy.Srpg.Game.Buffs
 {
@@ -22,6 +23,7 @@ namespace Windy.Srpg.Game.Buffs
             BuffEffectRegistry.Register("toxic", () => new ToxicBuffEffect());
             BuffEffectRegistry.Register("stun", () => new StunBuffEffect());
             BuffEffectRegistry.Register("movement_cap_1", () => new MovementCapBuffEffect(1f));
+            BuffEffectRegistry.Register("black_fog", () => new BlackFogBuffEffect());
             isRegistered = true;
         }
 
@@ -34,6 +36,21 @@ namespace Windy.Srpg.Game.Buffs
         }
 
         private sealed class StunBuffEffect : BuffEffectBase, IP_ActionBlocker { }
+
+        private sealed class BlackFogBuffEffect : BuffEffectBase, IP_DotTick
+        {
+            public void OnDotTick(Unit unit, Buff entry)
+            {
+                if (unit == null || !unit.TryGetBlackFogDepth(out int depth))
+                {
+                    return;
+                }
+
+                int maxHitPoints = Mathf.Max(1, unit.ComputedTotalHitPoints);
+                int damage = Mathf.CeilToInt(maxHitPoints * 0.25f * (depth + 1));
+                unit.ApplyPainDamage(damage);
+            }
+        }
 
         private sealed class MovementCapBuffEffect : BuffEffectBase, IP_MovementPointCap
         {

@@ -236,6 +236,24 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
+        public virtual void ApplyBlackFogOverlay()
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ApplyBlackFogOverlay(this);
+            }
+        }
+
+        public virtual void ClearBlackFogOverlay()
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ClearBlackFogOverlay(this);
+            }
+        }
+
         public virtual void ShowCursorBorder(Color color)
         {
             CacheHighlightersIfNeeded();

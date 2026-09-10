@@ -83,6 +83,11 @@ namespace Windy.Srpg.Game.Skills
         public bool SelfImmune = false;
         public int MpCost = 3;
 
+        // Actions that leave the unit active must still have a per-turn ceiling.
+        // OncePerTurn remains useful for skills that may coexist with other ways
+        // of preserving or restoring a unit's action.
+        public bool HasOncePerTurnUsageLimit => OncePerTurn || !EndsTurn;
+
         public SkillAttackProfile AttackProfile;
         public SkillAreaProfile AreaProfile;
 

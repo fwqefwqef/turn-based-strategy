@@ -1,6 +1,6 @@
 ﻿# Turn Based Strategy — Architecture Summary
 
-Last updated: 2026-06-23
+Last updated: 2026-09-09
 
 This document describes the **current** battle architecture after the single-layer merge (Phases 8d–9). The scene layer is canonical: one `CellGrid`, one `Unit`, one `Cell` per battle — no parallel runtime mirror grid.
 
@@ -41,7 +41,12 @@ Namespaces were consolidated under `Windy.Srpg.Game.*` (Phase 9). A few UI MonoB
 - `**com.windy.srpg.game`** — all code under `Assets/Game/Code/` (`rootNamespace: Windy.Srpg.Game`)
 - `**com.windy.srpg.game.scenes**` — scene scripts under `Assets/Scenes/` (e.g. `SampleUnit`)
 
-Game data catalogs load from `Assets/StreamingAssets/gdata.json` via `CatalogResourceLoader`.
+Game data catalogs load from `Assets/Game/Data/gdata.json` via `CatalogResourceLoader`.
+
+Skill action economy is defined by `SkillData.EndsTurn`. `UnitSkillList` owns a per-unit,
+per-turn usage ledger keyed by skill ID. A skill is usage-limited when `OncePerTurn` is
+enabled or when `EndsTurn` is disabled, so action-preserving skills cannot be repeated
+in the same turn even if equipment refresh rebuilds their runtime `Skill` entry.
 
 ---
 
@@ -382,6 +387,8 @@ All types live in `JsonCatalogLoader.cs`.
 | `CellGrid`                                   | **Main partial** — public API, events, state transitions, pending-move commit, deferred destroy queue. |
 | `CellGrid.Scene`                             | **Partial** — Unity lifecycle, scene registry, turn loop, input dispatch, occupancy rebuild.           |
 | `CellGrid.PreBattle`                         | **Partial** — campaign I/O, deployment slots, roster staging.                                          |
+| `CellGrid.BlackFog` / `BlackFogSystem`       | Chapter-configured fog timing, directional coverage, tile depth, overlays, and positional debuffs.     |
+| `BlackFogLayerCalculator`                    | Maps covered directional rows/columns to frontier-relative damage depth.                               |
 | `Cell`                                       | Grid tile: coordinates, neighbours, `CurrentUnits`, highlights, click/hover events.                    |
 | `CellHighlightKind`                          | Enum for overlay kinds (reachable, path, selected, …).                                                 |
 | `CellHighlighterBehaviour`                   | Abstract highlight renderer API.                                                                       |

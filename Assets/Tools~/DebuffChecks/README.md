@@ -12,6 +12,7 @@ and item definitions against small host adapters. They read the real `gdata.json
 They cover stacking, duration refresh, three Toxic ticks, stun duration when applied
 during the target's turn, stat reductions, cleansing filters, Death's Door status
 separation, Toxic application at negative HP, movement capping, and battle cleanup.
+Black Fog checks cover its non-removable status and rounded damage at multiple depths.
 They do not exercise Unity's scene lifecycle, input, AI, or HUD.
 
 ## Play Mode checks

@@ -1,6 +1,7 @@
 using Windy.Srpg.Game.Buffs;
 using Windy.Srpg.Game.Catalogs;
 using Windy.Srpg.Game.Inventory;
+using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 
 BuiltInBuffCatalog.EnsureRegistered();
@@ -82,6 +83,33 @@ Check(deathsDoor.Buffs.RemoveRemovableDebuffs() == 1
     && deathsDoor.Buffs.HasBuff("death_door")
     && deathsDoor.Buffs.HasBuff("death_door_penalty"),
     "Cleanse removes Toxic but preserves both non-removable Death's Door statuses");
+
+var fogEdge = new Unit { HitPoints = 101, ComputedTotalHitPoints = 101, BlackFogDepth = 0 };
+fogEdge.AddBuffById("black_fog");
+fogEdge.Buffs.OnDotTick();
+Check(fogEdge.HitPoints == 75, "Black Fog depth zero deals a rounded-up 25% Max HP");
+Check(fogEdge.Buffs.HasBuff("black_fog") && !fogEdge.Buffs.GetBuff("black_fog").Removable,
+    "Black Fog is infinite while present and cannot be cleansed normally");
+
+var fogDepthOne = new Unit { HitPoints = 101, ComputedTotalHitPoints = 101, BlackFogDepth = 1 };
+fogDepthOne.AddBuffById("black_fog");
+fogDepthOne.Buffs.OnDotTick();
+Check(fogDepthOne.HitPoints == 50, "Black Fog depth one deals a rounded-up 50% Max HP");
+
+var outsideFog = new Unit { HitPoints = 101, ComputedTotalHitPoints = 101 };
+outsideFog.AddBuffById("black_fog");
+outsideFog.Buffs.OnDotTick();
+Check(outsideFog.HitPoints == 101, "A stale Black Fog status deals no damage outside fog coverage");
+
+var leftOrDownDepths = BlackFogLayerCalculator.BuildDepthByLayer([0, 1, 2, 3, 4, 5], 2, false);
+Check(leftOrDownDepths.Count == 2 && leftOrDownDepths[0] == 1 && leftOrDownDepths[1] == 0,
+    "Left/Down fog covers ascending outer layers and measures depth from the frontier");
+var rightOrUpDepths = BlackFogLayerCalculator.BuildDepthByLayer([0, 1, 2, 3, 4, 5], 2, true);
+Check(rightOrUpDepths.Count == 2 && rightOrUpDepths[5] == 1 && rightOrUpDepths[4] == 0,
+    "Right/Up fog covers descending outer layers and measures depth from the frontier");
+var expandedDepths = BlackFogLayerCalculator.BuildDepthByLayer([0, 1, 2, 3, 4, 5], 4, false);
+Check(expandedDepths.Count == 4 && expandedDepths[0] == 3 && expandedDepths[3] == 0,
+    "Expanding fog increases the depth of previously covered layers");
 
 var cloneUnit = new Unit();
 cloneUnit.AddBuffById("weakening");

@@ -832,6 +832,16 @@
         }
       },
       {
+        "Id": "black_fog",
+        "Name": "Black Fog",
+        "Description": "Takes 25% Max HP per fog depth before each player turn. Removed automatically after leaving the fog.",
+        "Duration": 0,
+        "Category": "Pain",
+        "MaxStacks": 1,
+        "Removable": false,
+        "EffectId": "black_fog"
+      },
+      {
         "Id": "attack_up",
         "Name": "Attack Up",
         "Description": "Increases attack power for one turn.",

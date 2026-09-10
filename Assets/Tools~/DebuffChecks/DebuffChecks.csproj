@@ -9,6 +9,7 @@
     <Compile Include="../../Game/Code/Inventory/ItemData.cs" Link="Runtime/ItemData.cs" />
     <Compile Include="../../Game/Code/Inventory/ItemRegistries.cs" Link="Runtime/ItemRegistries.cs" />
     <Compile Include="../../Game/Code/Inventory/BuiltInItemCatalog.cs" Link="Runtime/BuiltInItemCatalog.cs" />
+    <Compile Include="../../Game/Code/Grid/BlackFogLayerCalculator.cs" Link="Runtime/BlackFogLayerCalculator.cs" />
     <None Include="../../Game/Data/gdata.json" Link="gdata.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

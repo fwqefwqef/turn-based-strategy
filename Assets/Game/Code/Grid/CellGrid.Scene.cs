@@ -137,11 +137,12 @@ namespace Windy.Srpg.Game.Grid
             selectedPreBattleDeploymentSlotIndex = -1;
             selectedPreBattleDeploymentUnit = null;
             battleStarted = true;
+            RoundCount = 1;
             SetDeploymentSlotVisibility(false);
             RebuildSceneCellOccupancy();
             UpdateDeploymentSlotSelectionVisuals();
             TryPersistOwnedUnitSave();
-            RoundCount = 1;
+            InitializeBlackFogForBattle();
             PreBattleStateChanged?.Invoke(this, EventArgs.Empty);
             BattleStarted?.Invoke(this, EventArgs.Empty);
             pendingTurnStartPresentations.Clear();
@@ -178,6 +179,7 @@ namespace Windy.Srpg.Game.Grid
             customUnit.CombatDestroyed += OnCombatDestroyed;
             customUnit.DestroyedInCombat += OnUnitDestroyed;
             UnitAdded?.Invoke(this, new UnitAddedEventArgs(customUnit));
+            RefreshBlackFogDebuffsForOccupancyChange();
         }
 
         private void OnCombatDestroyed(object sender, AttackEventArgs e)
@@ -708,6 +710,7 @@ namespace Windy.Srpg.Game.Grid
         internal void NotifyOccupancyChanged()
         {
             occupancyRevision++;
+            RefreshBlackFogDebuffsForOccupancyChange();
         }
 
         internal void RebuildSceneCellOccupancyForDeploymentInternal()
@@ -970,13 +973,16 @@ namespace Windy.Srpg.Game.Grid
         private System.Collections.IEnumerator ProcessIncomingTurn(bool syncUnitTurnHooks)
         {
             // DoT affects the incoming side, including units unable to act.
+            PrepareBlackFogBeforeIncomingTurnDotPhase();
             foreach (Unit unit in GetAllUnits().Where(unit => unit != null && unit.PlayerNumber == currentPlayerNumber).ToList())
             {
                 if (gameFinished) yield break;
                 if (unit != null && unit.IsAliveForBattle) yield return unit.PresentPainTick();
             }
 
-            if (CheckGameFinished() || !syncUnitTurnHooks) yield break;
+            if (CheckGameFinished()) yield break;
+            CompleteBlackFogAfterIncomingTurnDotPhase();
+            if (!syncUnitTurnHooks) yield break;
             foreach (Unit unit in playableUnitsAccessor())
             {
                 if (unit == null || !unit.IsAliveForBattle) continue;
@@ -1088,6 +1094,7 @@ namespace Windy.Srpg.Game.Grid
             }
 
             gameFinished = true;
+            ClearBlackFogBattleState();
             foreach (Unit unit in GetAllUnits().ToList())
                 if (unit != null && unit.IsAliveForBattle) unit.ClearBattleBuffs();
             IReadOnlyList<int> winningPlayers = outcome.WinningPlayerIds ?? Array.Empty<int>();

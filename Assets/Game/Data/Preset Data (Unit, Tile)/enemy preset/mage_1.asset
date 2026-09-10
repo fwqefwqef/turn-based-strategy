@@ -29,9 +29,9 @@ MonoBehaviour:
     HitPoints: 100
     ManaPoints: 20
     MovementPoints: 5
-    Strength: 99
+    Strength: 0
     Defense: 0
-    Magic: 99
+    Magic: 0
     Speed: 0
     Luck: 0
   GrowthRates:

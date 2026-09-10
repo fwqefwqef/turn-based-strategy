@@ -1369,6 +1369,12 @@ namespace Windy.Srpg.Game.Units
         {
             return FindAnyObjectByType<CellGrid>();
         }
+        internal bool TryGetBlackFogDepth(out int depth)
+        {
+            depth = 0;
+            CellGrid cellGrid = FindSceneCellGrid();
+            return cellGrid != null && cellGrid.TryGetBlackFogDepth(this, out depth);
+        }
         private static ExperienceGainHUD FindSceneExperienceGainHud()
         {
             return FindAnyObjectByType<ExperienceGainHUD>();
@@ -3023,7 +3029,9 @@ namespace Windy.Srpg.Game.Units
                 return false;
             }
 
-            return cell.IsTraversable && !HasBlockingOccupant(cell);
+            // A unit may only finish movement on an unoccupied tile. Allied units
+            // are pass-through occupants, not valid destinations.
+            return cell.IsTraversable && !HasBlockingOccupant(cell, hostileOnly: false);
         }
         private bool CanTraverseCell(Cell cell)
         {
@@ -3037,9 +3045,11 @@ namespace Windy.Srpg.Game.Units
                 return true;
             }
 
-            return cell.IsTraversable && !HasBlockingOccupant(cell);
+            // Hostile units obstruct the route. Obstructable units owned by the
+            // same player may be crossed, while remaining unavailable as endpoints.
+            return cell.IsTraversable && !HasBlockingOccupant(cell, hostileOnly: true);
         }
-        private bool HasBlockingOccupant(Cell cell)
+        private bool HasBlockingOccupant(Cell cell, bool hostileOnly)
         {
             Cell canonicalCell = FindSceneCellGrid()?.ResolveCanonicalCell(cell) ?? cell;
             if (canonicalCell?.CurrentUnits == null)
@@ -3055,6 +3065,11 @@ namespace Windy.Srpg.Game.Units
                 }
 
                 if (!occupant.Obstructable || occupant.ExcludedFromBattle)
+                {
+                    continue;
+                }
+
+                if (hostileOnly && occupant.PlayerNumber == PlayerNumber)
                 {
                     continue;
                 }

@@ -1,6 +1,6 @@
 # Black Fog Mechanic Notes
 
-Design status: planned, not implemented yet.
+Design status: implemented. Play Mode verification is still recommended for chapter timing and overlay presentation.
 
 ## Core Behavior
 
@@ -143,3 +143,10 @@ BlackFogBuffEffect.OnDotTick(unit)
 ```
 
 Important constraint: newly expanded fog should be applied after the DoT tick, so new fog is visible during the upcoming player turn but does not damage until the next player DoT phase.
+
+Current implementation:
+
+- `BlackFogSystem` owns directional layer coverage, depth, overlays, expansion state, and positional status refresh.
+- `CellGrid.BlackFog` connects the system to battle start, incoming-turn DoT phases, occupancy changes, and battle cleanup.
+- `black_fog` is an infinite, non-removable `Pain` status whose built-in effect reads the unit's live fog depth.
+- `CellHighlighter` renders Black Fog on an independent translucent overlay so ordinary selection and enemy-range highlights can coexist with it.

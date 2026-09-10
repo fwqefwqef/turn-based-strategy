@@ -19,6 +19,14 @@ namespace Windy.Srpg.Game.Grid
         {
         }
 
+        public virtual void ApplyBlackFogOverlay(Cell cell)
+        {
+        }
+
+        public virtual void ClearBlackFogOverlay(Cell cell)
+        {
+        }
+
         public virtual void ShowCursorBorder(Cell cell, Color color)
         {
         }

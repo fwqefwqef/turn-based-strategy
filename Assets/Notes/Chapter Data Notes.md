@@ -12,6 +12,12 @@ Recommended scene wiring:
 4. Set `Average Enemy Level`.
 5. Leave `Battle Conditions` at the default list unless the chapter needs custom behavior.
 
+Black Fog configuration is also stored on `ChapterData`:
+
+- `Black Fog Turn`: first player turn when fog arrives; default `6`.
+- `Black Fog Direction`: `Left`, `Right`, `Up`, or `Down`; default `Left`.
+- `Black Fog Expansion Distance`: map layers covered per player turn; default `2`.
+
 Keep `ChapterData` separate from `CellGrid`. The scene sync tool preserves the `CellGrid` map root, but copies non-preserved scene system roots from the source scene. A separate `Chapter Data` root lets chapter configuration copy cleanly into level scenes.
 
 Default battle conditions:
