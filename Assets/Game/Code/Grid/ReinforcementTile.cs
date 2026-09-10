@@ -219,7 +219,7 @@ namespace Windy.Srpg.Game.Grid
                     continue;
                 }
 
-                Cell spawnCell = ResolveSpawnCell();
+                Cell spawnCell = ResolveSpawnCell(unitEntry.Preset);
                 if (spawnCell == null)
                 {
                     Debug.LogWarning($"ReinforcementTile: No free traversable cell is available near {boardCell?.Coordinates}.", this);
@@ -273,14 +273,14 @@ namespace Windy.Srpg.Game.Grid
             return spawner != null && !spawner.ExcludedFromBattle && spawner.IsAliveForBattle;
         }
 
-        private Cell ResolveSpawnCell()
+        private Cell ResolveSpawnCell(UnitPreset preset)
         {
             if (boardCell == null || cellGrid == null)
             {
                 return null;
             }
 
-            if (IsCellAvailable(boardCell))
+            if (IsCellAvailable(boardCell, preset))
             {
                 return boardCell;
             }
@@ -303,7 +303,7 @@ namespace Windy.Srpg.Game.Grid
                         }
 
                         nextFrontier.Add(neighbour);
-                        if (IsCellAvailable(neighbour))
+                        if (IsCellAvailable(neighbour, preset))
                         {
                             availableAtDistance.Add(neighbour);
                         }
@@ -321,12 +321,9 @@ namespace Windy.Srpg.Game.Grid
             return null;
         }
 
-        private static bool IsCellAvailable(Cell candidate)
+        private bool IsCellAvailable(Cell candidate, UnitPreset preset)
         {
-            return candidate != null
-                && candidate.IsTraversable
-                && (candidate.CurrentUnits == null
-                    || candidate.CurrentUnits.All(unit => unit == null || unit.ExcludedFromBattle));
+            return Unit.CanPlacePresetFootprint(preset, candidate, cellGrid);
         }
 
         private void OnDrawGizmos()

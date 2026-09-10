@@ -189,12 +189,21 @@ namespace Windy.Srpg.Game.Units
                     continue;
                 }
 
-                if (!CanOccupyCandidate(candidateTargetCell, user, target, moveUserWithTarget ? userCell : null))
+                HashSet<Unit> vacatingUnits = moveUserWithTarget
+                    ? new HashSet<Unit> { user, target }
+                    : new HashSet<Unit> { target };
+                if (!CanOccupyCandidate(target, candidateTargetCell, cellGrid, vacatingUnits))
                 {
                     continue;
                 }
 
-                if (moveUserWithTarget && !CanOccupyCandidate(candidateUserCell, user, target, targetCell))
+                if (moveUserWithTarget && !CanOccupyCandidate(user, candidateUserCell, cellGrid, vacatingUnits))
+                {
+                    continue;
+                }
+
+                if (moveUserWithTarget && target.GetFootprintCells(candidateTargetCell, cellGrid)
+                    .Intersect(user.GetFootprintCells(candidateUserCell, cellGrid)).Any())
                 {
                     continue;
                 }
@@ -253,68 +262,40 @@ namespace Windy.Srpg.Game.Units
             Cell originalUserCell = user.Cell;
             Cell originalTargetCell = target.Cell;
 
-            if (originalUserCell != null)
-            {
-                originalUserCell.CurrentUnits.Remove(user);
-                RefreshCellOccupancy(originalUserCell);
-            }
-
-            if (originalTargetCell != null)
-            {
-                originalTargetCell.CurrentUnits.Remove(target);
-                RefreshCellOccupancy(originalTargetCell);
-            }
+            user.UnregisterCellOccupancyList(originalUserCell, notifyGrid: false);
+            target.UnregisterCellOccupancyList(originalTargetCell, notifyGrid: false);
 
             user.Cell = plan.UserCell;
             target.Cell = plan.TargetCell;
 
-            if (plan.UserCell != null)
-            {
-                plan.UserCell.CurrentUnits.Add(user);
-                RefreshCellOccupancy(plan.UserCell);
-            }
-
-            if (plan.TargetCell != null)
-            {
-                plan.TargetCell.CurrentUnits.Add(target);
-                RefreshCellOccupancy(plan.TargetCell);
-            }
+            user.RegisterCellOccupancyList(plan.UserCell, notifyGrid: false);
+            target.RegisterCellOccupancyList(plan.TargetCell, notifyGrid: false);
 
             SnapUnitToCell(user, plan.UserCell, cellGrid);
             SnapUnitToCell(target, plan.TargetCell, cellGrid);
+            cellGrid?.NotifyOccupancyChanged();
             cellGrid?.RequestBattleOutcomeEvaluation();
         }
 
-        private static bool CanOccupyCandidate(Cell candidateCell, Unit user, Unit target, Cell simultaneouslyVacatedCell)
+        private static bool CanOccupyCandidate(Unit movingUnit, Cell candidateCell, CellGrid cellGrid, ISet<Unit> vacatingUnits)
         {
-            if (candidateCell == null)
+            if (movingUnit == null || candidateCell == null || cellGrid == null)
             {
                 return false;
             }
 
-            if (candidateCell == simultaneouslyVacatedCell)
+            IReadOnlyList<Cell> footprint = movingUnit.GetFootprintCells(candidateCell, cellGrid);
+            if (footprint.Count != movingUnit.FootprintTileCount || footprint.Any(cell => cell == null || !cell.IsTraversable))
             {
-                return !HasExternalBlockingOccupant(candidateCell, user, target);
+                return false;
             }
 
-            if (candidateCell.IsTaken)
-            {
-                return !HasExternalBlockingOccupant(candidateCell, user, target)
-                    && candidateCell.CurrentUnits.All(unit => unit == null || unit == user || unit == target || !unit.Obstructable);
-            }
-
-            return !HasExternalBlockingOccupant(candidateCell, user, target);
-        }
-
-        private static bool HasExternalBlockingOccupant(Cell cell, Unit user, Unit target)
-        {
-            return cell.CurrentUnits
-                .Any(unit => unit != null && unit != user && unit != target && unit.Obstructable);
-        }
-
-        private static void RefreshCellOccupancy(Cell cell)
-        {
-            Unit.RefreshCellOccupancy(cell);
+            return footprint.All(cell => cell.CurrentUnits == null || cell.CurrentUnits.All(unit =>
+                unit == null
+                || unit == movingUnit
+                || (vacatingUnits != null && vacatingUnits.Contains(unit))
+                || unit.ExcludedFromBattle
+                || !unit.Obstructable));
         }
 
         private static void SnapUnitToCell(Unit unit, Cell destinationCell, CellGrid cellGrid)

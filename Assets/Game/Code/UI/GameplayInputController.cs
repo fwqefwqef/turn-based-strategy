@@ -63,6 +63,8 @@ namespace Windy.Srpg.Game.UI
         private ControlScheme currentScheme = ControlScheme.Mouse;
         private Cell hoveredCell;
         private Unit hoveredUnit;
+
+        public static Cell CurrentHoveredCell => activeInstance != null ? activeInstance.hoveredCell : null;
         private Cell keyboardHoveredCell;
         private KeyCode repeatingDirectionKey = KeyCode.None;
         private float nextRepeatTime;
@@ -1479,9 +1481,15 @@ namespace Windy.Srpg.Game.UI
                 Unit hitUnit = hit.collider.GetComponentInParent<Unit>();
                 if (hitUnit != null)
                 {
-                    cell = hitUnit.HasPendingMove && hitUnit.PreviewCell != null
+                    Cell anchorCell = hitUnit.HasPendingMove && hitUnit.PreviewCell != null
                         ? hitUnit.PreviewCell
                         : hitUnit.Cell;
+                    Cell pointedCell = TryGetBoardPlanePoint(ray, out Vector2 boardPoint)
+                        ? FindCellContainingBoardPoint(boardPoint)
+                        : null;
+                    cell = pointedCell != null && hitUnit.OccupiesCell(pointedCell, anchorCell, cellGrid)
+                        ? pointedCell
+                        : anchorCell;
                     unit = hitUnit;
                     return cell != null;
                 }
@@ -1606,7 +1614,22 @@ namespace Windy.Srpg.Game.UI
 
         private void EnsureCursorBorderVisible()
         {
-            hoveredCell?.ShowCursorBorder(CursorBorderColor);
+            ShowHoverCursorBorder();
+        }
+
+        private void ShowHoverCursorBorder()
+        {
+            if (hoveredCell == null)
+            {
+                return;
+            }
+
+            hoveredCell.ShowCursorBorder(CursorBorderColor);
+        }
+
+        private void ClearHoverCursorBorder()
+        {
+            hoveredCell?.ClearCursorBorder();
         }
 
         private void ApplyHoverTarget(Cell cell, Unit unit, bool dispatchGameplayHover = true)
@@ -1615,7 +1638,7 @@ namespace Windy.Srpg.Game.UI
             {
                 if (cell != null)
                 {
-                    cell.ShowCursorBorder(CursorBorderColor);
+                    ShowHoverCursorBorder();
                 }
 
                 return;
@@ -1629,7 +1652,7 @@ namespace Windy.Srpg.Game.UI
 
             if (hoveredCell != null)
             {
-                hoveredCell.ShowCursorBorder(CursorBorderColor);
+                ShowHoverCursorBorder();
             }
 
             if (!dispatchGameplayHover)
@@ -1670,7 +1693,7 @@ namespace Windy.Srpg.Game.UI
                 hoveredCell.RaiseSceneDehighlightEvent();
             }
 
-            hoveredCell?.ClearCursorBorder();
+            ClearHoverCursorBorder();
         }
 
         private void RebuildCellLookup()
@@ -1820,7 +1843,7 @@ namespace Windy.Srpg.Game.UI
             return grid.GetAllUnits().FirstOrDefault(unit =>
                 unit != null
                 && unit.HasPendingMove
-                && unit.PreviewCell == cell);
+                && unit.OccupiesCell(cell, unit.PreviewCell, grid));
         }
 
         private bool ShouldOpenTurnInfoForHoveredCell(Cell cell)

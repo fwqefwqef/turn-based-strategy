@@ -12,7 +12,8 @@ namespace Windy.Srpg.Game.AI.Evaluators
         public override void Precalculate(Unit evaluatingUnit, Player currentPlayer, CellGrid cellGrid)
         {
             var enemyUnits = cellGrid.GetEnemyUnits(currentPlayer);
-            var enemiesInRange = enemyUnits.Where(unit => evaluatingUnit.Cell.GetDistance(unit.Cell) <= evaluatingUnit.AttackRange);
+            var enemiesInRange = enemyUnits.Where(unit =>
+                evaluatingUnit.GetFootprintDistanceTo(unit, evaluatingUnit.Cell, unit.Cell, cellGrid) <= evaluatingUnit.AttackRange);
             topDamage = enemiesInRange.Select(unit => evaluatingUnit.DryAttack(unit)).DefaultIfEmpty().Max();
         }
 

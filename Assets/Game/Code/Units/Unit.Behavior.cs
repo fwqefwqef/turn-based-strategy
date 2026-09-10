@@ -509,7 +509,7 @@ namespace Windy.Srpg.Game.Units
             CombatSequenceUI hud = FindSceneCombatSequenceUi();
             try
             {
-                RequestCombatCameraFocus(transform.position);
+                RequestCombatCameraFocus(GetFootprintWorldCenter(Cell, FindSceneCellGrid()));
                 yield return GameplayCameraController.WaitForFocusSettled();
                 hud?.ShowPain(this);
                 yield return new WaitForSecondsRealtime(0.3f);
@@ -852,10 +852,12 @@ namespace Windy.Srpg.Game.Units
             if (preset?.UnitSprite != null)
             {
                 ApplyPresetSpriteLayout(preset, spriteRenderer);
+                ConfigureFootprintCollider();
                 return;
             }
 
             RestoreSpriteLayoutBaseline(spriteRenderer);
+            ConfigureFootprintCollider();
         }
         private void CaptureSpriteLayoutBaseline(SpriteRenderer spriteRenderer)
         {
@@ -880,11 +882,36 @@ namespace Windy.Srpg.Game.Units
             UnitSpriteLayoutSettings layout = preset.SpriteLayout;
             Vector3 baseScale = spriteLayoutBaselineLocalScale == Vector3.zero ? Vector3.one : spriteLayoutBaselineLocalScale;
             Vector3 basePosition = spriteLayoutBaselineLocalPosition;
-            float scaleFactor = ResolvePresetSpriteScaleFactor(layout.ResolvedTargetSize, spriteRenderer.sprite, baseScale);
+            Vector2 footprintTargetSize = Vector2.Scale(
+                layout.ResolvedTargetSize,
+                new Vector2(FootprintWidth, FootprintHeight));
+            float scaleFactor = ResolvePresetSpriteScaleFactor(footprintTargetSize, spriteRenderer.sprite, baseScale);
             Vector3 resolvedScale = new Vector3(baseScale.x * scaleFactor, baseScale.y * scaleFactor, baseScale.z);
 
             spriteRenderer.transform.localScale = resolvedScale;
-            spriteRenderer.transform.localPosition = basePosition + new Vector3(layout.OffsetX, layout.OffsetY, 0f);
+            Vector3 footprintCenterOffset = new Vector3(
+                (FootprintWidth - 1) * 0.5f,
+                (FootprintHeight - 1) * 0.5f,
+                0f);
+            spriteRenderer.transform.localPosition = basePosition + footprintCenterOffset
+                + new Vector3(layout.OffsetX, layout.OffsetY, 0f);
+        }
+        private void ConfigureFootprintCollider()
+        {
+            if (!TryGetComponent(out BoxCollider boxCollider))
+            {
+                return;
+            }
+
+            Vector3 size = boxCollider.size;
+            size.x = FootprintWidth;
+            size.y = FootprintHeight;
+            size.z = Mathf.Max(0.1f, size.z);
+            boxCollider.size = size;
+            boxCollider.center = new Vector3(
+                (FootprintWidth - 1) * 0.5f,
+                (FootprintHeight - 1) * 0.5f,
+                boxCollider.center.z);
         }
         private void RestoreSpriteLayoutBaseline(SpriteRenderer spriteRenderer)
         {
@@ -1319,6 +1346,13 @@ namespace Windy.Srpg.Game.Units
                 Cell = resolved;
             }
 
+            if (!CanPlaceFootprint(Cell, hostileOnly: false))
+            {
+                ExcludedFromBattle = true;
+                Debug.LogError($"Unit: Cannot bind '{name}' with a {FootprintWidth}x{FootprintHeight} footprint at {Cell.Coordinates}.", this);
+                return;
+            }
+
             RegisterCellOccupancyList(Cell, notifyGrid);
         }
         internal void RegisterCellOccupancyList(Cell targetCell = null, bool notifyGrid = true)
@@ -1329,12 +1363,16 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            if (!resolvedCell.CurrentUnits.Contains(this))
+            foreach (Cell footprintCell in GetFootprintCells(resolvedCell))
             {
-                resolvedCell.CurrentUnits.Add(this);
+                if (!footprintCell.CurrentUnits.Contains(this))
+                {
+                    footprintCell.CurrentUnits.Add(this);
+                }
+
+                RefreshCellOccupancy(footprintCell);
             }
 
-            RefreshCellOccupancy(resolvedCell);
             if (notifyGrid)
             {
                 FindSceneCellGrid()?.NotifyOccupancyChanged();
@@ -1349,8 +1387,11 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
-            resolvedCell.CurrentUnits.Remove(this);
-            RefreshCellOccupancy(resolvedCell);
+            foreach (Cell footprintCell in GetFootprintCells(resolvedCell))
+            {
+                footprintCell.CurrentUnits.Remove(this);
+                RefreshCellOccupancy(footprintCell);
+            }
             if (notifyGrid)
             {
                 FindSceneCellGrid()?.NotifyOccupancyChanged();
@@ -1413,12 +1454,16 @@ namespace Windy.Srpg.Game.Units
                 return false;
             }
 
-            var distance = sourceCell.GetDistance(otherCell);
+            var distance = GetFootprintDistanceTo(other, sourceCell, otherCell);
             return distance >= MinAttackRange
                 && distance <= MaxAttackRange
                 && other.PlayerNumber != PlayerNumber;
         }
         public void AttackHandler(Unit unitToAttack)
+        {
+            AttackHandler(unitToAttack, targetedCell: null);
+        }
+        public void AttackHandler(Unit unitToAttack, Cell targetedCell)
         {
             if (unitToAttack == null || IsAttackSequenceRunning || !HasUsableWeapon || !CanStartActionThisTurn)
             {
@@ -1426,16 +1471,20 @@ namespace Windy.Srpg.Game.Units
             }
 
             LogBattleAction($"attacks {DescribeUnit(unitToAttack)} with {GetEquippedWeaponDisplayName()}.");
-            StartCoroutine(AttackSequenceRoutine(unitToAttack, BuildDefaultAttackProfile()));
+            StartCoroutine(AttackSequenceRoutine(unitToAttack, BuildDefaultAttackProfile(), targetedCell));
         }
         public void AttackHandler(Unit unitToAttack, ResolvedAttackProfile attackProfile)
+        {
+            AttackHandler(unitToAttack, attackProfile, targetedCell: null);
+        }
+        public void AttackHandler(Unit unitToAttack, ResolvedAttackProfile attackProfile, Cell targetedCell)
         {
             if (unitToAttack == null || IsAttackSequenceRunning || !CanStartActionThisTurn)
             {
                 return;
             }
 
-            StartCoroutine(AttackSequenceRoutine(unitToAttack, attackProfile));
+            StartCoroutine(AttackSequenceRoutine(unitToAttack, attackProfile, targetedCell));
         }
         public void UseSupportSkill(Unit primaryTarget, bool endsTurn, Action resolveEffect, SkillData skill = null, Windy.Srpg.Game.Grid.CellGrid cellGrid = null)
         {
@@ -1483,7 +1532,7 @@ namespace Windy.Srpg.Game.Units
                 UsesWeaponEffects = true
             };
         }
-        private IEnumerator AttackSequenceRoutine(Unit unitToAttack, ResolvedAttackProfile attackProfile)
+        private IEnumerator AttackSequenceRoutine(Unit unitToAttack, ResolvedAttackProfile attackProfile, Cell targetedCell)
         {
             IsAttackSequenceRunning = true;
             BeginCombatPresentation();
@@ -1507,6 +1556,7 @@ namespace Windy.Srpg.Game.Units
                     }
                 };
                 unitToAttack.CombatDestroyed += destroyedHandler;
+                Cell presentationTargetCell = ResolveAttackPresentationTargetCell(unitToAttack, targetedCell);
 
                 RequestCombatCameraFocus(GetCombatFocusPosition(unitToAttack));
                 CombatSequenceStarted?.Invoke(this, new CombatSequenceEventArgs(this, unitToAttack));
@@ -1537,7 +1587,7 @@ namespace Windy.Srpg.Game.Units
                     }
 
                     MarkAsAttacking(unitToAttack);
-                    yield return StartCoroutine(PlayAttackLungeAnimation(unitToAttack));
+                    yield return StartCoroutine(PlayAttackLungeAnimation(unitToAttack, presentationTargetCell));
                     unitToAttack.DefendHandler(
                         this,
                         baseDamage + (attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength)) - initialOffense,
@@ -1577,7 +1627,7 @@ namespace Windy.Srpg.Game.Units
                         }
 
                         MarkAsAttacking(unitToAttack);
-                        yield return StartCoroutine(PlayAttackLungeAnimation(unitToAttack));
+                        yield return StartCoroutine(PlayAttackLungeAnimation(unitToAttack, presentationTargetCell));
                         unitToAttack.DefendHandler(
                             this,
                             baseDamage + (attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength)) - initialOffense,
@@ -1649,7 +1699,27 @@ namespace Windy.Srpg.Game.Units
                 EndCombatPresentation();
             }
         }
-        private IEnumerator PlayAttackLungeAnimation(Unit target)
+        private Cell ResolveAttackPresentationTargetCell(Unit target, Cell requestedCell)
+        {
+            if (target == null)
+            {
+                return null;
+            }
+
+            CellGrid grid = FindSceneCellGrid();
+            Cell targetAnchor = target.HasPendingMove ? target.PreviewCell : target.Cell;
+            if (requestedCell != null && target.OccupiesCell(requestedCell, targetAnchor, grid))
+            {
+                return grid?.ResolveCanonicalCell(requestedCell) ?? requestedCell;
+            }
+
+            Vector3 attackerPosition = GetVisualFootprintWorldCenter();
+            return target.GetFootprintCells(targetAnchor, grid)
+                .Where(cell => cell != null)
+                .OrderBy(cell => (cell.transform.position - attackerPosition).sqrMagnitude)
+                .FirstOrDefault();
+        }
+        private IEnumerator PlayAttackLungeAnimation(Unit target, Cell targetedCell = null)
         {
             if (target == null)
             {
@@ -1657,8 +1727,16 @@ namespace Windy.Srpg.Game.Units
             }
 
             Vector3 startPos = transform.localPosition;
-            Vector3 targetPos = target.transform.localPosition;
-            Vector3 toTarget = targetPos - startPos;
+            Cell resolvedTargetCell = ResolveAttackPresentationTargetCell(target, targetedCell);
+            Vector3 targetPos = resolvedTargetCell != null
+                ? (transform.parent != null
+                    ? transform.parent.InverseTransformPoint(resolvedTargetCell.transform.position)
+                    : resolvedTargetCell.transform.position)
+                : target.transform.localPosition;
+            Vector3 attackerPresentationPos = transform.parent != null
+                ? transform.parent.InverseTransformPoint(GetVisualFootprintWorldCenter())
+                : GetVisualFootprintWorldCenter();
+            Vector3 toTarget = targetPos - attackerPresentationPos;
             if (toTarget.sqrMagnitude <= 0.0001f)
             {
                 yield break;
@@ -2083,7 +2161,7 @@ namespace Windy.Srpg.Game.Units
                 return false;
             }
 
-            var distance = defenderCell.GetDistance(aggressorCell);
+            var distance = GetFootprintDistanceTo(aggressor, defenderCell, aggressorCell);
             return distance >= MinAttackRange
                 && distance <= MaxAttackRange
                 && aggressor.PlayerNumber != PlayerNumber;
@@ -2462,7 +2540,7 @@ namespace Windy.Srpg.Game.Units
             Cell targetCell = target.HasPendingMove ? target.PreviewCell : target.Cell;
             if (targetCell != null)
             {
-                return targetCell.transform.position;
+                return target.GetFootprintWorldCenter(targetCell, FindSceneCellGrid());
             }
 
             return target.transform.position;
@@ -2484,7 +2562,9 @@ namespace Windy.Srpg.Game.Units
                 }
 
                 Cell focusCell = target.HasPendingMove ? target.PreviewCell : target.Cell;
-                sum += focusCell != null ? focusCell.transform.position : target.transform.position;
+                sum += focusCell != null
+                    ? target.GetFootprintWorldCenter(focusCell, FindSceneCellGrid())
+                    : target.transform.position;
                 count++;
             }
 
@@ -2643,7 +2723,7 @@ namespace Windy.Srpg.Game.Units
             cachedPaths = null;
             InvalidateCachedPaths();
 
-            var totalMovementCost = path.Sum(h => h.MovementCost);
+            var totalMovementCost = SumPathMovementCost(path);
             MovementPoints -= totalMovementCost;
 
             if (MovementAnimationSpeed > 0)
@@ -2676,7 +2756,7 @@ namespace Windy.Srpg.Game.Units
                 ToCell = destinationCell,
                 Path = path,
                 MovementPointsBefore = MovementPoints,
-                MovementCost = path.Sum(h => h.MovementCost),
+                MovementCost = SumPathMovementCost(path),
                 FromLocalPos = transform.localPosition
             };
 
@@ -2685,7 +2765,7 @@ namespace Windy.Srpg.Game.Units
             // Do NOT touch Cell/occupancy or MovementPoints here.
             if (MovementAnimationSpeed > 0)
             {
-                PreviewMoveCameraFollowRequested?.Invoke(transform.position);
+                PreviewMoveCameraFollowRequested?.Invoke(GetVisualFootprintWorldCenter());
                 yield return PreviewMovementAnimation(path, previewMoveVersion);
                 PreviewMoveCameraFollowReleased?.Invoke();
             }
@@ -2795,7 +2875,7 @@ namespace Windy.Srpg.Game.Units
                     }
 
                     transform.localPosition = Vector3.MoveTowards(transform.localPosition, destination_pos, Time.deltaTime * MovementAnimationSpeed);
-                    PreviewMoveCameraFollowRequested?.Invoke(transform.position);
+                    PreviewMoveCameraFollowRequested?.Invoke(GetVisualFootprintWorldCenter());
                     yield return null;
                 }
             }
@@ -3013,7 +3093,7 @@ namespace Windy.Srpg.Game.Units
 
             return preferredCell;
         }
-        private static float SumPathMovementCost(IList<Cell> path)
+        private float SumPathMovementCost(IList<Cell> path)
         {
             if (path == null || path.Count == 0)
             {
@@ -3027,7 +3107,7 @@ namespace Windy.Srpg.Game.Units
                 Cell step = path[i];
                 if (step != null)
                 {
-                    total += step.MovementCost;
+                    total += GetFootprintMovementCost(step);
                 }
             }
 
@@ -3042,7 +3122,7 @@ namespace Windy.Srpg.Game.Units
 
             // A unit may only finish movement on an unoccupied tile. Allied units
             // are pass-through occupants, not valid destinations.
-            return cell.IsTraversable && !HasBlockingOccupant(cell, hostileOnly: false);
+            return CanPlaceFootprint(cell, hostileOnly: false);
         }
         private bool CanTraverseCell(Cell cell)
         {
@@ -3058,11 +3138,11 @@ namespace Windy.Srpg.Game.Units
 
             // Hostile units obstruct the route. Obstructable units owned by the
             // same player may be crossed, while remaining unavailable as endpoints.
-            return cell.IsTraversable && !HasBlockingOccupant(cell, hostileOnly: true);
+            return CanPlaceFootprint(cell, hostileOnly: true);
         }
-        private bool HasBlockingOccupant(Cell cell, bool hostileOnly)
+        private bool HasBlockingOccupant(Cell cell, bool hostileOnly, CellGrid grid = null)
         {
-            Cell canonicalCell = FindSceneCellGrid()?.ResolveCanonicalCell(cell) ?? cell;
+            Cell canonicalCell = (grid ?? FindSceneCellGrid())?.ResolveCanonicalCell(cell) ?? cell;
             if (canonicalCell?.CurrentUnits == null)
             {
                 return false;
@@ -3121,7 +3201,7 @@ namespace Windy.Srpg.Game.Units
 
                     if (IsCellTraversable(adjacentCell) || IsCellMovableTo(adjacentCell))
                     {
-                        neighbours[adjacentCell] = Mathf.Max(0f, adjacentCell.TraversalCost);
+                        neighbours[adjacentCell] = GetFootprintMovementCost(adjacentCell);
                     }
                 }
 

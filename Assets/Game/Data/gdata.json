@@ -821,7 +821,7 @@
       {
         "Id": "burn",
         "Name": "Burn",
-        "Description": "Takes 5 Pain damage before each own turn for up to 2 ticks. Standing on Burning Terrain reapplies it.",
+        "Description": "Takes 5 Pain damage before each own turn for up to 2 ticks.",
         "Duration": 2,
         "Category": "Pain",
         "MaxStacks": 1,
@@ -879,6 +879,54 @@
           "Speed": -1,
           "Luck": -1
         }
+      },
+      {
+        "Id": "throne",
+        "Name": "Throne",
+        "Description": "Defense +5 and Evade +20 while standing on a Throne tile. Removed automatically on exit.",
+        "Duration": 0,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": false,
+        "PrimaryStatModifiers": {
+          "Defense": 5
+        },
+        "SecondaryStatModifiers": {
+          "Evade": 20
+        }
+      },
+      {
+        "Id": "forest",
+        "Name": "Forest",
+        "Description": "Evade +20 while standing on a Forest tile. Removed automatically on exit.",
+        "Duration": 0,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": false,
+        "SecondaryStatModifiers": {
+          "Evade": 20
+        }
+      },
+      {
+        "Id": "magic_tile",
+        "Name": "Magic Tile",
+        "Description": "Magic +5 while standing on a Magic Tile. Removed automatically on exit.",
+        "Duration": 0,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": false,
+        "PrimaryStatModifiers": {
+          "Magic": 5
+        }
+      },
+      {
+        "Id": "burning_terrain",
+        "Name": "Burning Terrain",
+        "Description": "Standing on Burning Terrain. Removed automatically on exit; the separately applied Burn debuff keeps its own duration.",
+        "Duration": 0,
+        "Category": "Misc",
+        "MaxStacks": 1,
+        "Removable": false
       },
       {
         "Id": "black_fog",
@@ -968,12 +1016,8 @@
         "Id": "throne",
         "Name": "Throne",
         "Description": "Defense +5 and Evade +20 while occupied.",
-        "PrimaryStatModifiers": {
-          "Defense": 5
-        },
-        "SecondaryStatModifiers": {
-          "Evade": 20
-        },
+        "OccupantBuffId": "throne",
+        "RemoveOccupantBuffOnExit": true,
         "OverlayStyle": "None",
         "Targeting": "AllUnits"
       },
@@ -981,9 +1025,8 @@
         "Id": "forest",
         "Name": "Forest",
         "Description": "Evade +20 while occupied. This tile costs 2 movement.",
-        "SecondaryStatModifiers": {
-          "Evade": 20
-        },
+        "OccupantBuffId": "forest",
+        "RemoveOccupantBuffOnExit": true,
         "OverlayStyle": "None",
         "Targeting": "AllUnits"
       },
@@ -991,9 +1034,8 @@
         "Id": "magic_tile",
         "Name": "Magic Tile",
         "Description": "Magic +5 while occupied.",
-        "PrimaryStatModifiers": {
-          "Magic": 5
-        },
+        "OccupantBuffId": "magic_tile",
+        "RemoveOccupantBuffOnExit": true,
         "OverlayStyle": "None",
         "Targeting": "AllUnits"
       },
@@ -1001,8 +1043,10 @@
         "Id": "burning_terrain",
         "Name": "Burning Terrain",
         "Description": "Applies Burn to units standing here. Temporary applications last 2 rounds.",
-        "OccupantBuffId": "burn",
-        "RemoveOccupantBuffOnExit": false,
+        "OccupantBuffId": "burning_terrain",
+        "RemoveOccupantBuffOnExit": true,
+        "AppliedBuffId": "burn",
+        "RemoveAppliedBuffOnExit": false,
         "OverlayStyle": "Burning",
         "Targeting": "AllUnits"
       },

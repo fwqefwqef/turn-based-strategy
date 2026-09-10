@@ -555,6 +555,15 @@ namespace Windy.Srpg.Game.Grid
                 customUnit.PlayerNumber = ownerPlayer.PlayerNumber;
             }
 
+            Cell placementCell = targetCell ?? customUnit.Cell;
+            if (placementCell != null && !customUnit.CanPlaceFootprint(placementCell, hostileOnly: false, this))
+            {
+                registeredUnits.Remove(customUnit);
+                customUnit.ExcludedFromBattle = true;
+                Debug.LogError($"CellGrid: Cannot place '{customUnit.name}' with a {customUnit.FootprintWidth}x{customUnit.FootprintHeight} footprint at {placementCell.Coordinates}.", customUnit);
+                return;
+            }
+
             customUnit.RegisterCellOccupancyList(targetCell ?? customUnit.Cell);
             customUnit.transform.localRotation = Quaternion.Euler(0, 0, 0);
             customUnit.Initialize();
@@ -613,6 +622,13 @@ namespace Windy.Srpg.Game.Grid
             spawnedUnit.name = !string.IsNullOrWhiteSpace(preset.UnitName)
                 ? preset.UnitName
                 : preset.name;
+            if (!spawnedUnit.CanPlaceFootprint(targetCell, hostileOnly: false, this))
+            {
+                Debug.LogWarning($"CellGrid: Reinforcement '{spawnedUnit.name}' cannot fit at {targetCell.Coordinates}.", spawnedUnit);
+                Destroy(spawnedUnit.gameObject);
+                return null;
+            }
+
             RegisterSceneUnit(spawnedUnit, targetCell);
 
             if (spawnedUnit.PlayerNumber == CurrentPlayerNumber)
@@ -852,6 +868,8 @@ namespace Windy.Srpg.Game.Grid
             scenePlayers.Clear();
             sceneTurnPlayers.Clear();
             sceneCells.Clear();
+            cellByCoordinate.Clear();
+            cachedCoordinateCellCount = -1;
             registeredUnits.Clear();
 
             if (PlayersParent != null)

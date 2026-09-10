@@ -38,8 +38,9 @@ The older parallel runtime/mirror grid has been removed. New battle features sho
 - Pre-battle roster deployment and unit configuration
 - Campaign saves, chapter unlocking, replayable chapters, battle results, and victory progression
 - Unit preset inheritance with additive per-instance stat and loadout overrides
+- Rectangular multi-tile units with footprint-aware movement, occupancy, targeting, terrain, AI, reinforcements, camera focus, and tile-specific targeting indicators
 
-Multi-tile boss support is planned but is not implemented yet. Death's Door, Black Fog, and the terrain-effect presentation are implemented and awaiting broader Play Mode validation.
+The `colossus` enemy preset is a ready-to-place 3x3 example. Death's Door, Black Fog, buff-backed terrain bonuses and debuffs, terrain-effect presentation, and multi-tile scene behavior are implemented and awaiting broader Play Mode validation.
 
 ## Project Layout
 

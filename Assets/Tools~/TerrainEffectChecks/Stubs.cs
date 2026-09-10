@@ -44,11 +44,15 @@ namespace Windy.Srpg.Game.Units
         public bool ExcludedFromBattle;
         public bool IsAliveForBattle = true;
         public Cell Cell;
+        public List<Cell> FootprintCells = new();
+        public int FootprintTileCount => FootprintCells.Count > 0 ? FootprintCells.Count : 1;
         public UnitBuffList BuffList = new();
         public PrimaryStatModifiers TerrainPrimary;
         public SecondaryStatModifiers TerrainSecondary;
 
         public Buff AddBuffById(string id) => BuffList.Add(id);
+        public IReadOnlyList<Cell> GetFootprintCells(Cell anchor, CellGrid grid) =>
+            FootprintCells.Count > 0 ? FootprintCells : anchor != null ? new[] { anchor } : Array.Empty<Cell>();
         public bool RemoveBuff(Buff buff) => BuffList.Remove(buff);
         public void SetTerrainStatModifiers(PrimaryStatModifiers primary, SecondaryStatModifiers secondary)
         {

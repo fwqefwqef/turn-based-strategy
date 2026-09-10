@@ -60,7 +60,7 @@ namespace Windy.Srpg.Game.Grid
 
             foreach (Cell originCell in originCells.Where(cell => cell != null))
             {
-                AddWeaponThreatCells(unit, originCell, allCells, threatenedCells);
+                AddWeaponThreatCells(unit, originCell, grid, allCells, threatenedCells);
                 AddSkillThreatCells(unit, originCell, grid, allCells, threatenedCells);
             }
 
@@ -111,13 +111,16 @@ namespace Windy.Srpg.Game.Grid
                     }
 
                     Cell effectiveCell = unit.HasPendingMove ? unit.PreviewCell : unit.Cell;
-                    Cell canonicalCell = grid.ResolveCanonicalCell(effectiveCell);
-                    if (canonicalCell == null)
+                    IReadOnlyList<Cell> footprint = unit.GetFootprintCells(effectiveCell, grid);
+                    if (footprint.Count != unit.FootprintTileCount)
                     {
                         continue;
                     }
 
-                    canonicalCell.CurrentUnits.Add(unit);
+                    foreach (Cell footprintCell in footprint)
+                    {
+                        footprintCell.CurrentUnits.Add(unit);
+                    }
                 }
 
                 foreach (Cell cell in allCells)
@@ -159,7 +162,7 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
-        private static void AddWeaponThreatCells(Unit unit, Cell originCell, IReadOnlyList<Cell> allCells, ISet<Cell> results)
+        private static void AddWeaponThreatCells(Unit unit, Cell originCell, CellGrid grid, IReadOnlyList<Cell> allCells, ISet<Cell> results)
         {
             foreach (Item weaponEntry in unit.GetWeaponInventoryEntries())
             {
@@ -169,7 +172,7 @@ namespace Windy.Srpg.Game.Grid
                     continue;
                 }
 
-                AddRangeCells(originCell, unit.GetMinAttackRangeForWeapon(weapon), unit.GetMaxAttackRangeForWeapon(weapon), allCells, results);
+                AddRangeCells(unit, originCell, grid, unit.GetMinAttackRangeForWeapon(weapon), unit.GetMaxAttackRangeForWeapon(weapon), allCells, results);
             }
         }
 
@@ -217,7 +220,7 @@ namespace Windy.Srpg.Game.Grid
                             data.AttackProfile.MaxRange,
                             out int combatArtMinRange,
                             out int combatArtMaxRange);
-                        AddRangeCells(originCell, combatArtMinRange, combatArtMaxRange, allCells, results);
+                        AddRangeCells(unit, originCell, grid, combatArtMinRange, combatArtMaxRange, allCells, results);
                     }
 
                     continue;
@@ -230,7 +233,7 @@ namespace Windy.Srpg.Game.Grid
                     maxRange = ResolveMaxDistance(originCell, allCells);
                 }
 
-                AddRangeCells(originCell, minRange, maxRange, allCells, results);
+                AddRangeCells(unit, originCell, grid, minRange, maxRange, allCells, results);
             }
         }
 
@@ -260,7 +263,7 @@ namespace Windy.Srpg.Game.Grid
                 && data.AreaProfile.AffectsEnemies;
         }
 
-        private static void AddRangeCells(Cell originCell, int minRange, int maxRange, IReadOnlyList<Cell> allCells, ISet<Cell> results)
+        private static void AddRangeCells(Unit unit, Cell originCell, CellGrid grid, int minRange, int maxRange, IReadOnlyList<Cell> allCells, ISet<Cell> results)
         {
             if (originCell == null || allCells == null || results == null)
             {
@@ -276,7 +279,7 @@ namespace Windy.Srpg.Game.Grid
                     continue;
                 }
 
-                int distance = originCell.GetDistance(candidate);
+                int distance = GetDistanceFromFootprint(unit, originCell, candidate, grid);
                 if (distance < resolvedMin || distance > resolvedMax)
                 {
                     continue;
@@ -313,8 +316,7 @@ namespace Windy.Srpg.Game.Grid
                 {
                     for (int distance = Mathf.Max(1, minRange); distance <= Mathf.Max(minRange, maxRange); distance++)
                     {
-                        Vector2Int targetCoordinates = source + direction * distance;
-                        Cell cell = allCells.FirstOrDefault(candidate => candidate != null && candidate.Coordinates == targetCoordinates);
+                        Cell cell = grid.FindCellByCoordinates(source + direction * distance);
                         if (cell == null)
                         {
                             break;
@@ -380,7 +382,7 @@ namespace Windy.Srpg.Game.Grid
                             continue;
                         }
 
-                        if (skill.Data.SelfImmune && cell == originCell)
+                        if (skill.Data.SelfImmune && unit.OccupiesCell(cell, originCell, grid))
                         {
                             continue;
                         }
@@ -400,7 +402,7 @@ namespace Windy.Srpg.Game.Grid
                     continue;
                 }
 
-                if (skill.Data.SelfImmune && cell == originCell)
+                if (skill.Data.SelfImmune && unit.OccupiesCell(cell, originCell, grid))
                 {
                     continue;
                 }
@@ -409,6 +411,20 @@ namespace Windy.Srpg.Game.Grid
             }
 
             return results;
+        }
+
+        private static int GetDistanceFromFootprint(Unit unit, Cell originCell, Cell candidate, CellGrid grid)
+        {
+            if (unit == null || originCell == null || candidate == null)
+            {
+                return int.MaxValue;
+            }
+
+            return unit.GetFootprintCells(originCell, grid)
+                .Where(cell => cell != null)
+                .Select(cell => cell.GetDistance(candidate))
+                .DefaultIfEmpty(int.MaxValue)
+                .Min();
         }
 
         private static int ResolveAreaSkillMaxRange(SkillData data, Cell originCell, IReadOnlyList<Cell> allCells)

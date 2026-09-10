@@ -20,8 +20,11 @@ MonoBehaviour:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
     OffsetY: 0
+  IsMultiTile: 0
+  FootprintWidth: 1
+  FootprintHeight: 1
   ActionAiMode: 1
-  MovementAiMode: 2
+  MovementAiMode: 0
   WaitGroupId: 0
   BaseLevel: 1
   WeaponProficiencies: -1

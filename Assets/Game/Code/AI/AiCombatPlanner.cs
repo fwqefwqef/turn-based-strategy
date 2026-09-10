@@ -154,7 +154,7 @@ namespace Windy.Srpg.Game.AI
                 }
             }
 
-            AddWeaponAttackPlans(actor, actingCell, enemyUnits, options);
+            AddWeaponAttackPlans(actor, actingCell, grid, enemyUnits, options);
             AddSkillPlans(actor, actingCell, grid, enemyUnits, options);
             return options;
         }
@@ -187,7 +187,7 @@ namespace Windy.Srpg.Game.AI
             }
         }
 
-        private static void AddWeaponAttackPlans(Unit actor, Cell actingCell, IReadOnlyList<Unit> enemies, ICollection<AiCombatPlan> options)
+        private static void AddWeaponAttackPlans(Unit actor, Cell actingCell, CellGrid grid, IReadOnlyList<Unit> enemies, ICollection<AiCombatPlan> options)
         {
             foreach (Unit enemy in enemies)
             {
@@ -210,7 +210,7 @@ namespace Windy.Srpg.Game.AI
                     int critChance = CalculateCritChance(actor, enemy, weaponEntry.Weapon);
                     float expectedDamage = CalculateExpectedDamage(normalDamage, critDamage, hitMultiplier, hitChance, critChance);
                     bool projectsKill = normalDamage * hitMultiplier >= enemy.HitPoints;
-                    bool avoidsCounter = !CanCounterattackFromPositions(enemy, actor, actingCell, weaponEntry.Weapon.PreventsCounterattack);
+                    bool avoidsCounter = !CanCounterattackFromPositions(enemy, actor, actingCell, weaponEntry.Weapon.PreventsCounterattack, grid);
 
                     options.Add(BuildPlan(
                         AiCombatActionKind.WeaponAttack,
@@ -262,7 +262,7 @@ namespace Windy.Srpg.Game.AI
         {
             foreach (Cell centerCell in GetAreaSkillCandidateCenters(skill, actingCell, grid))
             {
-                List<Unit> affectedTargets = GetAreaSkillTargets(actor, skill, centerCell, grid);
+                List<Unit> affectedTargets = GetAreaSkillTargets(actor, skill, centerCell, actingCell, grid);
                 List<Unit> affectedEnemies = affectedTargets
                     .Where(target => target != null && target.PlayerNumber != actor.PlayerNumber)
                     .ToList();
@@ -307,7 +307,7 @@ namespace Windy.Srpg.Game.AI
         {
             foreach (Cell centerCell in GetAreaSkillCandidateCenters(skill, actingCell, grid))
             {
-                List<Unit> affectedTargets = GetAreaSkillTargets(actor, skill, centerCell, grid);
+                List<Unit> affectedTargets = GetAreaSkillTargets(actor, skill, centerCell, actingCell, grid);
                 List<Unit> affectedAllies = affectedTargets
                     .Where(target => target != null && target.PlayerNumber == actor.PlayerNumber)
                     .ToList();
@@ -367,7 +367,7 @@ namespace Windy.Srpg.Game.AI
             int critChance = CalculateProfileCritChance(profile, target);
             float expectedDamage = CalculateExpectedDamage(normalDamage, critDamage, hitMultiplier, hitChance, critChance);
             bool projectsKill = normalDamage * hitMultiplier >= target.HitPoints;
-            bool avoidsCounter = !CanCounterattackFromPositions(target, actor, actingCell, profile.PreventsCounterattack);
+            bool avoidsCounter = !CanCounterattackFromPositions(target, actor, actingCell, profile.PreventsCounterattack, grid);
 
             plan = BuildPlan(
                 AiCombatActionKind.Skill,
@@ -512,7 +512,7 @@ namespace Windy.Srpg.Game.AI
                 return false;
             }
 
-            int distance = actingCell.GetDistance(targetCell);
+            int distance = actor.GetFootprintDistanceTo(target, actingCell, targetCell, grid);
             if (distance < minRange || distance > maxRange)
             {
                 return false;
@@ -551,7 +551,7 @@ namespace Windy.Srpg.Game.AI
                 return false;
             }
 
-            int distance = actingCell.GetDistance(target.Cell);
+            int distance = actor.GetFootprintDistanceTo(target, actingCell, target.Cell, grid);
             if (distance < minRange || distance > maxRange)
             {
                 return false;
@@ -589,7 +589,7 @@ namespace Windy.Srpg.Game.AI
                         continue;
                     }
 
-                    int distance = actingCell.GetDistance(target.Cell);
+                    int distance = actor.GetFootprintDistanceTo(target, actingCell, target.Cell, grid);
                     if (distance < minRange || distance > maxRange)
                     {
                         continue;
@@ -827,15 +827,15 @@ namespace Windy.Srpg.Game.AI
                 .ToList();
         }
 
-        private static List<Unit> GetAreaSkillTargets(Unit actor, Skill skill, Cell centerCell, CellGrid grid)
+        private static List<Unit> GetAreaSkillTargets(Unit actor, Skill skill, Cell centerCell, Cell actingCell, CellGrid grid)
         {
             List<Unit> results = new List<Unit>();
-            if (actor == null || skill?.Data == null || centerCell == null || grid == null)
+            if (actor == null || skill?.Data == null || centerCell == null || actingCell == null || grid == null)
             {
                 return results;
             }
 
-            HashSet<Cell> affectedCells = GetAreaSkillAffectedCells(actor, skill, centerCell, grid);
+            HashSet<Cell> affectedCells = GetAreaSkillAffectedCells(actor, skill, centerCell, actingCell, grid);
             if (affectedCells.Count == 0)
             {
                 return results;
@@ -857,7 +857,7 @@ namespace Windy.Srpg.Game.AI
                     continue;
                 }
 
-                if (unit.Cell == null || !affectedCells.Contains(unit.Cell))
+                if (!unit.GetFootprintCells(unit.Cell, grid).Any(affectedCells.Contains))
                 {
                     continue;
                 }
@@ -894,17 +894,17 @@ namespace Windy.Srpg.Game.AI
                 .ToList();
         }
 
-        private static HashSet<Cell> GetAreaSkillAffectedCells(Unit actor, Skill skill, Cell centerCell, CellGrid grid)
+        private static HashSet<Cell> GetAreaSkillAffectedCells(Unit actor, Skill skill, Cell centerCell, Cell actingCell, CellGrid grid)
         {
             HashSet<Cell> results = new HashSet<Cell>();
-            if (actor == null || skill?.Data == null || centerCell == null || grid == null)
+            if (actor == null || skill?.Data == null || centerCell == null || actingCell == null || grid == null)
             {
                 return results;
             }
 
             if (skill.Data.AreaProfile.Shape == SkillAreaShape.Line)
             {
-                Vector2Int direction = centerCell.Coordinates - actor.Cell.Coordinates;
+                Vector2Int direction = centerCell.Coordinates - actingCell.Coordinates;
                 direction = new Vector2Int(Math.Sign(direction.x), Math.Sign(direction.y));
                 if (Mathf.Abs(direction.x) + Mathf.Abs(direction.y) != 1)
                 {
@@ -912,7 +912,7 @@ namespace Windy.Srpg.Game.AI
                 }
 
                 int minRange = Mathf.Max(1, skill.Data.AreaProfile.MinRange);
-                int maxRange = ResolveAreaSkillMaxRange(skill.Data, actor.Cell, grid);
+                int maxRange = ResolveAreaSkillMaxRange(skill.Data, actingCell, grid);
                 int halfWidth = Mathf.Max(0, skill.Data.AreaProfile.Radius);
                 Vector2Int perpendicular = new Vector2Int(-direction.y, direction.x);
                 Dictionary<Vector2Int, Cell> lookup = grid.GetAllCells()
@@ -921,7 +921,7 @@ namespace Windy.Srpg.Game.AI
 
                 for (int distance = minRange; distance <= Mathf.Max(minRange, maxRange); distance++)
                 {
-                    Vector2Int centerCoord = actor.Cell.Coordinates + direction * distance;
+                    Vector2Int centerCoord = actingCell.Coordinates + direction * distance;
                     for (int offset = -halfWidth; offset <= halfWidth; offset++)
                     {
                         Vector2Int targetCoord = centerCoord + perpendicular * offset;
@@ -930,7 +930,7 @@ namespace Windy.Srpg.Game.AI
                             continue;
                         }
 
-                        if (skill.Data.SelfImmune && cell == actor.Cell)
+                        if (skill.Data.SelfImmune && actor.OccupiesCell(cell, actingCell, grid))
                         {
                             continue;
                         }
@@ -950,7 +950,7 @@ namespace Windy.Srpg.Game.AI
                     continue;
                 }
 
-                if (skill.Data.SelfImmune && cell == actor.Cell)
+                if (skill.Data.SelfImmune && actor.OccupiesCell(cell, actingCell, grid))
                 {
                     continue;
                 }
@@ -1034,7 +1034,7 @@ namespace Windy.Srpg.Game.AI
             return true;
         }
 
-        private static bool CanCounterattackFromPositions(Unit defender, Unit aggressor, Cell aggressorCell, bool counterPrevented)
+        private static bool CanCounterattackFromPositions(Unit defender, Unit aggressor, Cell aggressorCell, bool counterPrevented, CellGrid grid)
         {
             if (counterPrevented || defender == null || aggressor == null || aggressorCell == null || defender.Cell == null)
             {
@@ -1046,7 +1046,7 @@ namespace Windy.Srpg.Game.AI
                 return false;
             }
 
-            int distance = defender.Cell.GetDistance(aggressorCell);
+            int distance = defender.GetFootprintDistanceTo(aggressor, defender.Cell, aggressorCell, grid);
             return distance >= defender.MinAttackRange
                 && distance <= defender.MaxAttackRange
                 && defender.PlayerNumber != aggressor.PlayerNumber;

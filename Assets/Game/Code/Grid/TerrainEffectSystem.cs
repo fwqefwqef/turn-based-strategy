@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Windy.Srpg.Game.Buffs;
-using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Units;
 
 namespace Windy.Srpg.Game.Grid
 {
     /// <summary>
     /// Owns battle-local terrain instances, duration aging, visuals, and occupant effects.
-    /// Static stat bonuses are applied directly; terrain-created Pain statuses use BuffList.
+    /// Every occupant effect is represented by a BuffList entry; terrain definitions only
+    /// describe placement, visuals, targeting, and the buff they maintain.
     /// </summary>
     internal sealed class TerrainEffectSystem
     {
@@ -135,14 +135,20 @@ namespace Windy.Srpg.Game.Grid
                 return false;
             }
 
-            TerrainEffectInstance effect = grid.ResolveCanonicalCell(unit.Cell)?.GetTerrainEffect(effectId);
-            if (effect == null || !AffectsUnit(effect.Data, unit))
+            bool found = false;
+            foreach (Cell cell in unit.GetFootprintCells(unit.Cell, grid))
             {
-                return false;
+                TerrainEffectInstance effect = cell?.GetTerrainEffect(effectId);
+                if (effect == null || !AffectsUnit(effect.Data, unit))
+                {
+                    continue;
+                }
+
+                intensity = Math.Max(intensity, effect.Intensity);
+                found = true;
             }
 
-            intensity = effect.Intensity;
-            return true;
+            return found;
         }
 
         public void ClearBattleState()
@@ -166,21 +172,21 @@ namespace Windy.Srpg.Game.Grid
 
         private void RefreshUnitEffects(Unit unit)
         {
-            PrimaryStatModifiers primary = default;
-            SecondaryStatModifiers secondary = default;
             HashSet<string> activeEffectIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             HashSet<string> desiredBuffIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            Cell cell = grid.ResolveCanonicalCell(unit.Cell);
+            IReadOnlyList<Cell> footprint = unit.GetFootprintCells(unit.Cell, grid);
 
-            if (unit.ExcludedFromBattle || !unit.IsAliveForBattle || cell == null
-                || cell.CurrentUnits == null || !cell.CurrentUnits.Contains(unit))
+            if (unit.ExcludedFromBattle || !unit.IsAliveForBattle || footprint.Count != unit.FootprintTileCount
+                || !footprint.All(cell => cell?.CurrentUnits != null && cell.CurrentUnits.Contains(unit)))
             {
                 unit.SetTerrainStatModifiers(default, default);
                 RemoveExitedTerrainStatuses(unit, desiredBuffIds);
                 return;
             }
 
-            foreach (TerrainEffectInstance effect in cell?.TerrainEffects ?? Array.Empty<TerrainEffectInstance>())
+            foreach (TerrainEffectInstance effect in footprint
+                .Where(cell => cell != null)
+                .SelectMany(cell => cell.TerrainEffects ?? Array.Empty<TerrainEffectInstance>()))
             {
                 TerrainEffectData data = effect?.Data;
                 if (data == null || !AffectsUnit(data, unit) || !activeEffectIds.Add(data.Id))
@@ -188,8 +194,6 @@ namespace Windy.Srpg.Game.Grid
                     continue;
                 }
 
-                primary += data.PrimaryStatModifiers;
-                secondary += data.SecondaryStatModifiers;
                 if (!string.IsNullOrWhiteSpace(data.OccupantBuffId))
                 {
                     desiredBuffIds.Add(data.OccupantBuffId);
@@ -198,9 +202,22 @@ namespace Windy.Srpg.Game.Grid
                         unit.AddBuffById(data.OccupantBuffId);
                     }
                 }
+
+                if (!string.IsNullOrWhiteSpace(data.AppliedBuffId))
+                {
+                    if (data.RemoveAppliedBuffOnExit)
+                    {
+                        desiredBuffIds.Add(data.AppliedBuffId);
+                    }
+
+                    if (unit.BuffList?.GetBuff(data.AppliedBuffId) == null)
+                    {
+                        unit.AddBuffById(data.AppliedBuffId);
+                    }
+                }
             }
 
-            unit.SetTerrainStatModifiers(primary, secondary);
+            unit.SetTerrainStatModifiers(default, default);
             RemoveExitedTerrainStatuses(unit, desiredBuffIds);
         }
 
@@ -208,17 +225,27 @@ namespace Windy.Srpg.Game.Grid
         {
             foreach (TerrainEffectData data in TerrainEffectRegistry.Entries)
             {
-                if (data == null || !data.RemoveOccupantBuffOnExit || string.IsNullOrWhiteSpace(data.OccupantBuffId)
-                    || desiredBuffIds.Contains(data.OccupantBuffId))
+                if (data == null)
                 {
                     continue;
                 }
 
-                Buff buff = unit.BuffList?.GetBuff(data.OccupantBuffId);
-                if (buff != null)
-                {
-                    unit.RemoveBuff(buff);
-                }
+                RemoveExitedBuff(unit, data.OccupantBuffId, data.RemoveOccupantBuffOnExit, desiredBuffIds);
+                RemoveExitedBuff(unit, data.AppliedBuffId, data.RemoveAppliedBuffOnExit, desiredBuffIds);
+            }
+        }
+
+        private static void RemoveExitedBuff(Unit unit, string buffId, bool removeOnExit, ISet<string> desiredBuffIds)
+        {
+            if (!removeOnExit || string.IsNullOrWhiteSpace(buffId) || desiredBuffIds.Contains(buffId))
+            {
+                return;
+            }
+
+            Buff buff = unit.BuffList?.GetBuff(buffId);
+            if (buff != null)
+            {
+                unit.RemoveBuff(buff);
             }
         }
 

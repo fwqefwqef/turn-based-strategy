@@ -48,6 +48,16 @@ per-turn usage ledger keyed by skill ID. A skill is usage-limited when `OncePerT
 enabled or when `EndsTurn` is disabled, so action-preserving skills cannot be repeated
 in the same turn even if equipment refresh rebuilds their runtime `Skill` entry.
 
+Rectangular unit footprints are defined by `UnitPreset.IsMultiTile`, `FootprintWidth`, and
+`FootprintHeight`. `Unit.Footprint` resolves the lower-left anchor into occupied scene cells.
+Movement validates the whole footprint, charges the highest destination-tile movement cost,
+allows traversal through allies but not enemies, and forbids ending on any unit. Occupancy,
+single-target/AoE range, terrain effects, Black Fog depth, AI previews, deployment,
+reinforcements, displacement, camera focus, and colliders all consume the same footprint API.
+The cursor remains tile-specific so clicking a particular occupied tile can drive presentation,
+including attack lunges toward that tile. Area effects enumerate units rather than occupied-cell entries, so a
+multi-tile target is affected once.
+
 ---
 
 ## 2. Battle lifecycle (scene load → turn end)
@@ -389,7 +399,7 @@ All types live in `JsonCatalogLoader.cs`.
 | `CellGrid.PreBattle`                         | **Partial** — campaign I/O, deployment slots, roster staging.                                          |
 | `CellGrid.BlackFog` / `BlackFogSystem`       | Chapter-configured fog timing, directional coverage, tile depth, overlays, and positional debuffs.     |
 | `BlackFogLayerCalculator`                    | Maps covered directional rows/columns to frontier-relative damage depth.                               |
-| `CellGrid.TerrainEffects` / `TerrainEffectSystem` | Static/dynamic terrain state, round durations, stat modifiers, statuses, and cleanup.              |
+| `CellGrid.TerrainEffects` / `TerrainEffectSystem` | Static/dynamic terrain state, round durations, occupancy-buff maintenance, and cleanup.            |
 | `TerrainEffectRegistry`                      | Data-driven Throne, Forest, Magic Tile, Burning Terrain, and Black Fog definitions.                     |
 | `Cell`                                       | Grid tile: coordinates, neighbours, `CurrentUnits`, highlights, click/hover events.                    |
 | `CellHighlightKind`                          | Enum for overlay kinds (reachable, path, selected, …).                                                 |

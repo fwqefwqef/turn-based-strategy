@@ -10,7 +10,7 @@ Design status: implemented. Unity Play Mode verification is still recommended fo
 - `TerrainEffectRegistry` loads definitions from `Assets/Game/Data/gdata.json`.
 - `BlackFogSystem` only calculates chapter-driven coverage and depth; it publishes `black_fog` terrain effects.
 
-Terrain stat bonuses are not ordinary buffs. They cannot be cleansed and disappear immediately when occupancy changes. Burning Terrain applies the removable `burn` Pain status. Black Fog applies its non-removable exposure status only while a player unit occupies fog.
+Every terrain effect maintains an infinite, non-removable occupancy buff while the unit touches the terrain. Throne, Forest, and Magic Tile bonuses are sourced entirely from those buffs, not from `TerrainEffectData`. The terrain system removes the occupancy buff immediately on exit. Burning Terrain additionally applies a separate, removable `burn` Pain debuff; Black Fog uses its occupancy buff for depth-scaled Pain.
 
 ## Starting terrain
 
@@ -28,7 +28,7 @@ The preset assets are under `Assets/Game/Data/Preset Data (Unit, Tile)/Tiles` an
 
 `SkillTerrainProfile` allows an area skill to create terrain on affected cells even when the area contains no units. `Ignite Ground` is the initial example and is included in Pip's development loadout.
 
-Burning Terrain lasts two full round transitions. Reapplication refreshes its remaining duration. Units standing on it receive a one-stack, removable Burn status that deals 5 Pain damage for up to two incoming-turn Pain ticks. Leaving the terrain does not remove an already-applied Burn.
+Burning Terrain lasts two full round transitions. Reapplication refreshes its remaining duration. Units standing on it receive both the `burning_terrain` occupancy buff and a separate one-stack, removable Burn debuff that deals 5 Pain damage for up to two incoming-turn Pain ticks. Leaving the terrain removes `burning_terrain` immediately but does not remove Burn.
 
 ## Hover strip
 
@@ -38,4 +38,4 @@ Keep the `TileHoverStripUI` component on an always-active controller object. Ass
 
 ## Multi-tile rule
 
-The terrain system currently resolves the unit's canonical occupied cell. When multi-tile footprints are introduced, the resolver should union distinct effect IDs across the footprint so identical effects never multiply. Black Fog should use the greatest covered depth and terrain movement should use the greatest destination-footprint cost.
+Terrain effects resolve across every occupied cell in a unit's rectangular footprint. Each distinct effect ID applies at most once even if several occupied cells contain it. Touching any affected tile is enough to receive that effect, Black Fog uses the greatest touched depth, and each movement step charges the greatest movement cost among the destination footprint's tiles.

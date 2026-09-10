@@ -807,8 +807,37 @@ namespace Windy.Srpg.Game.Editor
                 return false;
             }
 
-            RemoveUnitAtCoordinate(context, coordinate);
-            RemoveDeploymentSlotAtCoordinate(context, coordinate);
+            Vector2Int footprintSize = Unit.GetPresetFootprintSize(preset);
+            List<Vector2Int> footprintCoordinates = new List<Vector2Int>(footprintSize.x * footprintSize.y);
+            for (int y = 0; y < footprintSize.y; y++)
+            {
+                for (int x = 0; x < footprintSize.x; x++)
+                {
+                    Vector2Int footprintCoordinate = coordinate + new Vector2Int(x, y);
+                    Cell footprintCell = GetCellAtCoordinate(context, footprintCoordinate);
+                    if (footprintCell == null || !footprintCell.IsTraversable)
+                    {
+                        Debug.LogWarning($"Map Painter: A {footprintSize.x}x{footprintSize.y} unit cannot fit at {coordinate}; tile {footprintCoordinate} is missing or impassable.");
+                        return false;
+                    }
+
+                    footprintCoordinates.Add(footprintCoordinate);
+                }
+            }
+
+            foreach (Unit overlappingUnit in footprintCoordinates
+                .Select(footprintCoordinate => GetUnitAtCoordinate(context, footprintCoordinate))
+                .Where(overlappingUnit => overlappingUnit != null)
+                .Distinct()
+                .ToList())
+            {
+                Undo.DestroyObjectImmediate(overlappingUnit.gameObject);
+            }
+
+            foreach (Vector2Int footprintCoordinate in footprintCoordinates)
+            {
+                RemoveDeploymentSlotAtCoordinate(context, footprintCoordinate);
+            }
 
             GameObject unitObject = (GameObject)PrefabUtility.InstantiatePrefab(unitPrefab, context.gameObject.scene);
             if (unitObject == null)
@@ -1002,7 +1031,11 @@ namespace Windy.Srpg.Game.Editor
                 }
 
                 Cell cell = unit.Cell;
-                if (cell != null && cell.Coordinates == coordinate)
+                if (cell != null
+                    && coordinate.x >= cell.Coordinates.x
+                    && coordinate.y >= cell.Coordinates.y
+                    && coordinate.x < cell.Coordinates.x + unit.FootprintWidth
+                    && coordinate.y < cell.Coordinates.y + unit.FootprintHeight)
                 {
                     return unit;
                 }

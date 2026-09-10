@@ -73,6 +73,7 @@ namespace Windy.Srpg.Game.Abilities
 
         public Cell Destination { get; set; }
         private IList<Cell> currentPath;
+        private readonly HashSet<Cell> currentDestinationFootprintPreviewCells = new HashSet<Cell>();
         public HashSet<Cell> availableDestinations;
         private bool awaitingAttackTargetSelection;
         private bool awaitingSkillTargetSelection;
@@ -87,8 +88,10 @@ namespace Windy.Srpg.Game.Abilities
         private readonly List<Cell> pendingTradePreviewCells = new List<Cell>();
         private readonly List<Item> attackPreviewWeaponOptions = new List<Item>();
         private Unit selectedAttackPreviewTarget;
+        private Cell selectedAttackPreviewTargetCell;
         private readonly List<Skill> skillPreviewOptions = new List<Skill>();
         private Unit selectedSkillPreviewTarget;
+        private Cell selectedSkillPreviewTargetCell;
         private Skill selectedTargetingSkill;
         private Cell selectedAreaSkillCenterCell;
         private Item selectedSkillPreviewWeaponEntry;
@@ -374,7 +377,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             EnterPendingMoveConfirmState(cellGrid);
-            GameplayCameraController.SetFocusedCell(UnitReference.PreviewCell);
+            GameplayCameraController.SetFocusedWorldPosition(UnitReference.GetFootprintWorldCenter(UnitReference.PreviewCell, cellGrid));
             StartCoroutine(CompletePendingMovePreview(cellGrid, UnitReference.PreviewCell, waitForPreviewCamera: false));
         }
 
@@ -394,7 +397,7 @@ namespace Windy.Srpg.Game.Abilities
             var path = UnitReference.FindPath(ResolveCells(cellGrid), cell);
 
             EnterPendingMoveConfirmState(cellGrid);
-            GameplayCameraController.SetFocusedCell(cell);
+            GameplayCameraController.SetFocusedWorldPosition(UnitReference.GetFootprintWorldCenter(cell, cellGrid));
             StartCoroutine(BeginPendingMovePreview(cellGrid, cell, path));
         }
 
@@ -710,7 +713,7 @@ namespace Windy.Srpg.Game.Abilities
             cellGrid?.EnterWaitingState();
         }
 
-        private IEnumerator AttackThenConfirmPendingMove(Unit unitToAttack, CellGrid cellGrid)
+        private IEnumerator AttackThenConfirmPendingMove(Unit unitToAttack, Cell targetedCell, CellGrid cellGrid)
         {
             resolvingPendingAttack = true;
             try
@@ -746,7 +749,7 @@ namespace Windy.Srpg.Game.Abilities
                     yield break;
                 }
 
-                UnitReference.AttackHandler(unitToAttack);
+                UnitReference.AttackHandler(unitToAttack, targetedCell);
                 UnitReference.OnUnitDeselected();
                 yield return new WaitUntil(() => UnitReference == null || !UnitReference.IsAttackSequenceRunning);
 
@@ -815,8 +818,8 @@ namespace Windy.Srpg.Game.Abilities
             bool showTrade = GetTradePartnerFromPreview(cellGrid) != null;
             Vector3 actionMenuWorldPosition =
                 actingCell != null
-                    ? actingCell.transform.position
-                    : UnitReference.transform.position;
+                    ? UnitReference.GetFootprintWorldCenter(actingCell, cellGrid)
+                    : UnitReference.GetVisualFootprintWorldCenter();
 
             actionMenuUi.Show(
                 worldPosition: actionMenuWorldPosition,

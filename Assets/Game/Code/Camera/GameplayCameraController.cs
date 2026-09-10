@@ -500,7 +500,7 @@ namespace Windy.Srpg.Game.CameraControl
             Cell focusCell = unit.HasPendingMove ? unit.PreviewCell : unit.Cell;
             if (focusCell != null)
             {
-                return ToFocusPlane(focusCell.transform.position);
+                return ToFocusPlane(unit.GetFootprintWorldCenter(focusCell, cellGrid));
             }
 
             return ToFocusPlane(unit.transform.position);

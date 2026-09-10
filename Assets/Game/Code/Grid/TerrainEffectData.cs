@@ -1,6 +1,4 @@
 using System;
-using Windy.Srpg.Game.Inventory;
-
 namespace Windy.Srpg.Game.Grid
 {
     public enum TerrainEffectOverlayStyle
@@ -22,10 +20,10 @@ namespace Windy.Srpg.Game.Grid
         public string Id;
         public string Name = "Terrain Effect";
         public string Description = string.Empty;
-        public PrimaryStatModifiers PrimaryStatModifiers;
-        public SecondaryStatModifiers SecondaryStatModifiers;
         public string OccupantBuffId;
         public bool RemoveOccupantBuffOnExit;
+        public string AppliedBuffId;
+        public bool RemoveAppliedBuffOnExit;
         public TerrainEffectOverlayStyle OverlayStyle;
         public TerrainEffectTargeting Targeting;
         public int TargetPlayerNumber;

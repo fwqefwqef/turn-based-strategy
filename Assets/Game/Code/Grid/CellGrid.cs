@@ -21,6 +21,8 @@ namespace Windy.Srpg.Game.Grid
         public bool ShouldStartGameImmediately = true;
 
         private const float CampaignSaveFlushDelaySeconds = 0.15f;
+        private readonly Dictionary<Vector2Int, Cell> cellByCoordinate = new Dictionary<Vector2Int, Cell>();
+        private int cachedCoordinateCellCount = -1;
 
         public event EventHandler PreBattleStateChanged;
         public event EventHandler DeploymentRosterChanged;
@@ -101,9 +103,28 @@ namespace Windy.Srpg.Game.Grid
 
         public Cell FindCellByOffset(Vector2 offsetCoord)
         {
-            return GetAllCells().FirstOrDefault(cell =>
-                cell.Coordinates.x == Mathf.RoundToInt(offsetCoord.x)
-                && cell.Coordinates.y == Mathf.RoundToInt(offsetCoord.y));
+            return FindCellByCoordinates(new Vector2Int(
+                Mathf.RoundToInt(offsetCoord.x),
+                Mathf.RoundToInt(offsetCoord.y)));
+        }
+
+        internal Cell FindCellByCoordinates(Vector2Int coordinates)
+        {
+            if (cachedCoordinateCellCount != Cells.Count)
+            {
+                cellByCoordinate.Clear();
+                foreach (Cell cell in Cells)
+                {
+                    if (cell != null && !cellByCoordinate.ContainsKey(cell.Coordinates))
+                    {
+                        cellByCoordinate.Add(cell.Coordinates, cell);
+                    }
+                }
+
+                cachedCoordinateCellCount = Cells.Count;
+            }
+
+            return cellByCoordinate.TryGetValue(coordinates, out Cell result) ? result : null;
         }
 
         public List<Unit> GetAllUnits()

@@ -103,6 +103,12 @@ namespace Windy.Srpg.Game.Grid
 
                 Unit deploymentUnit = deploymentUnits[i];
                 deploymentUnit.ConfigureFromOwnedUnitSaveData(ownedUnit, visualPreset);
+                if (!deploymentUnit.CanPlaceFootprint(deploymentSlots[i].Cell, hostileOnly: false, grid))
+                {
+                    Debug.LogWarning($"CellGrid: Deployment slot {i} cannot fit the {deploymentUnit.FootprintWidth}x{deploymentUnit.FootprintHeight} footprint for '{deploymentUnit.name}'.");
+                    continue;
+                }
+
                 deploymentUnit.gameObject.SetActive(true);
                 grid.RegisterDeploymentUnitForBattleInternal(deploymentUnit, deploymentSlots[i].Cell);
                 AssignDeploymentUnitToSlot(deploymentUnit, deploymentSlots[i]);

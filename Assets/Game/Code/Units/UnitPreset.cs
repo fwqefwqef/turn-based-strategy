@@ -135,6 +135,10 @@ namespace Windy.Srpg.Game.Units
         public Sprite UnitSprite;
         public Sprite FaceSprite;
         public UnitSpriteLayoutSettings SpriteLayout;
+        [Header("Board Footprint")]
+        public bool IsMultiTile;
+        [Min(1)] public int FootprintWidth = 1;
+        [Min(1)] public int FootprintHeight = 1;
         public UnitActionAiMode ActionAiMode = UnitActionAiMode.Attack;
         public UnitMovementAiMode MovementAiMode = UnitMovementAiMode.Move;
         public int WaitGroupId = 0;
@@ -148,6 +152,8 @@ namespace Windy.Srpg.Game.Units
 
         private void OnValidate()
         {
+            FootprintWidth = IsMultiTile ? Mathf.Max(1, FootprintWidth) : 1;
+            FootprintHeight = IsMultiTile ? Mathf.Max(1, FootprintHeight) : 1;
             bool inventoryWasInitialized = InitializeStartingInventoryChargeDefaults();
             bool layoutWasInitialized = InitializeSpriteLayoutDefaultsIfUnset();
             RefreshLinkedUnitsInEditor();

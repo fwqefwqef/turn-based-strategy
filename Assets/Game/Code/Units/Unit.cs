@@ -865,7 +865,7 @@ namespace Windy.Srpg.Game.Units
                 return false;
             }
 
-            int distance = sourceCell.GetDistance(otherCell);
+            int distance = GetFootprintDistanceTo(other, sourceCell, otherCell, FindSceneCellGrid());
             int minRange = Mathf.Max(0, weapon.MinRange);
             int maxRange = Mathf.Max(minRange, weapon.MaxRange + GetSecondaryStatModifiers().AttackRange);
             return distance >= minRange

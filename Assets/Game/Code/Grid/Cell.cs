@@ -338,10 +338,15 @@ namespace Windy.Srpg.Game.Grid
 
         public virtual void ShowCursorBorder(Color color)
         {
+            ShowCursorBorder(true, true, true, true, color);
+        }
+
+        public virtual void ShowCursorBorder(bool top, bool right, bool bottom, bool left, Color color)
+        {
             CacheHighlightersIfNeeded();
             foreach (var highlighter in highlighters)
             {
-                highlighter?.ShowCursorBorder(this, color);
+                highlighter?.ShowCursorBorder(this, top, right, bottom, left, color);
             }
         }
 

@@ -148,6 +148,11 @@ namespace Windy.Srpg.Game.Grid
             ShowPreviewBorder(true, true, true, true, color);
         }
 
+        public override void ShowCursorBorder(Cell cell, bool top, bool right, bool bottom, bool left, Color color)
+        {
+            ShowPreviewBorder(top, right, bottom, left, color);
+        }
+
         public override void ClearCursorBorder(Cell cell)
         {
             ClearPreviewBorder();

@@ -530,10 +530,10 @@ namespace Windy.Srpg.Game.Catalogs
         public string Id;
         public string Name = "Terrain Effect";
         public string Description = string.Empty;
-        public PrimaryStatModifiers PrimaryStatModifiers;
-        public SecondaryStatModifiers SecondaryStatModifiers;
         public string OccupantBuffId;
         public bool RemoveOccupantBuffOnExit;
+        public string AppliedBuffId;
+        public bool RemoveAppliedBuffOnExit;
         public string OverlayStyle = nameof(TerrainEffectOverlayStyle.None);
         public string Targeting = nameof(TerrainEffectTargeting.AllUnits);
         public int TargetPlayerNumber;
@@ -545,10 +545,10 @@ namespace Windy.Srpg.Game.Catalogs
                 Id = Id,
                 Name = Name,
                 Description = Description,
-                PrimaryStatModifiers = PrimaryStatModifiers,
-                SecondaryStatModifiers = SecondaryStatModifiers,
                 OccupantBuffId = CatalogResourceLoader.NormalizeOptionalString(OccupantBuffId),
                 RemoveOccupantBuffOnExit = RemoveOccupantBuffOnExit,
+                AppliedBuffId = CatalogResourceLoader.NormalizeOptionalString(AppliedBuffId),
+                RemoveAppliedBuffOnExit = RemoveAppliedBuffOnExit,
                 OverlayStyle = CatalogResourceLoader.ParseEnum(OverlayStyle, TerrainEffectOverlayStyle.None),
                 Targeting = CatalogResourceLoader.ParseEnum(Targeting, TerrainEffectTargeting.AllUnits),
                 TargetPlayerNumber = TargetPlayerNumber

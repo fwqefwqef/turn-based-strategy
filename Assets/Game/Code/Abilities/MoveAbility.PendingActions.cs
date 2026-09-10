@@ -106,8 +106,8 @@ namespace Windy.Srpg.Game.Abilities
             Cell actingCell = GetActingCellForPendingActions(cellGrid);
             Vector3 worldPosition =
                 actingCell != null
-                    ? actingCell.transform.position
-                    : UnitReference.transform.position;
+                    ? UnitReference.GetFootprintWorldCenter(actingCell, cellGrid)
+                    : UnitReference.GetVisualFootprintWorldCenter();
 
             skillMenuUi.Show(
                 worldPosition,
@@ -274,8 +274,8 @@ namespace Windy.Srpg.Game.Abilities
             Cell actingCell = GetActingCellForPendingActions(cellGrid);
             Vector3 actionMenuWorldPosition =
                 actingCell != null
-                    ? actingCell.transform.position
-                    : UnitReference.transform.position;
+                    ? UnitReference.GetFootprintWorldCenter(actingCell, cellGrid)
+                    : UnitReference.GetVisualFootprintWorldCenter();
 
             inventoryMenuUi.Show(
                 actionMenuWorldPosition,
@@ -1055,7 +1055,7 @@ namespace Windy.Srpg.Game.Abilities
                 }
 
                 Cell unitCell = unit.HasPendingMove ? unit.PreviewCell : unit.Cell;
-                if (unitCell == null || !affectedCells.Contains(unitCell))
+                if (!unit.GetFootprintCells(unitCell, cellGrid).Any(affectedCells.Contains))
                 {
                     continue;
                 }
@@ -1157,7 +1157,7 @@ namespace Windy.Srpg.Game.Abilities
             return skill?.Data != null
                 && skill.Data.SelfImmune
                 && actingCell != null
-                && cell == actingCell;
+                && UnitReference.OccupiesCell(cell, actingCell, cellGrid);
         }
 
         private void UpdateAreaSkillProjection(Cell hoveredCell, CellGrid cellGrid)
@@ -1325,7 +1325,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             return target.PlayerNumber == UnitReference.PlayerNumber
-                && actingCell.GetDistance(target.Cell) == 1;
+                && UnitReference.GetFootprintDistanceTo(target, actingCell, target.Cell, cellGrid) == 1;
         }
 
         private bool IsUnitTradeableFromPreview(Unit target)
@@ -1345,7 +1345,7 @@ namespace Windy.Srpg.Game.Abilities
                 .Where(unit => unit != null
                     && unit != UnitReference
                     && unit.Cell != null
-                    && actingCell.GetDistance(unit.Cell) == 1)
+                    && UnitReference.GetFootprintDistanceTo(unit, actingCell, unit.Cell, cellGrid) == 1)
                 .OrderBy(unit => unit.UnitID)
                 .ToList();
         }
@@ -1374,7 +1374,7 @@ namespace Windy.Srpg.Game.Abilities
             EnterPendingMenuBlockedInput(cellGrid);
 
             tradeMenuUi.Show(
-                tradePartner.transform.position,
+                tradePartner.GetVisualFootprintWorldCenter(),
                 UnitReference,
                 tradePartner,
                 didTrade =>
@@ -1423,6 +1423,20 @@ namespace Windy.Srpg.Game.Abilities
             return CanAttackTargetWithAnyWeaponFromPreview(target, FindSceneCellGrid());
         }
 
+        private static Cell ResolveClickedFootprintCell(Unit target, CellGrid cellGrid)
+        {
+            Cell clickedCell = GameplayInputController.CurrentHoveredCell;
+            if (target == null || clickedCell == null)
+            {
+                return null;
+            }
+
+            Cell targetAnchor = target.HasPendingMove ? target.PreviewCell : target.Cell;
+            return target.OccupiesCell(clickedCell, targetAnchor, cellGrid)
+                ? cellGrid?.ResolveCanonicalCell(clickedCell) ?? clickedCell
+                : null;
+        }
+
         private void OpenAttackPreview(Unit target, CellGrid cellGrid)
         {
             Cell actingCell = GetActingCellForPendingActions(cellGrid);
@@ -1438,6 +1452,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             selectedAttackPreviewTarget = target;
+            selectedAttackPreviewTargetCell = ResolveClickedFootprintCell(target, cellGrid);
             attackPreviewWeaponOptions.Clear();
             attackPreviewWeaponOptions.AddRange(legalWeapons);
 
@@ -1469,7 +1484,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             UnitReference.EquipWeapon(previewWeaponEntry);
-            StartCoroutine(AttackThenConfirmPendingMove(selectedAttackPreviewTarget, cellGrid));
+            StartCoroutine(AttackThenConfirmPendingMove(selectedAttackPreviewTarget, selectedAttackPreviewTargetCell, cellGrid));
         }
 
         private void CycleAttackPreviewWeapon(CellGrid cellGrid)
@@ -1497,6 +1512,7 @@ namespace Windy.Srpg.Game.Abilities
         private void ClearAttackPreviewSelection()
         {
             selectedAttackPreviewTarget = null;
+            selectedAttackPreviewTargetCell = null;
             attackPreviewWeaponOptions.Clear();
             attackPreviewWeaponIndex = -1;
             FindAttackPreviewUI()?.Hide();
@@ -1526,6 +1542,7 @@ namespace Windy.Srpg.Game.Abilities
         private void ClearSkillPreviewSelection()
         {
             selectedSkillPreviewTarget = null;
+            selectedSkillPreviewTargetCell = null;
             skillPreviewOptions.Clear();
             skillPreviewIndex = -1;
             selectedSkillPreviewWeaponEntry = null;
@@ -1546,6 +1563,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             selectedSkillPreviewTarget = target;
+            selectedSkillPreviewTargetCell = ResolveClickedFootprintCell(target, cellGrid);
             skillPreviewOptions.Clear();
             skillPreviewOptions.Add(skillToPreview);
             skillPreviewIndex = 0;
@@ -1569,7 +1587,7 @@ namespace Windy.Srpg.Game.Abilities
             UnitInspectPanelUI.RequestGameplayHide();
 
             previewUi.Show(
-                target.transform.position,
+                target.GetVisualFootprintWorldCenter(),
                 UnitReference,
                 target,
                 BuildSkillAttackerPreview(skill, target, cellGrid),
@@ -1655,6 +1673,8 @@ namespace Windy.Srpg.Game.Abilities
                 yield break;
             }
 
+            Cell targetedCell = selectedSkillPreviewTargetCell;
+
             resolvingPendingAttack = true;
             try
             {
@@ -1696,7 +1716,7 @@ namespace Windy.Srpg.Game.Abilities
                             : string.Empty;
                         BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name}{weaponSuffix} on {DescribeActionUnit(target)}.");
                         effect?.Use(UnitReference, context);
-                        UnitReference.AttackHandler(target, attackProfile);
+                        UnitReference.AttackHandler(target, attackProfile, targetedCell);
                         executed = true;
                         yield return new WaitUntil(() => UnitReference == null || !UnitReference.IsAttackSequenceRunning);
                     }
@@ -1912,7 +1932,7 @@ namespace Windy.Srpg.Game.Abilities
 
             UnitInspectPanelUI.RequestGameplayHide();
             previewUi.Show(
-                target.transform.position,
+                target.GetVisualFootprintWorldCenter(),
                 UnitReference,
                 target,
                 BuildAttackerPreview(target, previewWeaponEntry.Weapon),
@@ -2247,7 +2267,7 @@ namespace Windy.Srpg.Game.Abilities
                 return false;
             }
 
-            int distance = actingCell.GetDistance(targetCell);
+            int distance = UnitReference.GetFootprintDistanceTo(target, actingCell, targetCell, cellGrid);
             if (distance < minRange || distance > maxRange)
             {
                 return false;
@@ -2439,7 +2459,7 @@ namespace Windy.Srpg.Game.Abilities
                             return false;
                         }
 
-                        int distance = sourceCell.GetDistance(targetCell);
+                        int distance = UnitReference.GetFootprintDistanceTo(target, sourceCell, targetCell, FindSceneCellGrid());
                         return distance >= minRange && distance <= maxRange;
                     })
                     .ToList();
@@ -2888,7 +2908,7 @@ namespace Windy.Srpg.Game.Abilities
                         return false;
                     }
 
-                    int distance = actingCell.GetDistance(targetCell);
+                    int distance = UnitReference.GetFootprintDistanceTo(target, actingCell, targetCell, cellGrid);
                     return distance >= minRange && distance <= maxRange;
                 })
                 .ToList();
@@ -3059,6 +3079,7 @@ namespace Windy.Srpg.Game.Abilities
                 RestoreReachableDisplay(cellGrid);
                 currentPath = UnitReference.FindPath(ResolveCells(cellGrid), cell);
                 MarkCurrentPath(cellGrid);
+                MarkDestinationFootprintPreview(cell, cellGrid);
             }
         }
 
@@ -3101,13 +3122,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private void ClearCurrentPathHighlights(CellGrid cellGrid)
         {
-            if (currentPath == null)
-            {
-                return;
-            }
-
             Cell originCell = UnitReference?.Cell;
-            foreach (var pathCell in currentPath)
+            foreach (var pathCell in currentPath ?? System.Array.Empty<Cell>())
             {
                 if (pathCell == null || pathCell == originCell)
                 {
@@ -3115,6 +3131,36 @@ namespace Windy.Srpg.Game.Abilities
                 }
 
                 ClearCellMark(pathCell, cellGrid);
+            }
+
+            foreach (Cell footprintCell in currentDestinationFootprintPreviewCells)
+            {
+                if (footprintCell != null && footprintCell != originCell)
+                {
+                    ClearCellMark(footprintCell, cellGrid);
+                }
+            }
+
+            currentDestinationFootprintPreviewCells.Clear();
+        }
+
+        private void MarkDestinationFootprintPreview(Cell destination, CellGrid cellGrid)
+        {
+            currentDestinationFootprintPreviewCells.Clear();
+            if (UnitReference == null || destination == null)
+            {
+                return;
+            }
+
+            foreach (Cell footprintCell in UnitReference.GetFootprintCells(destination, cellGrid))
+            {
+                if (footprintCell == null)
+                {
+                    continue;
+                }
+
+                currentDestinationFootprintPreviewCells.Add(footprintCell);
+                MarkPathCell(footprintCell, cellGrid);
             }
         }
 
@@ -3125,6 +3171,8 @@ namespace Windy.Srpg.Game.Abilities
 
         protected override void CleanUp(CellGrid cellGrid)
         {
+            ClearCurrentPathHighlights(cellGrid);
+            currentPath = null;
             if (availableDestinations == null)
             {
                 return;

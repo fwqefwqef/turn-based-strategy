@@ -109,7 +109,7 @@ burned.Buffs.OnDotTick();
 Check(burned.HitPoints == 10 && !burned.Buffs.HasBuff("burn"), "Burn expires after exactly two Pain ticks");
 
 var evadeModifiers = new SecondaryStatModifiers { Evade = 20 } + new SecondaryStatModifiers { Evade = 20 };
-Check(evadeModifiers.Evade == 40, "Secondary stat aggregation includes terrain Evade bonuses");
+Check(evadeModifiers.Evade == 40, "Secondary stat aggregation supports stacked buff-based Evade bonuses");
 
 var leftOrDownDepths = BlackFogLayerCalculator.BuildDepthByLayer([0, 1, 2, 3, 4, 5], 2, false);
 Check(leftOrDownDepths.Count == 2 && leftOrDownDepths[0] == 1 && leftOrDownDepths[1] == 0,
@@ -134,15 +134,27 @@ Check(cleanse.GetProperty("EffectId").GetString() == "cleanse" && cleanse.GetPro
 var terrainEffects = CatalogResourceLoader.Root.GetProperty("TerrainEffects").GetProperty("Effects").EnumerateArray().ToList();
 Check(terrainEffects.Count == 5, "The terrain catalog contains all initial static and dynamic effects");
 var throne = terrainEffects.Single(e => e.GetProperty("Id").GetString() == "throne");
-Check(throne.GetProperty("PrimaryStatModifiers").GetProperty("Defense").GetInt32() == 5
-    && throne.GetProperty("SecondaryStatModifiers").GetProperty("Evade").GetInt32() == 20,
-    "Throne grants Defense +5 and Evade +20");
+Check(throne.GetProperty("OccupantBuffId").GetString() == "throne"
+    && !throne.TryGetProperty("PrimaryStatModifiers", out _)
+    && !throne.TryGetProperty("SecondaryStatModifiers", out _),
+    "Throne delegates its stats to an occupancy buff instead of terrain stat fields");
 var forest = terrainEffects.Single(e => e.GetProperty("Id").GetString() == "forest");
-Check(forest.GetProperty("SecondaryStatModifiers").GetProperty("Evade").GetInt32() == 20,
-    "Forest grants Evade +20 through the terrain catalog");
+Check(forest.GetProperty("OccupantBuffId").GetString() == "forest",
+    "Forest maps to its occupancy buff");
 var magicTile = terrainEffects.Single(e => e.GetProperty("Id").GetString() == "magic_tile");
-Check(magicTile.GetProperty("PrimaryStatModifiers").GetProperty("Magic").GetInt32() == 5,
-    "Magic Tile grants Magic +5");
+Check(magicTile.GetProperty("OccupantBuffId").GetString() == "magic_tile",
+    "Magic Tile maps to its occupancy buff");
+Check(BuffRegistry.Get("throne").PrimaryStatModifiers.Defense == 5
+    && BuffRegistry.Get("throne").SecondaryStatModifiers.Evade == 20,
+    "Throne buff grants Defense +5 and Evade +20");
+Check(BuffRegistry.Get("forest").SecondaryStatModifiers.Evade == 20,
+    "Forest buff grants Evade +20");
+Check(BuffRegistry.Get("magic_tile").PrimaryStatModifiers.Magic == 5,
+    "Magic Tile buff grants Magic +5");
+var burningTerrain = terrainEffects.Single(e => e.GetProperty("Id").GetString() == "burning_terrain");
+Check(burningTerrain.GetProperty("OccupantBuffId").GetString() == "burning_terrain"
+    && burningTerrain.GetProperty("AppliedBuffId").GetString() == "burn",
+    "Burning Terrain maintains its own occupancy buff and applies a separate Burn debuff");
 var igniteGround = CatalogResourceLoader.Root.GetProperty("Skills").GetProperty("Skills").EnumerateArray()
     .Single(e => e.GetProperty("Id").GetString() == "ignite_ground");
 Check(igniteGround.GetProperty("TerrainProfile").GetProperty("TerrainEffectId").GetString() == "burning_terrain"

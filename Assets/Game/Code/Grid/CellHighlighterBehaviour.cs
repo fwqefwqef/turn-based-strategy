@@ -39,6 +39,11 @@ namespace Windy.Srpg.Game.Grid
         {
         }
 
+        public virtual void ShowCursorBorder(Cell cell, bool top, bool right, bool bottom, bool left, Color color)
+        {
+            ShowCursorBorder(cell, color);
+        }
+
         public virtual void ClearCursorBorder(Cell cell)
         {
         }
