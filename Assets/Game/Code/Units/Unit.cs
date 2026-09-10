@@ -201,6 +201,8 @@ namespace Windy.Srpg.Game.Units
         internal List<StartingSkillEntry> resolvedStartingSkills = new List<StartingSkillEntry>();
         internal List<StartingPassiveEntry> resolvedStartingClassPassives = new List<StartingPassiveEntry>();
         internal SecondaryStatModifiers resolvedSecondaryStatOffsets;
+        [NonSerialized] internal PrimaryStatModifiers terrainPrimaryStatModifiers;
+        [NonSerialized] internal SecondaryStatModifiers terrainSecondaryStatModifiers;
         [NonSerialized] internal OwnedUnitSaveData pendingOwnedUnitSaveData;
         [NonSerialized] internal UnitPreset pendingOwnedUnitVisualPreset;
         [SerializeField, HideInInspector] internal bool spriteLayoutBaselineCaptured;
@@ -232,7 +234,7 @@ namespace Windy.Srpg.Game.Units
         {
             get
             {
-                return Speed * AccuracyPerSpeedPoint;
+                return Speed * AccuracyPerSpeedPoint + GetSecondaryStatModifiers().Evade;
             }
         }
         public virtual int Crit
@@ -390,6 +392,8 @@ namespace Windy.Srpg.Game.Units
         {
             PrimaryStatModifiers modifiers = default;
 
+            modifiers += terrainPrimaryStatModifiers;
+
             if (weapon != null)
             {
                 modifiers += weapon.StatModifiers;
@@ -416,6 +420,7 @@ namespace Windy.Srpg.Game.Units
         private SecondaryStatModifiers GetSecondaryStatModifiers()
         {
             SecondaryStatModifiers modifiers = resolvedSecondaryStatOffsets;
+            modifiers += terrainSecondaryStatModifiers;
 
             if (EquippedAccessory != null)
             {

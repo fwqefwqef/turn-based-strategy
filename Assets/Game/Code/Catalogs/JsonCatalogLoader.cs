@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Windy.Srpg.Game.Buffs;
 using Windy.Srpg.Game.Inventory;
+using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Passives;
 using Windy.Srpg.Game.Skills;
 using UnityEngine;
@@ -73,6 +74,12 @@ namespace Windy.Srpg.Game.Catalogs
             return catalog.Buffs ?? new BuffCatalogResource();
         }
 
+        public static TerrainEffectCatalogResource LoadTerrainEffectCatalog()
+        {
+            GameDataCatalogResource catalog = LoadGameDataCatalog();
+            return catalog.TerrainEffects ?? new TerrainEffectCatalogResource();
+        }
+
         private static GameDataCatalogResource LoadGameDataCatalog()
         {
             if (!hasLoadedGameDataCatalog)
@@ -131,6 +138,7 @@ namespace Windy.Srpg.Game.Catalogs
         public SkillCatalogResource Skills = new SkillCatalogResource();
         public PassiveCatalogResource Passives = new PassiveCatalogResource();
         public BuffCatalogResource Buffs = new BuffCatalogResource();
+        public TerrainEffectCatalogResource TerrainEffects = new TerrainEffectCatalogResource();
     }
 
     [Serializable]
@@ -303,6 +311,7 @@ namespace Windy.Srpg.Game.Catalogs
         public string EffectId;
         public SkillAttackProfileCatalogEntry AttackProfile = new SkillAttackProfileCatalogEntry();
         public SkillAreaProfileCatalogEntry AreaProfile = new SkillAreaProfileCatalogEntry();
+        public SkillTerrainProfileCatalogEntry TerrainProfile = new SkillTerrainProfileCatalogEntry();
 
         public SkillData ToRuntime()
         {
@@ -320,7 +329,8 @@ namespace Windy.Srpg.Game.Catalogs
                 MpCost = MpCost,
                 EffectId = CatalogResourceLoader.NormalizeOptionalString(EffectId),
                 AttackProfile = (AttackProfile ?? new SkillAttackProfileCatalogEntry()).ToRuntime(),
-                AreaProfile = (AreaProfile ?? new SkillAreaProfileCatalogEntry()).ToRuntime()
+                AreaProfile = (AreaProfile ?? new SkillAreaProfileCatalogEntry()).ToRuntime(),
+                TerrainProfile = (TerrainProfile ?? new SkillTerrainProfileCatalogEntry()).ToRuntime()
             };
         }
     }
@@ -381,6 +391,24 @@ namespace Windy.Srpg.Game.Catalogs
                 IsMagic = IsMagic,
                 AffectsAllies = AffectsAllies,
                 AffectsEnemies = AffectsEnemies
+            };
+        }
+    }
+
+    [Serializable]
+    public sealed class SkillTerrainProfileCatalogEntry
+    {
+        public bool Enabled;
+        public string TerrainEffectId;
+        public int DurationRounds;
+
+        public SkillTerrainProfile ToRuntime()
+        {
+            return new SkillTerrainProfile
+            {
+                Enabled = Enabled,
+                TerrainEffectId = CatalogResourceLoader.NormalizeOptionalString(TerrainEffectId),
+                DurationRounds = Math.Max(0, DurationRounds)
             };
         }
     }
@@ -475,6 +503,55 @@ namespace Windy.Srpg.Game.Catalogs
                 PrimaryStatModifiers = PrimaryStatModifiers,
                 SecondaryStatModifiers = SecondaryStatModifiers,
                 EffectId = CatalogResourceLoader.NormalizeOptionalString(EffectId)
+            };
+        }
+    }
+
+    [Serializable]
+    public sealed class TerrainEffectCatalogResource
+    {
+        public TerrainEffectCatalogEntry[] Effects = Array.Empty<TerrainEffectCatalogEntry>();
+
+        public IEnumerable<TerrainEffectData> ToRuntimeDefinitions()
+        {
+            foreach (TerrainEffectCatalogEntry entry in Effects ?? Array.Empty<TerrainEffectCatalogEntry>())
+            {
+                if (entry != null)
+                {
+                    yield return entry.ToRuntime();
+                }
+            }
+        }
+    }
+
+    [Serializable]
+    public sealed class TerrainEffectCatalogEntry
+    {
+        public string Id;
+        public string Name = "Terrain Effect";
+        public string Description = string.Empty;
+        public PrimaryStatModifiers PrimaryStatModifiers;
+        public SecondaryStatModifiers SecondaryStatModifiers;
+        public string OccupantBuffId;
+        public bool RemoveOccupantBuffOnExit;
+        public string OverlayStyle = nameof(TerrainEffectOverlayStyle.None);
+        public string Targeting = nameof(TerrainEffectTargeting.AllUnits);
+        public int TargetPlayerNumber;
+
+        public TerrainEffectData ToRuntime()
+        {
+            return new TerrainEffectData
+            {
+                Id = Id,
+                Name = Name,
+                Description = Description,
+                PrimaryStatModifiers = PrimaryStatModifiers,
+                SecondaryStatModifiers = SecondaryStatModifiers,
+                OccupantBuffId = CatalogResourceLoader.NormalizeOptionalString(OccupantBuffId),
+                RemoveOccupantBuffOnExit = RemoveOccupantBuffOnExit,
+                OverlayStyle = CatalogResourceLoader.ParseEnum(OverlayStyle, TerrainEffectOverlayStyle.None),
+                Targeting = CatalogResourceLoader.ParseEnum(Targeting, TerrainEffectTargeting.AllUnits),
+                TargetPlayerNumber = TargetPlayerNumber
             };
         }
     }

@@ -101,6 +101,16 @@ outsideFog.AddBuffById("black_fog");
 outsideFog.Buffs.OnDotTick();
 Check(outsideFog.HitPoints == 101, "A stale Black Fog status deals no damage outside fog coverage");
 
+var burned = new Unit { HitPoints = 20, ComputedTotalHitPoints = 20 };
+burned.AddBuffById("burn");
+burned.Buffs.OnDotTick();
+Check(burned.HitPoints == 15 && burned.Buffs.HasBuff("burn"), "Burn deals five Pain damage on its first tick");
+burned.Buffs.OnDotTick();
+Check(burned.HitPoints == 10 && !burned.Buffs.HasBuff("burn"), "Burn expires after exactly two Pain ticks");
+
+var evadeModifiers = new SecondaryStatModifiers { Evade = 20 } + new SecondaryStatModifiers { Evade = 20 };
+Check(evadeModifiers.Evade == 40, "Secondary stat aggregation includes terrain Evade bonuses");
+
 var leftOrDownDepths = BlackFogLayerCalculator.BuildDepthByLayer([0, 1, 2, 3, 4, 5], 2, false);
 Check(leftOrDownDepths.Count == 2 && leftOrDownDepths[0] == 1 && leftOrDownDepths[1] == 0,
     "Left/Down fog covers ascending outer layers and measures depth from the frontier");
@@ -121,4 +131,21 @@ var cleanse = CatalogResourceLoader.Root.GetProperty("Skills").GetProperty("Skil
 Check(cleanse.GetProperty("EffectId").GetString() == "cleanse" && cleanse.GetProperty("TargetingType").GetString() == "AllyUnit"
     && cleanse.GetProperty("MpCost").GetInt32() == 3 && !cleanse.GetProperty("AttackProfile").GetProperty("Enabled").GetBoolean(),
     "Cleanse is an ally support spell costing three MP");
+var terrainEffects = CatalogResourceLoader.Root.GetProperty("TerrainEffects").GetProperty("Effects").EnumerateArray().ToList();
+Check(terrainEffects.Count == 5, "The terrain catalog contains all initial static and dynamic effects");
+var throne = terrainEffects.Single(e => e.GetProperty("Id").GetString() == "throne");
+Check(throne.GetProperty("PrimaryStatModifiers").GetProperty("Defense").GetInt32() == 5
+    && throne.GetProperty("SecondaryStatModifiers").GetProperty("Evade").GetInt32() == 20,
+    "Throne grants Defense +5 and Evade +20");
+var forest = terrainEffects.Single(e => e.GetProperty("Id").GetString() == "forest");
+Check(forest.GetProperty("SecondaryStatModifiers").GetProperty("Evade").GetInt32() == 20,
+    "Forest grants Evade +20 through the terrain catalog");
+var magicTile = terrainEffects.Single(e => e.GetProperty("Id").GetString() == "magic_tile");
+Check(magicTile.GetProperty("PrimaryStatModifiers").GetProperty("Magic").GetInt32() == 5,
+    "Magic Tile grants Magic +5");
+var igniteGround = CatalogResourceLoader.Root.GetProperty("Skills").GetProperty("Skills").EnumerateArray()
+    .Single(e => e.GetProperty("Id").GetString() == "ignite_ground");
+Check(igniteGround.GetProperty("TerrainProfile").GetProperty("TerrainEffectId").GetString() == "burning_terrain"
+    && igniteGround.GetProperty("TerrainProfile").GetProperty("DurationRounds").GetInt32() == 2,
+    "Ignite Ground creates Burning Terrain for two rounds");
 Console.WriteLine($"Passed {checks} debuff/catalog checks (Unity presentation and input require Play Mode).");

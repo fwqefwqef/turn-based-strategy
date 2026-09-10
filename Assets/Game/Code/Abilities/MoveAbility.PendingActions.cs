@@ -184,7 +184,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             var affectedTargets = GetAreaSkillTargets(selectedTargetingSkill, selectedAreaSkillCenterCell, cellGrid);
-            if (affectedTargets.Count == 0)
+            if (affectedTargets.Count == 0 && !CreatesTerrain(selectedTargetingSkill.Data))
             {
                 return;
             }
@@ -349,7 +349,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private void ShowAreaSkillConfirmPopup(CellGrid cellGrid, Cell centerCell, IReadOnlyList<Unit> affectedTargets)
         {
-            if (selectedTargetingSkill?.Data == null || centerCell == null || affectedTargets == null || affectedTargets.Count == 0)
+            if (selectedTargetingSkill?.Data == null || centerCell == null || affectedTargets == null
+                || (affectedTargets.Count == 0 && !CreatesTerrain(selectedTargetingSkill.Data)))
             {
                 return;
             }
@@ -382,7 +383,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private void ConfirmAreaSkill(CellGrid cellGrid)
         {
-            if (!awaitingAreaSkillConfirmation || selectedTargetingSkill?.Data == null || selectedAreaSkillCenterCell == null || pendingAreaSkillTargets.Count == 0)
+            if (!awaitingAreaSkillConfirmation || selectedTargetingSkill?.Data == null || selectedAreaSkillCenterCell == null
+                || (pendingAreaSkillTargets.Count == 0 && !CreatesTerrain(selectedTargetingSkill.Data)))
             {
                 return;
             }
@@ -717,6 +719,13 @@ namespace Windy.Srpg.Game.Abilities
             return data != null && (data.AreaProfile.Enabled || data.TargetingType == SkillTargetingType.AreaCell);
         }
 
+        private static bool CreatesTerrain(SkillData data)
+        {
+            return data != null
+                && data.TerrainProfile.Enabled
+                && !string.IsNullOrWhiteSpace(data.TerrainProfile.TerrainEffectId);
+        }
+
         private static bool IsLineAreaSkill(Skill skill)
         {
             return skill?.Data != null && skill.Data.AreaProfile.Enabled && skill.Data.AreaProfile.Shape == SkillAreaShape.Line;
@@ -743,6 +752,11 @@ namespace Windy.Srpg.Game.Abilities
                 return HasAnyUsableLineAreaSkillProjection(skill, cellGrid);
             }
 
+            if (CreatesTerrain(skill.Data))
+            {
+                return GetLegalAreaSkillCenterCells(skill, cellGrid).Count > 0;
+            }
+
             return GetLegalAreaSkillCenterCells(skill, cellGrid).Any(center => GetAreaSkillTargets(skill, center, cellGrid).Count > 0);
         }
 
@@ -761,7 +775,7 @@ namespace Windy.Srpg.Game.Abilities
                     continue;
                 }
 
-                if (GetAreaSkillTargets(skill, projection.Endpoint, cellGrid).Count > 0)
+                if (CreatesTerrain(skill.Data) || GetAreaSkillTargets(skill, projection.Endpoint, cellGrid).Count > 0)
                 {
                     return true;
                 }
@@ -1132,6 +1146,7 @@ namespace Windy.Srpg.Game.Abilities
                 TargetCell = centerCell,
                 CellGrid = cellGrid,
                 AreaTargets = areaTargets,
+                AreaCells = GetAreaSkillAffectedCells(skill, centerCell, cellGrid).ToList(),
                 Skill = skill?.Data
             };
         }
@@ -1736,7 +1751,8 @@ namespace Windy.Srpg.Game.Abilities
 
         private IEnumerator ExecuteAreaSkillThenConfirmPendingMove(Skill skill, Cell centerCell, IReadOnlyList<Unit> affectedTargets, CellGrid cellGrid)
         {
-            if (skill?.Data == null || centerCell == null || affectedTargets == null || affectedTargets.Count == 0)
+            if (skill?.Data == null || centerCell == null || affectedTargets == null
+                || (affectedTargets.Count == 0 && !CreatesTerrain(skill.Data)))
             {
                 yield break;
             }
@@ -1771,7 +1787,33 @@ namespace Windy.Srpg.Game.Abilities
                     .ThenBy(target => target.UnitID)
                     .ToList();
 
-                if (skill.Data.AttackProfile.Enabled)
+                if (CreatesTerrain(skill.Data) && !skill.Data.AttackProfile.Enabled && string.IsNullOrWhiteSpace(skill.Data.EffectId))
+                {
+                    IReadOnlyList<Cell> affectedCells = GetAreaSkillAffectedCells(skill, centerCell, cellGrid).ToList();
+                    if (affectedCells.Count > 0 && UnitReference.MarkSkillUsed(skill))
+                    {
+                        if (UnitReference.HasPendingMove)
+                        {
+                            CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
+                        }
+
+                        foreach (Cell affectedCell in affectedCells)
+                        {
+                            cellGrid.ApplyTerrainEffect(
+                                affectedCell,
+                                skill.Data.TerrainProfile.TerrainEffectId,
+                                skill.Data.TerrainProfile.DurationRounds,
+                                intensity: 0,
+                                sourcePlayerNumber: UnitReference.PlayerNumber);
+                        }
+
+                        BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name} on terrain at {centerCell.Coordinates}.");
+                        UnitReference.UseAreaSkill(orderedTargets, skill.Data.EndsTurn, _ => { }, skill.Data, cellGrid);
+                        executed = true;
+                        yield return new WaitUntil(() => UnitReference == null || !UnitReference.IsAttackSequenceRunning);
+                    }
+                }
+                else if (skill.Data.AttackProfile.Enabled)
                 {
                     if (TryBuildSkillAttackProfile(skill, orderedTargets.FirstOrDefault(), null, out ResolvedAttackProfile profile))
                     {

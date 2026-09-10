@@ -21,6 +21,7 @@ namespace Windy.Srpg.Game.Buffs
             BuffEffectRegistry.Register("damage_to_one", () => new DamageToOneBuffEffect());
             BuffEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMag());
             BuffEffectRegistry.Register("toxic", () => new ToxicBuffEffect());
+            BuffEffectRegistry.Register("burn", () => new BurnBuffEffect());
             BuffEffectRegistry.Register("stun", () => new StunBuffEffect());
             BuffEffectRegistry.Register("movement_cap_1", () => new MovementCapBuffEffect(1f));
             BuffEffectRegistry.Register("black_fog", () => new BlackFogBuffEffect());
@@ -32,6 +33,14 @@ namespace Windy.Srpg.Game.Buffs
             public void OnDotTick(Unit unit, Buff entry)
             {
                 unit.ApplyPainDamage(5 * entry.Stacks);
+            }
+        }
+
+        private sealed class BurnBuffEffect : BuffEffectBase, IP_DotTick
+        {
+            public void OnDotTick(Unit unit, Buff entry)
+            {
+                unit.ApplyPainDamage(5);
             }
         }
 

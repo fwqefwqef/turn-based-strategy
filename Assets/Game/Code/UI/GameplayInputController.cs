@@ -18,6 +18,8 @@ namespace Windy.Srpg.Game.UI
     /// </summary>
     public sealed class GameplayInputController : MonoBehaviour
     {
+        public event Action<Cell> HoveredCellChanged;
+
         private enum ControlScheme
         {
             Mouse,
@@ -1623,6 +1625,7 @@ namespace Windy.Srpg.Game.UI
 
             hoveredCell = cell;
             hoveredUnit = unit;
+            HoveredCellChanged?.Invoke(hoveredCell);
 
             if (hoveredCell != null)
             {
@@ -1646,9 +1649,14 @@ namespace Windy.Srpg.Game.UI
 
         private void ClearHoverState()
         {
+            bool hadHoveredCell = hoveredCell != null;
             ClearHoverDispatchState();
             hoveredCell = null;
             hoveredUnit = null;
+            if (hadHoveredCell)
+            {
+                HoveredCellChanged?.Invoke(null);
+            }
         }
 
         private void ClearHoverDispatchState()

@@ -80,6 +80,7 @@ namespace Windy.Srpg.Game.Inventory
     public struct SecondaryStatModifiers
     {
         public int Accuracy;
+        public int Evade;
         public int Crit;
         public int CritAvoid;
         public int AttackRange;
@@ -89,6 +90,7 @@ namespace Windy.Srpg.Game.Inventory
             return new SecondaryStatModifiers
             {
                 Accuracy = left.Accuracy + right.Accuracy,
+                Evade = left.Evade + right.Evade,
                 Crit = left.Crit + right.Crit,
                 CritAvoid = left.CritAvoid + right.CritAvoid,
                 AttackRange = left.AttackRange + right.AttackRange
@@ -100,6 +102,7 @@ namespace Windy.Srpg.Game.Inventory
             return new SecondaryStatModifiers
             {
                 Accuracy = modifiers.Accuracy * multiplier,
+                Evade = modifiers.Evade * multiplier,
                 Crit = modifiers.Crit * multiplier,
                 CritAvoid = modifiers.CritAvoid * multiplier,
                 AttackRange = modifiers.AttackRange * multiplier

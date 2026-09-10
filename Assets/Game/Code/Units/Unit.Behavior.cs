@@ -582,6 +582,17 @@ namespace Windy.Srpg.Game.Units
             EnsureSkillList();
             return SkillList.MarkUsed(entry);
         }
+        internal void SetTerrainStatModifiers(PrimaryStatModifiers primary, SecondaryStatModifiers secondary)
+        {
+            if (terrainPrimaryStatModifiers.Equals(primary) && terrainSecondaryStatModifiers.Equals(secondary))
+            {
+                return;
+            }
+
+            terrainPrimaryStatModifiers = primary;
+            terrainSecondaryStatModifiers = secondary;
+            RaiseStatsChanged();
+        }
         public void RestoreManaPoints(int amount)
         {
             if (amount <= 0)

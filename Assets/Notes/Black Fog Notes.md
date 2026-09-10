@@ -67,14 +67,19 @@ Black Fog should be represented as a debuff while a player unit is standing in f
 - Leaving Black Fog removes the Black Fog debuff.
 - The debuff should cleanse itself when the unit is no longer standing in Black Fog.
 
-Recommended responsibility split:
+Current responsibility split:
 
-- Black Fog system owns terrain state:
+- The terrain-effect system owns cell state:
   - which cells are fogged
   - current expansion step
   - tile depth
   - tile visual overlay
   - applying/removing the Black Fog debuff based on position
+
+- Black Fog system owns chapter-specific expansion:
+  - direction and arrival turn
+  - covered directional layers
+  - per-cell depth published to the terrain-effect system
 
 - Black Fog debuff owns DoT behavior:
   - during DoT tick, ask the Black Fog system for the unit's current tile depth
@@ -146,7 +151,8 @@ Important constraint: newly expanded fog should be applied after the DoT tick, s
 
 Current implementation:
 
-- `BlackFogSystem` owns directional layer coverage, depth, overlays, expansion state, and positional status refresh.
-- `CellGrid.BlackFog` connects the system to battle start, incoming-turn DoT phases, occupancy changes, and battle cleanup.
+- `BlackFogSystem` owns directional expansion and publishes `black_fog` terrain instances with depth metadata.
+- `TerrainEffectSystem` owns fog cell state, overlays, and positional exposure refresh.
+- `CellGrid.BlackFog` preserves the required pre-DoT refresh and post-DoT expansion timing.
 - `black_fog` is an infinite, non-removable `Pain` status whose built-in effect reads the unit's live fog depth.
-- `CellHighlighter` renders Black Fog on an independent translucent overlay so ordinary selection and enemy-range highlights can coexist with it.
+- `CellHighlighter` renders Black Fog and Burning Terrain on independent translucent overlays so ordinary selection and enemy-range highlights can coexist.

@@ -142,6 +142,7 @@ namespace Windy.Srpg.Game.Grid
             RebuildSceneCellOccupancy();
             UpdateDeploymentSlotSelectionVisuals();
             TryPersistOwnedUnitSave();
+            InitializeTerrainEffectsForBattle();
             InitializeBlackFogForBattle();
             PreBattleStateChanged?.Invoke(this, EventArgs.Empty);
             BattleStarted?.Invoke(this, EventArgs.Empty);
@@ -156,6 +157,7 @@ namespace Windy.Srpg.Game.Grid
             if (CurrentPlayerNumber == 0)
             {
                 RoundCount++;
+                AdvanceTerrainEffectRound();
             }
 
             BattleTurnEnded?.Invoke(this, EventArgs.Empty);
@@ -179,6 +181,7 @@ namespace Windy.Srpg.Game.Grid
             customUnit.CombatDestroyed += OnCombatDestroyed;
             customUnit.DestroyedInCombat += OnUnitDestroyed;
             UnitAdded?.Invoke(this, new UnitAddedEventArgs(customUnit));
+            RefreshTerrainEffectsForOccupancyChange();
             RefreshBlackFogDebuffsForOccupancyChange();
         }
 
@@ -710,6 +713,7 @@ namespace Windy.Srpg.Game.Grid
         internal void NotifyOccupancyChanged()
         {
             occupancyRevision++;
+            RefreshTerrainEffectsForOccupancyChange();
             RefreshBlackFogDebuffsForOccupancyChange();
         }
 
@@ -906,6 +910,8 @@ namespace Windy.Srpg.Game.Grid
                 Debug.LogError("CellGrid: No battle scene unit source script attached to cell grid.");
             }
 
+            // Static terrain belongs to the loaded map, so expose it during deployment and tile hover.
+            InitializeTerrainEffectsForBattle();
             SceneLevelLoadingDone?.Invoke(this, EventArgs.Empty);
         }
 
@@ -1095,6 +1101,7 @@ namespace Windy.Srpg.Game.Grid
 
             gameFinished = true;
             ClearBlackFogBattleState();
+            ClearTerrainEffectBattleState();
             foreach (Unit unit in GetAllUnits().ToList())
                 if (unit != null && unit.IsAliveForBattle) unit.ClearBattleBuffs();
             IReadOnlyList<int> winningPlayers = outcome.WinningPlayerIds ?? Array.Empty<int>();

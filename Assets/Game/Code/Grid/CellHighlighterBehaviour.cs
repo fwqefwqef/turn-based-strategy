@@ -27,6 +27,14 @@ namespace Windy.Srpg.Game.Grid
         {
         }
 
+        public virtual void ApplyBurningTerrainOverlay(Cell cell)
+        {
+        }
+
+        public virtual void ClearBurningTerrainOverlay(Cell cell)
+        {
+        }
+
         public virtual void ShowCursorBorder(Cell cell, Color color)
         {
         }

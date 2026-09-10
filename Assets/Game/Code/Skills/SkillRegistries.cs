@@ -12,6 +12,7 @@ namespace Windy.Srpg.Game.Skills
         public Cell TargetCell;
         public CellGrid CellGrid;
         public IReadOnlyList<Unit> AreaTargets;
+        public IReadOnlyList<Cell> AreaCells;
         public SkillData Skill;
     }
 

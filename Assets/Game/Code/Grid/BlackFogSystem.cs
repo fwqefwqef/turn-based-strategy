@@ -4,13 +4,12 @@ using System.Linq;
 using UnityEngine;
 using Windy.Srpg.Game.Chapters;
 using Windy.Srpg.Game.Units;
-using RuntimeBuff = Windy.Srpg.Game.Buffs.Buff;
 
 namespace Windy.Srpg.Game.Grid
 {
     /// <summary>
-    /// Owns battle-local Black Fog coverage, depth, visuals, and positional debuffs.
-    /// Damage itself is resolved by the black_fog buff during the shared Pain phase.
+    /// Owns chapter-driven Black Fog expansion. Covered cells are published through
+    /// the shared terrain-effect system; damage remains in the shared Pain phase.
     /// </summary>
     internal sealed class BlackFogSystem
     {
@@ -74,8 +73,7 @@ namespace Windy.Srpg.Game.Grid
                 return false;
             }
 
-            Cell cell = grid.ResolveCanonicalCell(unit.Cell);
-            return cell != null && depthByCell.TryGetValue(cell, out depth);
+            return grid.TryGetTerrainEffectIntensity(unit, BuffId, out depth);
         }
 
         public void RefreshFogDebuffs()
@@ -85,30 +83,14 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            foreach (Unit unit in grid.GetAllUnits().Where(unit => unit != null).ToList())
-            {
-                bool shouldHaveDebuff = unit.PlayerNumber == PlayerSideId
-                    && !unit.ExcludedFromBattle
-                    && unit.IsAliveForBattle
-                    && TryGetDepth(unit, out _);
-                RuntimeBuff currentEntry = unit.BuffList?.GetBuff(BuffId);
-
-                if (shouldHaveDebuff && currentEntry == null)
-                {
-                    unit.AddBuffById(BuffId);
-                }
-                else if (!shouldHaveDebuff && currentEntry != null)
-                {
-                    unit.RemoveBuff(currentEntry);
-                }
-            }
+            grid.RefreshTerrainEffectsForOccupancyChange();
         }
 
         public void ClearBattleState()
         {
             foreach (Cell cell in depthByCell.Keys.ToList())
             {
-                cell?.ClearBlackFogOverlay();
+                grid.RemoveTerrainEffectWithoutRefresh(cell, BuffId);
             }
 
             depthByCell.Clear();
@@ -120,14 +102,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            foreach (Unit unit in grid.GetAllUnits().Where(unit => unit != null).ToList())
-            {
-                RuntimeBuff entry = unit.BuffList?.GetBuff(BuffId);
-                if (entry != null)
-                {
-                    unit.RemoveBuff(entry);
-                }
-            }
+            grid.RefreshTerrainEffectsForOccupancyChange();
         }
 
         private bool ExpandIfNeeded(int round)
@@ -157,7 +132,7 @@ namespace Windy.Srpg.Game.Grid
 
             foreach (Cell cell in depthByCell.Keys.Where(cell => cell != null))
             {
-                cell.ClearBlackFogOverlay();
+                grid.RemoveTerrainEffectWithoutRefresh(cell, BuffId);
             }
 
             depthByCell.Clear();
@@ -182,13 +157,11 @@ namespace Windy.Srpg.Game.Grid
                 if (depthByLayer.TryGetValue(coordinate, out int depth))
                 {
                     depthByCell[cell] = depth;
-                    cell.ApplyBlackFogOverlay();
-                }
-                else
-                {
-                    cell.ClearBlackFogOverlay();
+                    grid.SetTerrainEffectWithoutRefresh(cell, BuffId, durationRounds: 0, intensity: depth);
                 }
             }
+
+            grid.RefreshTerrainEffectsForOccupancyChange();
         }
     }
 }

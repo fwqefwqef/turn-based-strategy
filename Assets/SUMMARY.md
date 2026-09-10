@@ -1,6 +1,6 @@
 ﻿# Turn Based Strategy — Architecture Summary
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 This document describes the **current** battle architecture after the single-layer merge (Phases 8d–9). The scene layer is canonical: one `CellGrid`, one `Unit`, one `Cell` per battle — no parallel runtime mirror grid.
 
@@ -373,9 +373,9 @@ All types live in `JsonCatalogLoader.cs`.
 
 | Class                                                                                          | Role                                                                                                                                     |
 | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `CatalogResourceLoader`                                                                        | Static loader: `LoadItemCatalog()`, `LoadSkillCatalog()`, `LoadPassiveCatalog()`, `LoadBuffCatalog()` from `StreamingAssets/gdata.json`. |
+| `CatalogResourceLoader`                                                                        | Static loader for item, skill, passive, buff, and terrain catalogs from `Assets/Game/Data/gdata.json`.                                  |
 | `GameDataCatalogResource`                                                                      | Root JSON document wrapper.                                                                                                              |
-| `ItemCatalogResource`, `SkillCatalogResource`, `PassiveCatalogResource`, `BuffCatalogResource` | Section containers with `ToRuntimeDefinitions()`.                                                                                        |
+| `ItemCatalogResource`, `SkillCatalogResource`, `PassiveCatalogResource`, `BuffCatalogResource`, `TerrainEffectCatalogResource` | Section containers with `ToRuntimeDefinitions()`.                                                           |
 | `*CatalogEntry` types                                                                          | Serializable JSON rows (weapons, skills, passives, buffs, consumables, …) mapped to runtime `*Data` objects.                             |
 
 
@@ -389,6 +389,8 @@ All types live in `JsonCatalogLoader.cs`.
 | `CellGrid.PreBattle`                         | **Partial** — campaign I/O, deployment slots, roster staging.                                          |
 | `CellGrid.BlackFog` / `BlackFogSystem`       | Chapter-configured fog timing, directional coverage, tile depth, overlays, and positional debuffs.     |
 | `BlackFogLayerCalculator`                    | Maps covered directional rows/columns to frontier-relative damage depth.                               |
+| `CellGrid.TerrainEffects` / `TerrainEffectSystem` | Static/dynamic terrain state, round durations, stat modifiers, statuses, and cleanup.              |
+| `TerrainEffectRegistry`                      | Data-driven Throne, Forest, Magic Tile, Burning Terrain, and Black Fog definitions.                     |
 | `Cell`                                       | Grid tile: coordinates, neighbours, `CurrentUnits`, highlights, click/hover events.                    |
 | `CellHighlightKind`                          | Enum for overlay kinds (reachable, path, selected, …).                                                 |
 | `CellHighlighterBehaviour`                   | Abstract highlight renderer API.                                                                       |

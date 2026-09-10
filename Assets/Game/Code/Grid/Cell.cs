@@ -23,6 +23,7 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private List<CellHighlighterBehaviour> highlighters = new List<CellHighlighterBehaviour>();
 
         private readonly List<Unit> currentUnits = new List<Unit>();
+        private readonly List<TerrainEffectInstance> terrainEffects = new List<TerrainEffectInstance>();
         private bool isTaken;
         private SpriteRenderer debugTintRenderer;
         private Color? debugTintColor;
@@ -50,6 +51,8 @@ namespace Windy.Srpg.Game.Grid
         }
 
         public List<Unit> CurrentUnits => currentUnits;
+        public IReadOnlyList<TerrainEffectInstance> TerrainEffects => terrainEffects;
+        public event Action<Cell> TerrainEffectsChanged;
         public Vector2 OffsetCoord => new Vector2(Coordinates.x, Coordinates.y);
 
         public void SetTraversalCost(float cost)
@@ -209,6 +212,67 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
+        internal TerrainEffectInstance GetTerrainEffect(string effectId)
+        {
+            return string.IsNullOrWhiteSpace(effectId)
+                ? null
+                : terrainEffects.FirstOrDefault(entry => entry?.Data != null
+                    && string.Equals(entry.Data.Id, effectId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        internal void AddTerrainEffect(TerrainEffectInstance effect)
+        {
+            if (effect == null)
+            {
+                return;
+            }
+
+            terrainEffects.Add(effect);
+            RefreshTerrainEffectVisuals();
+            TerrainEffectsChanged?.Invoke(this);
+        }
+
+        internal bool RemoveTerrainEffect(string effectId)
+        {
+            TerrainEffectInstance effect = GetTerrainEffect(effectId);
+            if (effect == null)
+            {
+                return false;
+            }
+
+            terrainEffects.Remove(effect);
+            RefreshTerrainEffectVisuals();
+            TerrainEffectsChanged?.Invoke(this);
+            return true;
+        }
+
+        internal void ClearTerrainEffects()
+        {
+            if (terrainEffects.Count == 0)
+            {
+                return;
+            }
+
+            terrainEffects.Clear();
+            RefreshTerrainEffectVisuals();
+            TerrainEffectsChanged?.Invoke(this);
+        }
+
+        internal void NotifyTerrainEffectChanged()
+        {
+            RefreshTerrainEffectVisuals();
+            TerrainEffectsChanged?.Invoke(this);
+        }
+
+        private void RefreshTerrainEffectVisuals()
+        {
+            bool hasBlackFog = terrainEffects.Any(entry => entry?.Data?.OverlayStyle == TerrainEffectOverlayStyle.BlackFog);
+            bool hasBurning = terrainEffects.Any(entry => entry?.Data?.OverlayStyle == TerrainEffectOverlayStyle.Burning);
+
+            if (hasBlackFog) ApplyBlackFogOverlay(); else ClearBlackFogOverlay();
+            if (hasBurning) ApplyBurningTerrainOverlay(); else ClearBurningTerrainOverlay();
+        }
+
         public virtual void ApplyEnemyRangeOverlay(EnemyRangeOverlayKind overlayKind)
         {
             CacheHighlightersIfNeeded();
@@ -251,6 +315,24 @@ namespace Windy.Srpg.Game.Grid
             foreach (var highlighter in highlighters)
             {
                 highlighter?.ClearBlackFogOverlay(this);
+            }
+        }
+
+        public virtual void ApplyBurningTerrainOverlay()
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ApplyBurningTerrainOverlay(this);
+            }
+        }
+
+        public virtual void ClearBurningTerrainOverlay()
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                highlighter?.ClearBurningTerrainOverlay(this);
             }
         }
 

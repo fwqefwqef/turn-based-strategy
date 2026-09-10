@@ -32,18 +32,19 @@ The older parallel runtime/mirror grid has been removed. New battle features sho
 - Five-stat progression: Strength, Magic, Defense, Speed, and Luck; Magic also provides magical defense
 - EXP, level-ups, and growth-rate-based stat gains
 - Stackable buffs and debuffs with categories, duration refresh, cleansing, crowd control, and damage-over-time processing
-- Chapter-configured Black Fog with directional expansion, depth-scaled damage, and persistent tile overlays
+- Terrain effects with Throne, Forest, Magic Tile, two-round Burning Terrain, and chapter-configured Black Fog
+- Mouse/keyboard tile hover strip showing movement cost, terrain effects, duration, and Black Fog depth
 - Combat-aware enemy AI with attack/heal action modes and Move, Wait, WaitGroup, and NotMove movement modes
 - Pre-battle roster deployment and unit configuration
 - Campaign saves, chapter unlocking, replayable chapters, battle results, and victory progression
 - Unit preset inheritance with additive per-instance stat and loadout overrides
 
-Multi-tile boss support is planned but is not implemented yet. Death's Door and Black Fog are implemented and awaiting broader Play Mode validation.
+Multi-tile boss support is planned but is not implemented yet. Death's Door, Black Fog, and the terrain-effect presentation are implemented and awaiting broader Play Mode validation.
 
 ## Project Layout
 
 - `Assets/Game/Code` — gameplay code in the `com.windy.srpg.game` assembly
-- `Assets/Game/Data/gdata.json` — unified item, skill, passive, and buff catalog
+- `Assets/Game/Data/gdata.json` — unified item, skill, passive, buff, and terrain-effect catalog
 - `Assets/Game/Data/Preset Data (Unit, Tile)` — friendly units, enemies, and tile presets
 - `Assets/Scenes/Level` — chapter and free-battle scenes
 - `Assets/Notes` — architecture and mechanic documentation
@@ -78,6 +79,7 @@ Run focused checks:
 dotnet run --project 'Assets/Tools~/DebuffChecks/DebuffChecks.csproj'
 dotnet run --project 'Assets/Tools~/PresetOverrideChecks/PresetOverrideChecks.csproj'
 dotnet run --project 'Assets/Tools~/SkillUsageChecks/SkillUsageChecks.csproj'
+dotnet run --project 'Assets/Tools~/TerrainEffectChecks/TerrainEffectChecks.csproj'
 ```
 
 Run the five-stat growth preview from the command line:

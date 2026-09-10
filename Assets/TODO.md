@@ -14,12 +14,6 @@ It should have 1 clean sprite spanning over its occupancy tiles.
 It can perform 1-range attacks from any tile adjacent to its occupancy tiles, and same goes for ranged attacks. They should only be hit by area spells once even if the spell hits more than one of its tiles.
 
 
-# Terrain effects = Burning Terrain, Black Fog, Magic Amplification Tile, Throne/Forest terrain
-
-Black Fog should be categorized into Terrain Effects
-
-Tile Hover strip that shows all tile effects present on the selected tile
-
 # Design Levels 1-4. Design 4-6 Characters.
 
 # Custom AI for bosses

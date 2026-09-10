@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ace21ec449e06334282cf2e6f670b6e5, type: 3}
-  m_Name: Square
+  m_Name: Magic Tile
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Grid.CellTilePreset
-  PresetId: square
-  TileSprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6,
-    type: 3}
+  PresetId: magic_tile
+  TileSprite: {fileID: 21300000, guid: ecff197e49b7c4a8c8431746d97f9b2d, type: 3}
   IsTraversable: 1
   TraversalCost: 1
-  StartingTerrainEffectIds: []
+  StartingTerrainEffectIds:
+  - magic_tile

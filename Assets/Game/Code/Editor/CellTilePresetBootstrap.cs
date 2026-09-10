@@ -9,8 +9,12 @@ namespace Windy.Srpg.Game.Editor
     [InitializeOnLoad]
     internal static class CellTilePresetBootstrap
     {
-        internal const string SquarePresetPath = "Assets/Game/Tiles/Square.asset";
-        internal const string WallPresetPath = "Assets/Game/Tiles/Wall.asset";
+        internal const string TilePresetFolder = "Assets/Game/Data/Preset Data (Unit, Tile)/Tiles";
+        internal const string SquarePresetPath = TilePresetFolder + "/Square.asset";
+        internal const string WallPresetPath = TilePresetFolder + "/Wall.asset";
+        internal const string ForestPresetPath = TilePresetFolder + "/Forest.asset";
+        internal const string ThronePresetPath = TilePresetFolder + "/Throne.asset";
+        internal const string MagicTilePresetPath = TilePresetFolder + "/Magic Tile.asset";
 
         static CellTilePresetBootstrap()
         {
@@ -24,8 +28,7 @@ namespace Windy.Srpg.Game.Editor
                 return;
             }
 
-            EnsureFolder("Assets/Game");
-            EnsureFolder("Assets/Game/Tiles");
+            EnsureFolder(TilePresetFolder);
 
             CellTilePreset squarePreset = EnsurePreset(
                 SquarePresetPath,
@@ -33,6 +36,7 @@ namespace Windy.Srpg.Game.Editor
                 ResolveSquareSprite(),
                 isTraversable: true,
                 traversalCost: 1f,
+                terrainEffectIds: System.Array.Empty<string>(),
                 forceRebuild);
 
             CellTilePreset wallPreset = EnsurePreset(
@@ -41,7 +45,12 @@ namespace Windy.Srpg.Game.Editor
                 ResolveWallSprite(),
                 isTraversable: false,
                 traversalCost: 1f,
+                terrainEffectIds: System.Array.Empty<string>(),
                 forceRebuild);
+
+            EnsurePreset(ForestPresetPath, "forest", squarePreset.TileSprite, true, 2f, new[] { "forest" }, forceRebuild);
+            EnsurePreset(ThronePresetPath, "throne", squarePreset.TileSprite, true, 1f, new[] { "throne" }, forceRebuild);
+            EnsurePreset(MagicTilePresetPath, "magic_tile", squarePreset.TileSprite, true, 1f, new[] { "magic_tile" }, forceRebuild);
             AssetDatabase.SaveAssets();
         }
 
@@ -63,6 +72,7 @@ namespace Windy.Srpg.Game.Editor
             Sprite sprite,
             bool isTraversable,
             float traversalCost,
+            string[] terrainEffectIds,
             bool forceRebuild)
         {
             CellTilePreset preset = AssetDatabase.LoadAssetAtPath<CellTilePreset>(assetPath);
@@ -72,12 +82,17 @@ namespace Windy.Srpg.Game.Editor
                 AssetDatabase.CreateAsset(preset, assetPath);
             }
 
-            if (forceRebuild || preset.TileSprite == null || preset.PresetId != presetId)
+            bool terrainEffectsMatch = (preset.StartingTerrainEffectIds ?? new System.Collections.Generic.List<string>())
+                .SequenceEqual(terrainEffectIds ?? System.Array.Empty<string>(), System.StringComparer.OrdinalIgnoreCase);
+            if (forceRebuild || preset.TileSprite == null || preset.PresetId != presetId
+                || preset.IsTraversable != isTraversable || !Mathf.Approximately(preset.TraversalCost, traversalCost)
+                || !terrainEffectsMatch)
             {
                 preset.PresetId = presetId;
                 preset.TileSprite = sprite;
                 preset.IsTraversable = isTraversable;
                 preset.TraversalCost = traversalCost;
+                preset.StartingTerrainEffectIds = (terrainEffectIds ?? System.Array.Empty<string>()).ToList();
                 EditorUtility.SetDirty(preset);
             }
 

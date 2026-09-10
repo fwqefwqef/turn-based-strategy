@@ -240,7 +240,14 @@ namespace Windy.Srpg.Game.Editor
                     EditorGUI.DrawRect(rowRect, new Color(0.55f, 0.75f, 1f, 0.45f));
                 }
 
+                string effects = tilePreset.StartingTerrainEffectIds == null
+                    ? string.Empty
+                    : string.Join(", ", tilePreset.StartingTerrainEffectIds.Where(id => !string.IsNullOrWhiteSpace(id)));
                 string label = $"{tilePreset.name}  |  {(tilePreset.IsTraversable ? "Traversable" : "Blocked")}  |  Cost {tilePreset.TraversalCost:0.##}";
+                if (!string.IsNullOrWhiteSpace(effects))
+                {
+                    label += $"  |  Effects: {effects}";
+                }
                 if (GUI.Button(rowRect, label, style))
                 {
                     selectedTilePreset = tilePreset;
@@ -1327,7 +1334,9 @@ namespace Windy.Srpg.Game.Editor
 
         private void RefreshAvailableTilePresets()
         {
-            string[] guids = AssetDatabase.FindAssets("t:CellTilePreset");
+            string[] guids = AssetDatabase.FindAssets(
+                "t:CellTilePreset",
+                new[] { CellTilePresetBootstrap.TilePresetFolder });
             availableTilePresets = guids
                 .Select(guid => AssetDatabase.GUIDToAssetPath(guid))
                 .Select(path => AssetDatabase.LoadAssetAtPath<CellTilePreset>(path))

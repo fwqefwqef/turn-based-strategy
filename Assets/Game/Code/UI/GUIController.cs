@@ -15,6 +15,7 @@ namespace Windy.Srpg.Game.UI
         public Button EndTurnButton;
         [SerializeField] private PreBattleUIController preBattleUiController;
         [SerializeField] private GameplayInputController gameplayInputController;
+        [SerializeField] private TileHoverStripUI tileHoverStripUi;
         [SerializeField] private SceneButtonTextOverflowFitter buttonTextOverflowFitter;
         [SerializeField] private BattleResultUI battleResultUi;
         [SerializeField] private string overworldMenuSceneName = "OverworldMenu";
@@ -33,6 +34,15 @@ namespace Windy.Srpg.Game.UI
 
             gameplayInputController = EnsureLocalComponent(gameplayInputController);
             gameplayInputController.Initialize(CellGrid);
+
+            if (tileHoverStripUi != null)
+            {
+                tileHoverStripUi.Initialize(CellGrid, gameplayInputController);
+            }
+            else
+            {
+                Debug.LogWarning("GUIController: No manually wired TileHoverStripUI was found. Tile hover details will be hidden.", this);
+            }
 
             buttonTextOverflowFitter = EnsureLocalComponent(buttonTextOverflowFitter);
             buttonTextOverflowFitter.FitAllButtons();

@@ -7,6 +7,7 @@ namespace Windy.Srpg.Game.Grid
         private const string OverlayObjectName = "RuntimeOverlay";
         private const string EnemyRangeOverlayObjectName = "EnemyRangeOverlay";
         private const string BlackFogOverlayObjectName = "BlackFogOverlay";
+        private const string BurningTerrainOverlayObjectName = "BurningTerrainOverlay";
         private const string EnemyRangeBorderTopName = "EnemyRangeBorderTop";
         private const string EnemyRangeBorderRightName = "EnemyRangeBorderRight";
         private const string EnemyRangeBorderBottomName = "EnemyRangeBorderBottom";
@@ -18,6 +19,7 @@ namespace Windy.Srpg.Game.Grid
 
         private static readonly Color HiddenOverlayColor = new Color(1f, 1f, 1f, 0f);
         private static readonly Color BlackFogColor = new Color(0.015f, 0.02f, 0.025f, 0.62f);
+        private static readonly Color BurningTerrainColor = new Color(1f, 0.22f, 0.02f, 0.48f);
         private static readonly Color EnemyThreatCollectiveColor = new Color(1f, 0.56f, 0.78f, 0.28f);
         private static readonly Color EnemyThreatCollectiveBorderColor = new Color(1f, 0.56f, 0.78f, 0.95f);
         private static readonly Color EnemyThreatIndividualColor = new Color(1f, 0.46f, 0.46f, 0.32f);
@@ -34,6 +36,7 @@ namespace Windy.Srpg.Game.Grid
         [SerializeField] private Renderer overlayRenderer;
         [SerializeField] private Renderer enemyRangeOverlayRenderer;
         [SerializeField] private Renderer blackFogOverlayRenderer;
+        [SerializeField] private Renderer burningTerrainOverlayRenderer;
         [SerializeField] private SpriteRenderer topBorderRenderer;
         [SerializeField] private SpriteRenderer rightBorderRenderer;
         [SerializeField] private SpriteRenderer bottomBorderRenderer;
@@ -47,6 +50,7 @@ namespace Windy.Srpg.Game.Grid
         private SpriteRenderer overlaySpriteRenderer;
         private SpriteRenderer enemyRangeOverlaySpriteRenderer;
         private SpriteRenderer blackFogOverlaySpriteRenderer;
+        private SpriteRenderer burningTerrainOverlaySpriteRenderer;
 
         private void Awake()
         {
@@ -54,9 +58,11 @@ namespace Windy.Srpg.Game.Grid
             EnsureOverlayRenderer();
             EnsureEnemyRangeOverlayRenderer();
             EnsureBlackFogOverlayRenderer();
+            EnsureBurningTerrainOverlayRenderer();
             SetOverlayColor(HiddenOverlayColor);
             SetEnemyRangeOverlayColor(HiddenOverlayColor);
             SetBlackFogOverlayColor(HiddenOverlayColor);
+            SetBurningTerrainOverlayColor(HiddenOverlayColor);
         }
 
         private void OnValidate()
@@ -65,9 +71,11 @@ namespace Windy.Srpg.Game.Grid
             BindExistingOverlayRenderer();
             BindExistingEnemyRangeOverlayRenderer();
             BindExistingBlackFogOverlayRenderer();
+            BindExistingBurningTerrainOverlayRenderer();
             SetOverlayColor(HiddenOverlayColor);
             SetEnemyRangeOverlayColor(HiddenOverlayColor);
             SetBlackFogOverlayColor(HiddenOverlayColor);
+            SetBurningTerrainOverlayColor(HiddenOverlayColor);
         }
 
         public override void Apply(Cell cell, CellHighlightKind highlightKind)
@@ -121,6 +129,18 @@ namespace Windy.Srpg.Game.Grid
         {
             EnsureBlackFogOverlayRenderer();
             SetBlackFogOverlayColor(HiddenOverlayColor);
+        }
+
+        public override void ApplyBurningTerrainOverlay(Cell cell)
+        {
+            EnsureBurningTerrainOverlayRenderer();
+            SetBurningTerrainOverlayColor(BurningTerrainColor);
+        }
+
+        public override void ClearBurningTerrainOverlay(Cell cell)
+        {
+            EnsureBurningTerrainOverlayRenderer();
+            SetBurningTerrainOverlayColor(HiddenOverlayColor);
         }
 
         public override void ShowCursorBorder(Cell cell, Color color)
@@ -310,6 +330,53 @@ namespace Windy.Srpg.Game.Grid
             return blackFogOverlayRenderer != null;
         }
 
+        private void EnsureBurningTerrainOverlayRenderer()
+        {
+            if (burningTerrainOverlayRenderer != null || baseSpriteRenderer == null)
+            {
+                burningTerrainOverlaySpriteRenderer = burningTerrainOverlayRenderer as SpriteRenderer;
+                ConfigureBurningTerrainOverlayTransform();
+                return;
+            }
+
+            if (BindExistingBurningTerrainOverlayRenderer())
+            {
+                return;
+            }
+
+            GameObject overlayObject = new GameObject(BurningTerrainOverlayObjectName);
+            overlayObject.transform.SetParent(transform, false);
+            burningTerrainOverlaySpriteRenderer = overlayObject.AddComponent<SpriteRenderer>();
+            burningTerrainOverlaySpriteRenderer.sprite = GetBorderSprite();
+            burningTerrainOverlaySpriteRenderer.color = HiddenOverlayColor;
+            burningTerrainOverlaySpriteRenderer.flipX = baseSpriteRenderer.flipX;
+            burningTerrainOverlaySpriteRenderer.flipY = baseSpriteRenderer.flipY;
+            burningTerrainOverlaySpriteRenderer.drawMode = SpriteDrawMode.Simple;
+            burningTerrainOverlaySpriteRenderer.size = Vector2.one;
+            burningTerrainOverlaySpriteRenderer.maskInteraction = baseSpriteRenderer.maskInteraction;
+            burningTerrainOverlaySpriteRenderer.sortingLayerID = baseSpriteRenderer.sortingLayerID;
+            burningTerrainOverlaySpriteRenderer.sortingOrder = baseSpriteRenderer.sortingOrder + 2;
+            burningTerrainOverlaySpriteRenderer.spriteSortPoint = baseSpriteRenderer.spriteSortPoint;
+            burningTerrainOverlayRenderer = burningTerrainOverlaySpriteRenderer;
+            ConfigureBurningTerrainOverlayTransform();
+        }
+
+        private bool BindExistingBurningTerrainOverlayRenderer()
+        {
+            Transform existingOverlay = transform.Find(BurningTerrainOverlayObjectName);
+            if (existingOverlay == null)
+            {
+                burningTerrainOverlayRenderer = null;
+                burningTerrainOverlaySpriteRenderer = null;
+                return false;
+            }
+
+            burningTerrainOverlayRenderer = existingOverlay.GetComponent<Renderer>();
+            burningTerrainOverlaySpriteRenderer = burningTerrainOverlayRenderer as SpriteRenderer;
+            ConfigureBurningTerrainOverlayTransform();
+            return burningTerrainOverlayRenderer != null;
+        }
+
         private void EnsureBorderRenderers()
         {
             if (baseSpriteRenderer == null)
@@ -387,7 +454,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            Vector2 size = baseSpriteRenderer.size;
+            Vector2 size = ResolveCellWorldSize();
             float width = Mathf.Abs(size.x);
             float height = Mathf.Abs(size.y);
             if (width <= 0f || height <= 0f)
@@ -410,7 +477,7 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            Vector2 size = baseSpriteRenderer.size;
+            Vector2 size = ResolveCellWorldSize();
             float width = Mathf.Abs(size.x);
             float height = Mathf.Abs(size.y);
             if (width <= 0f || height <= 0f)
@@ -424,6 +491,32 @@ namespace Windy.Srpg.Game.Grid
             ConfigureBorderRenderer(enemyRangeBottomBorderRenderer, new Vector3(0f, -height * 0.5f + thickness * 0.5f, -0.025f), new Vector3(width, thickness, 1f));
             ConfigureBorderRenderer(enemyRangeRightBorderRenderer, new Vector3(width * 0.5f - thickness * 0.5f, 0f, -0.025f), new Vector3(thickness, height, 1f));
             ConfigureBorderRenderer(enemyRangeLeftBorderRenderer, new Vector3(-width * 0.5f + thickness * 0.5f, 0f, -0.025f), new Vector3(thickness, height, 1f));
+        }
+
+        private Vector2 ResolveCellWorldSize()
+        {
+            // Cell restores its collider to a one-cell world footprint even when a
+            // source sprite needs a compensating transform scale. Using the collider
+            // therefore keeps borders independent of sprite rect and pixels-per-unit.
+            if (TryGetComponent(out BoxCollider boxCollider))
+            {
+                Vector3 colliderSize = boxCollider.bounds.size;
+                if (colliderSize.x > 0.0001f && colliderSize.y > 0.0001f)
+                {
+                    return new Vector2(colliderSize.x, colliderSize.y);
+                }
+            }
+
+            if (baseSpriteRenderer != null)
+            {
+                Vector3 renderedSize = baseSpriteRenderer.bounds.size;
+                if (renderedSize.x > 0.0001f && renderedSize.y > 0.0001f)
+                {
+                    return new Vector2(renderedSize.x, renderedSize.y);
+                }
+            }
+
+            return Vector2.one;
         }
 
         private static void ConfigureBorderRenderer(SpriteRenderer renderer, Vector3 localPosition, Vector3 localScale)
@@ -478,6 +571,19 @@ namespace Windy.Srpg.Game.Grid
             blackFogOverlaySpriteRenderer.transform.localScale = inverseParentScale;
         }
 
+        private void ConfigureBurningTerrainOverlayTransform()
+        {
+            if (burningTerrainOverlaySpriteRenderer == null)
+            {
+                return;
+            }
+
+            Vector3 inverseParentScale = ResolveInverseParentScale(burningTerrainOverlaySpriteRenderer.transform.parent);
+            burningTerrainOverlaySpriteRenderer.transform.localPosition = Vector3.Scale(new Vector3(0f, 0f, -0.004f), inverseParentScale);
+            burningTerrainOverlaySpriteRenderer.transform.localRotation = Quaternion.identity;
+            burningTerrainOverlaySpriteRenderer.transform.localScale = inverseParentScale;
+        }
+
         private static Sprite GetBorderSprite()
         {
             if (borderSprite != null)
@@ -512,7 +618,7 @@ namespace Windy.Srpg.Game.Grid
                 return Vector3.one;
             }
 
-            Vector3 scale = parent.localScale;
+            Vector3 scale = parent.lossyScale;
             return new Vector3(
                 Mathf.Abs(scale.x) > 0.0001f ? 1f / scale.x : 1f,
                 Mathf.Abs(scale.y) > 0.0001f ? 1f / scale.y : 1f,
@@ -552,6 +658,18 @@ namespace Windy.Srpg.Game.Grid
             else if (blackFogOverlayRenderer != null)
             {
                 blackFogOverlayRenderer.material.color = color;
+            }
+        }
+
+        private void SetBurningTerrainOverlayColor(Color color)
+        {
+            if (burningTerrainOverlaySpriteRenderer != null)
+            {
+                burningTerrainOverlaySpriteRenderer.color = color;
+            }
+            else if (burningTerrainOverlayRenderer != null)
+            {
+                burningTerrainOverlayRenderer.material.color = color;
             }
         }
 

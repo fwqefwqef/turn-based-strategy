@@ -86,5 +86,6 @@ MonoBehaviour:
   - SkillId: immolate
   - SkillId: regen
   - SkillId: shove
+  - SkillId: ignite_ground
   StartingClassPassives:
   - PassiveId: exp_massive_gain

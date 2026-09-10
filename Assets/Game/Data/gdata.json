@@ -173,6 +173,45 @@
   "Skills": {
     "Skills": [
       {
+        "Id": "ignite_ground",
+        "Name": "Ignite Ground",
+        "Description": "Set a targeted area ablaze for 2 rounds. Units standing in the flames receive Burn.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": true
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 1,
+          "MaxRange": 3,
+          "Radius": 1,
+          "Might": 0,
+          "IsMagic": true,
+          "AffectsAllies": false,
+          "AffectsEnemies": false
+        },
+        "TerrainProfile": {
+          "Enabled": true,
+          "TerrainEffectId": "burning_terrain",
+          "DurationRounds": 2
+        }
+      },
+      {
         "Id": "cleanse",
         "Name": "Cleanse",
         "Description": "Remove all removable debuffs from an adjacent ally.",
@@ -780,6 +819,16 @@
         "EffectId": "toxic"
       },
       {
+        "Id": "burn",
+        "Name": "Burn",
+        "Description": "Takes 5 Pain damage before each own turn for up to 2 ticks. Standing on Burning Terrain reapplies it.",
+        "Duration": 2,
+        "Category": "Pain",
+        "MaxStacks": 1,
+        "Removable": true,
+        "EffectId": "burn"
+      },
+      {
         "Id": "stun",
         "Name": "Stun",
         "Description": "Cannot act or counterattack. Skips the next full turn.",
@@ -909,6 +958,63 @@
         "MaxStacks": 1,
         "Removable": true,
         "EffectId": "ignore_def_mag"
+      }
+    ]
+  },
+  "CTRL_F_TERRAIN_EFFECTS_SECTION": "CTRL+F: TERRAIN EFFECTS",
+  "TerrainEffects": {
+    "Effects": [
+      {
+        "Id": "throne",
+        "Name": "Throne",
+        "Description": "Defense +5 and Evade +20 while occupied.",
+        "PrimaryStatModifiers": {
+          "Defense": 5
+        },
+        "SecondaryStatModifiers": {
+          "Evade": 20
+        },
+        "OverlayStyle": "None",
+        "Targeting": "AllUnits"
+      },
+      {
+        "Id": "forest",
+        "Name": "Forest",
+        "Description": "Evade +20 while occupied. This tile costs 2 movement.",
+        "SecondaryStatModifiers": {
+          "Evade": 20
+        },
+        "OverlayStyle": "None",
+        "Targeting": "AllUnits"
+      },
+      {
+        "Id": "magic_tile",
+        "Name": "Magic Tile",
+        "Description": "Magic +5 while occupied.",
+        "PrimaryStatModifiers": {
+          "Magic": 5
+        },
+        "OverlayStyle": "None",
+        "Targeting": "AllUnits"
+      },
+      {
+        "Id": "burning_terrain",
+        "Name": "Burning Terrain",
+        "Description": "Applies Burn to units standing here. Temporary applications last 2 rounds.",
+        "OccupantBuffId": "burn",
+        "RemoveOccupantBuffOnExit": false,
+        "OverlayStyle": "Burning",
+        "Targeting": "AllUnits"
+      },
+      {
+        "Id": "black_fog",
+        "Name": "Black Fog",
+        "Description": "Applies depth-scaled Black Fog exposure to player units.",
+        "OccupantBuffId": "black_fog",
+        "RemoveOccupantBuffOnExit": true,
+        "OverlayStyle": "BlackFog",
+        "Targeting": "PlayerSide",
+        "TargetPlayerNumber": 0
       }
     ]
   }

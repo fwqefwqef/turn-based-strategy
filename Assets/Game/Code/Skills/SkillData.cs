@@ -67,6 +67,14 @@ namespace Windy.Srpg.Game.Skills
     }
 
     [Serializable]
+    public struct SkillTerrainProfile
+    {
+        public bool Enabled;
+        public string TerrainEffectId;
+        public int DurationRounds;
+    }
+
+    [Serializable]
     public class SkillData
     {
         public string Id;
@@ -90,6 +98,7 @@ namespace Windy.Srpg.Game.Skills
 
         public SkillAttackProfile AttackProfile;
         public SkillAreaProfile AreaProfile;
+        public SkillTerrainProfile TerrainProfile;
 
         public string EffectId;
     }
