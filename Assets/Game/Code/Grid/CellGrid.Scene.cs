@@ -4,6 +4,7 @@ using System;
 using UnityEngine;
 using Windy.Srpg.Game.Abilities;
 using Windy.Srpg.Game.Campaign;
+using Windy.Srpg.Game.Chapters;
 using Windy.Srpg.Game.Grid.States;
 using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Players;
@@ -180,6 +181,7 @@ namespace Windy.Srpg.Game.Grid
 
             customUnit.CombatDestroyed += OnCombatDestroyed;
             customUnit.DestroyedInCombat += OnUnitDestroyed;
+            ChapterData.FindForGrid(this)?.AppendEnemyToTurnOrder(customUnit);
             UnitAdded?.Invoke(this, new UnitAddedEventArgs(customUnit));
             RefreshTerrainEffectsForOccupancyChange();
             RefreshBlackFogDebuffsForOccupancyChange();
@@ -553,6 +555,20 @@ namespace Windy.Srpg.Game.Grid
             if (ownerPlayer != null)
             {
                 customUnit.PlayerNumber = ownerPlayer.PlayerNumber;
+            }
+
+            bool hasDuplicateSceneId = registeredUnits.Any(unit => unit != null
+                && unit != customUnit
+                && string.Equals(unit.UnitId, customUnit.UnitId, StringComparison.OrdinalIgnoreCase));
+            if (customUnit.PlayerNumber != 0
+                && (string.IsNullOrWhiteSpace(customUnit.UnitId)
+                    || string.Equals(customUnit.UnitId, "enemy", StringComparison.OrdinalIgnoreCase)
+                    || hasDuplicateSceneId))
+            {
+                string identityBase = !string.IsNullOrWhiteSpace(customUnit.AssignedPreset?.PresetId)
+                    ? customUnit.AssignedPreset.PresetId
+                    : "enemy";
+                customUnit.AssignSceneUnitId($"{identityBase}_runtime_{assignedUnitId}");
             }
 
             Cell placementCell = targetCell ?? customUnit.Cell;

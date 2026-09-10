@@ -64,6 +64,20 @@ namespace Windy.Srpg.Game.Grid
                 AddSkillThreatCells(unit, originCell, grid, allCells, threatenedCells);
             }
 
+            // The overlay also identifies the source unit's occupied area. These cells are
+            // presentation-only additions: attack legality still comes from the normal range
+            // checks, so a unit is not made capable of attacking its own footprint.
+            if (unit.IsMultiTile)
+            {
+                foreach (Cell occupiedCell in unit.GetEffectiveFootprintCells(grid))
+                {
+                    if (occupiedCell != null)
+                    {
+                        threatenedCells.Add(occupiedCell);
+                    }
+                }
+            }
+
             return threatenedCells;
         }
 

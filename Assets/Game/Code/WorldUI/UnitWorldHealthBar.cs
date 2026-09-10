@@ -57,6 +57,7 @@ namespace Windy.Srpg.Game.UI
         private int _lastRenderedMaxHitPoints = int.MinValue;
         private int _lastRenderedManaPoints = int.MinValue;
         private int _lastRenderedMaxManaPoints = int.MinValue;
+        private int _lastRenderedFootprintWidth = int.MinValue;
         private Color _lastHealthGradientStartColor = new Color(-1f, -1f, -1f, -1f);
         private Color _lastHealthGradientEndColor = new Color(-1f, -1f, -1f, -1f);
         private Color _lastManaGradientStartColor = new Color(-1f, -1f, -1f, -1f);
@@ -124,7 +125,8 @@ namespace Windy.Srpg.Game.UI
             if (currentHitPoints != _lastRenderedHitPoints
                 || currentMaxHitPoints != _lastRenderedMaxHitPoints
                 || currentManaPoints != _lastRenderedManaPoints
-                || currentMaxManaPoints != _lastRenderedMaxManaPoints)
+                || currentMaxManaPoints != _lastRenderedMaxManaPoints
+                || (_unit != null && _unit.FootprintWidth != _lastRenderedFootprintWidth))
             {
                 Refresh();
             }
@@ -164,26 +166,27 @@ namespace Windy.Srpg.Game.UI
             float healthRatio = Mathf.Clamp01(_unit.HitPoints / (float)maxHitPoints);
             int maxManaPoints = GetDisplayedMaxManaPoints();
             float manaRatio = maxManaPoints <= 0 ? 0f : Mathf.Clamp01(_unit.CurrentManaPoints / (float)maxManaPoints);
+            Vector2 resolvedBarSize = GetResolvedBarSize();
             UpdateHealthFillGradient();
             UpdateManaFillGradient();
 
             if (_fillRenderer != null)
             {
-                float fillWidth = barSize.x * healthRatio;
-                _fillRenderer.size = new Vector2(fillWidth, barSize.y);
-                _fillRenderer.transform.localPosition = new Vector3((fillWidth - barSize.x) * 0.5f, 0f, -0.01f);
+                float fillWidth = resolvedBarSize.x * healthRatio;
+                _fillRenderer.size = new Vector2(fillWidth, resolvedBarSize.y);
+                _fillRenderer.transform.localPosition = new Vector3((fillWidth - resolvedBarSize.x) * 0.5f, 0f, -0.01f);
                 _fillRenderer.color = Color.white;
                 _fillRenderer.enabled = healthRatio > 0f;
             }
 
             if (_backgroundRenderer != null)
             {
-                _backgroundRenderer.size = barSize;
+                _backgroundRenderer.size = resolvedBarSize;
             }
 
             if (_borderRenderer != null)
             {
-                _borderRenderer.size = barSize + new Vector2(0.04f, 0.04f);
+                _borderRenderer.size = resolvedBarSize + new Vector2(0.04f, 0.04f);
             }
 
             float manaBarLocalY = GetManaBarLocalY();
@@ -192,7 +195,7 @@ namespace Windy.Srpg.Game.UI
             {
                 float manaFillWidth = manaBarSize.x * manaRatio;
                 _manaFillRenderer.size = new Vector2(manaFillWidth, manaBarSize.y);
-                _manaFillRenderer.transform.localPosition = new Vector3((manaFillWidth - barSize.x) * 0.5f, manaBarLocalY, -0.01f);
+                _manaFillRenderer.transform.localPosition = new Vector3((manaFillWidth - manaBarSize.x) * 0.5f, manaBarLocalY, -0.01f);
                 _manaFillRenderer.color = Color.white;
                 _manaFillRenderer.enabled = manaRatio > 0f;
             }
@@ -218,6 +221,7 @@ namespace Windy.Srpg.Game.UI
             _lastRenderedMaxHitPoints = maxHitPoints;
             _lastRenderedManaPoints = _unit.CurrentManaPoints;
             _lastRenderedMaxManaPoints = maxManaPoints;
+            _lastRenderedFootprintWidth = _unit.FootprintWidth;
         }
 
         private void EnsureVisuals()
@@ -327,7 +331,8 @@ namespace Windy.Srpg.Game.UI
                 return;
             }
 
-            Vector3 resolvedOffset = localOffset;
+            float footprintCenterX = _unit != null ? (_unit.FootprintWidth - 1) * 0.5f : 0f;
+            Vector3 resolvedOffset = localOffset + new Vector3(footprintCenterX, 0f, 0f);
             if (autoOffsetFromSprite)
             {
                 float bottomY = float.PositiveInfinity;
@@ -348,7 +353,10 @@ namespace Windy.Srpg.Game.UI
 
                 if (foundRenderer)
                 {
-                    resolvedOffset = new Vector3(0f, bottomY - autoPadding - (barSize.y * 0.5f), 0f);
+                    resolvedOffset = new Vector3(
+                        localOffset.x + footprintCenterX,
+                        bottomY - autoPadding - (barSize.y * 0.5f),
+                        localOffset.z);
                 }
             }
 
@@ -608,7 +616,16 @@ namespace Windy.Srpg.Game.UI
 
         private Vector2 GetManaBarSize()
         {
-            return new Vector2(barSize.x, Mathf.Max(0.01f, barSize.y * manaBarHeightScale));
+            Vector2 resolvedBarSize = GetResolvedBarSize();
+            return new Vector2(resolvedBarSize.x, Mathf.Max(0.01f, resolvedBarSize.y * manaBarHeightScale));
+        }
+
+        private Vector2 GetResolvedBarSize()
+        {
+            int footprintWidth = _unit != null ? Mathf.Max(1, _unit.FootprintWidth) : 1;
+            return new Vector2(
+                Mathf.Max(0.01f, barSize.x + footprintWidth - 1),
+                Mathf.Max(0.01f, barSize.y));
         }
 
         private static Sprite GetWhiteSprite()

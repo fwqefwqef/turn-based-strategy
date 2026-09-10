@@ -857,9 +857,18 @@ namespace Windy.Srpg.Game.Editor
             }
 
             ApplyUnitStamp(unit, cell, preset, playerNumber, participatesInDeploymentRoster, includeInOwnedUnitSave);
+            if (playerNumber != 0)
+            {
+                string identityBase = !string.IsNullOrWhiteSpace(preset?.PresetId)
+                    ? preset.PresetId
+                    : "enemy";
+                unit.AssignSceneUnitId($"{identityBase}_{coordinate.x}_{coordinate.y}");
+            }
             unitObject.name = !string.IsNullOrWhiteSpace(preset?.UnitName)
                 ? $"{preset.UnitName}_{coordinate.x}_{coordinate.y}"
                 : $"{unitPrefab.name}_{coordinate.x}_{coordinate.y}";
+
+            SynchronizeEnemyTurnOrder(context);
 
             EditorSceneManager.MarkSceneDirty(context.gameObject.scene);
             return true;
@@ -970,6 +979,25 @@ namespace Windy.Srpg.Game.Editor
             if (unit != null)
             {
                 Undo.DestroyObjectImmediate(unit.gameObject);
+                SynchronizeEnemyTurnOrder(context);
+            }
+        }
+
+        private void SynchronizeEnemyTurnOrder(MapPainterSceneContext context)
+        {
+            ChapterData chapterData = context != null ? ChapterData.FindForGrid(context.CellGrid) : null;
+            if (chapterData == null)
+            {
+                return;
+            }
+
+            IEnumerable<Unit> sceneUnits = TryGetCoreSceneReferences(context, out _, out _, out _, out Transform unitsParent, out _)
+                ? unitsParent.GetComponentsInChildren<Unit>(true)
+                : Enumerable.Empty<Unit>();
+            if (chapterData.SynchronizeEnemyTurnOrder(sceneUnits))
+            {
+                EditorUtility.SetDirty(chapterData);
+                EditorSceneManager.MarkSceneDirty(chapterData.gameObject.scene);
             }
         }
 

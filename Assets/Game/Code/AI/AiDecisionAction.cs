@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Windy.Srpg.Game.Chapters;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Players;
 using Windy.Srpg.Game.Units;
@@ -88,11 +89,19 @@ namespace Windy.Srpg.Game.AI
     {
         public static IReadOnlyList<Unit> OrderByMovementFreedom(IEnumerable<Unit> units, CellGrid cellGrid)
         {
-            return units?
+            List<Unit> movementOrdered = units?
                 .Where(unit => unit != null)
                 .OrderByDescending(unit => CountTraversableNeighbors(unit, cellGrid))
                 .ToList()
                 ?? new List<Unit>();
+
+            if (movementOrdered.Count == 0 || movementOrdered.Any(unit => unit.PlayerId == 0))
+            {
+                return movementOrdered;
+            }
+
+            ChapterData chapterData = ChapterData.FindForGrid(cellGrid);
+            return chapterData?.OrderEnemyUnits(movementOrdered) ?? movementOrdered;
         }
 
         private static int CountTraversableNeighbors(Unit unit, CellGrid cellGrid)

@@ -125,6 +125,9 @@ namespace Windy.Srpg.Game.Chapters
         [SerializeField] private BlackFogDirection blackFogDirection = BlackFogDirection.Left;
         [SerializeField] private int blackFogExpansionDistance = 2;
         [SerializeField] private List<UnitPreset> enemyPaintPresets = new List<UnitPreset>();
+        [Header("Enemy Turn Order")]
+        [Tooltip("Stable Unit IDs in action order. Drag entries to rearrange them; newly added enemies append to the end.")]
+        [SerializeField] private List<string> enemyTurnOrderUnitIds = new List<string>();
         [SerializeField] private List<ChapterBattleCondition> battleConditions = CreateDefaultBattleConditions();
 
         public string ChapterName => string.IsNullOrWhiteSpace(chapterName) ? gameObject.scene.name : chapterName;
@@ -136,7 +139,82 @@ namespace Windy.Srpg.Game.Chapters
         public BlackFogDirection BlackFogDirection => blackFogDirection;
         public int BlackFogExpansionDistance => Mathf.Max(1, blackFogExpansionDistance);
         public IReadOnlyList<UnitPreset> EnemyPaintPresets => enemyPaintPresets ??= new List<UnitPreset>();
+        public IReadOnlyList<string> EnemyTurnOrderUnitIds => enemyTurnOrderUnitIds ??= new List<string>();
         public IReadOnlyList<ChapterBattleCondition> BattleConditions => GetEffectiveBattleConditions();
+
+        public IReadOnlyList<Unit> OrderEnemyUnits(IEnumerable<Unit> units)
+        {
+            List<Unit> candidates = units?
+                .Where(unit => unit != null && unit.PlayerId != 0)
+                .Distinct()
+                .ToList()
+                ?? new List<Unit>();
+            AppendMissingEnemyUnits(candidates);
+
+            Dictionary<string, int> orderById = enemyTurnOrderUnitIds
+                .Select((unitId, index) => (unitId, index))
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.unitId))
+                .GroupBy(entry => entry.unitId.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().index, StringComparer.OrdinalIgnoreCase);
+
+            return candidates
+                .Select((unit, fallbackIndex) => (unit, fallbackIndex))
+                .OrderBy(entry => orderById.TryGetValue(entry.unit.UnitId ?? string.Empty, out int index) ? index : int.MaxValue)
+                .ThenBy(entry => entry.fallbackIndex)
+                .Select(entry => entry.unit)
+                .ToList();
+        }
+
+        public bool SynchronizeEnemyTurnOrder(IEnumerable<Unit> units)
+        {
+            List<Unit> enemies = units?
+                .Where(unit => unit != null && unit.PlayerId != 0 && !string.IsNullOrWhiteSpace(unit.UnitId))
+                .Distinct()
+                .ToList()
+                ?? new List<Unit>();
+            HashSet<string> validIds = new HashSet<string>(enemies.Select(unit => unit.UnitId.Trim()), StringComparer.OrdinalIgnoreCase);
+            List<string> synchronized = (enemyTurnOrderUnitIds ?? new List<string>())
+                .Where(unitId => !string.IsNullOrWhiteSpace(unitId) && validIds.Contains(unitId.Trim()))
+                .Select(unitId => unitId.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            HashSet<string> includedIds = new HashSet<string>(synchronized, StringComparer.OrdinalIgnoreCase);
+            synchronized.AddRange(enemies.Select(unit => unit.UnitId.Trim()).Where(includedIds.Add));
+
+            bool changed = enemyTurnOrderUnitIds == null || !enemyTurnOrderUnitIds.SequenceEqual(synchronized, StringComparer.OrdinalIgnoreCase);
+            if (changed)
+            {
+                enemyTurnOrderUnitIds = synchronized;
+            }
+
+            return changed;
+        }
+
+        public bool AppendEnemyToTurnOrder(Unit unit)
+        {
+            if (unit == null || unit.PlayerId == 0 || string.IsNullOrWhiteSpace(unit.UnitId))
+            {
+                return false;
+            }
+
+            enemyTurnOrderUnitIds ??= new List<string>();
+            string unitId = unit.UnitId.Trim();
+            if (enemyTurnOrderUnitIds.Any(existing => string.Equals(existing?.Trim(), unitId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            enemyTurnOrderUnitIds.Add(unitId);
+            return true;
+        }
+
+        private void AppendMissingEnemyUnits(IEnumerable<Unit> units)
+        {
+            foreach (Unit unit in units ?? Enumerable.Empty<Unit>())
+            {
+                AppendEnemyToTurnOrder(unit);
+            }
+        }
 
         public BattleOutcome EvaluateBattleOutcome(CellGrid grid)
         {
@@ -214,6 +292,7 @@ namespace Windy.Srpg.Game.Chapters
             blackFogDirection = BlackFogDirection.Left;
             blackFogExpansionDistance = 2;
             enemyPaintPresets = new List<UnitPreset>();
+            enemyTurnOrderUnitIds = new List<string>();
             battleConditions = CreateDefaultBattleConditions();
         }
 
@@ -230,6 +309,14 @@ namespace Windy.Srpg.Game.Chapters
             }
 
             enemyPaintPresets ??= new List<UnitPreset>();
+            enemyTurnOrderUnitIds ??= new List<string>();
+
+            if (gameObject.scene.IsValid() && gameObject.scene.isLoaded)
+            {
+                IEnumerable<Unit> sceneUnits = gameObject.scene.GetRootGameObjects()
+                    .SelectMany(root => root.GetComponentsInChildren<Unit>(includeInactive: true));
+                SynchronizeEnemyTurnOrder(sceneUnits);
+            }
         }
     }
 }

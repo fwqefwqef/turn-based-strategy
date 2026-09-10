@@ -31,7 +31,7 @@ MonoBehaviour:
   BaseStats:
     HitPoints: 100
     ManaPoints: 20
-    MovementPoints: 3
+    MovementPoints: 4
     Strength: 8
     Defense: 5
     Magic: 0
@@ -46,6 +46,7 @@ MonoBehaviour:
   StartingInventory:
   - ItemId: iron_sword
     InitialCharges: -1
+    IsDroppable: 0
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: wrath_strike

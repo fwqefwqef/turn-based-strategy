@@ -195,6 +195,11 @@ namespace Windy.Srpg.Game.Units
         public string UnitId => unitId;
         public string VisualId => visualId;
 
+        public void AssignSceneUnitId(string value)
+        {
+            unitId = value?.Trim() ?? string.Empty;
+        }
+
         internal bool presetAppliedAtRuntime;
         internal bool useResolvedPresetLoadout;
         internal List<StartingInventoryItem> resolvedStartingInventory = new List<StartingInventoryItem>();

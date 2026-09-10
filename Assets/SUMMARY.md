@@ -54,9 +54,15 @@ Movement validates the whole footprint, charges the highest destination-tile mov
 allows traversal through allies but not enemies, and forbids ending on any unit. Occupancy,
 single-target/AoE range, terrain effects, Black Fog depth, AI previews, deployment,
 reinforcements, displacement, camera focus, and colliders all consume the same footprint API.
+AI path scoring charges footprint movement cost and can advance toward the closest enemy when no
+complete path to an eventual attack anchor can be proven, preventing large units from idling in chokepoints.
+`ChapterData.EnemyTurnOrderUnitIds` is the authoritative, reorderable enemy action order. Painted
+enemies use coordinate-qualified stable IDs, new enemies and reinforcements append automatically,
+and movement-freedom ordering is retained only as the fallback when chapter ordering is unavailable.
 The cursor remains tile-specific so clicking a particular occupied tile can drive presentation,
 including attack lunges toward that tile. Area effects enumerate units rather than occupied-cell entries, so a
-multi-tile target is affected once.
+multi-tile target is affected once. Enemy range overlays include every tile currently occupied by
+their multi-tile source as a display-only region; this does not make those cells legal attack targets.
 
 ---
 

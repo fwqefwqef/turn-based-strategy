@@ -168,7 +168,7 @@ namespace Windy.Srpg.Game.AI.Actions
                     break;
                 }
 
-                cost += cell.MovementCost;
+                cost += unit.GetFootprintMovementCost(cell);
                 if (cost <= unit.MovementPoints)
                 {
                     selectedPath.Add(cell);
@@ -181,9 +181,18 @@ namespace Windy.Srpg.Game.AI.Actions
 
             if (selectedPath.Count != 0)
             {
+                List<Cell> validEndpoints = selectedPath
+                    .Where(unit.IsCellMovableTo)
+                    .ToList();
+                if (validEndpoints.Count == 0)
+                {
+                    topDestination = unit.Cell;
+                    return;
+                }
+
                 topDestination = ShouldMoveAllTheWay
-                    ? selectedPath[selectedPath.Count - 1]
-                    : selectedPath.OrderByDescending(c => cellScoresDict[c]).First();
+                    ? validEndpoints[validEndpoints.Count - 1]
+                    : validEndpoints.OrderByDescending(c => cellScoresDict[c]).First();
             }
         }
 
@@ -326,7 +335,7 @@ namespace Windy.Srpg.Game.AI.Actions
                     continue;
                 }
 
-                float pathCost = path.Sum(cell => cell.MovementCost);
+                float pathCost = path.Sum(customUnit.GetFootprintMovementCost);
                 float attackScore = cellScoresDict != null && cellScoresDict.TryGetValue(candidateCell, out float score)
                     ? score
                     : 0f;
@@ -345,11 +354,99 @@ namespace Windy.Srpg.Game.AI.Actions
 
             if (bestAttackCell == null)
             {
-                return false;
+                return TrySelectClosestReachableApproach(
+                    customUnit,
+                    enemies,
+                    allCells,
+                    cellGrid,
+                    out pursuitDestination);
+            }
+
+            if (bestPathCost > customUnit.MovementPoints
+                && TrySelectClosestReachableApproach(
+                    customUnit,
+                    enemies,
+                    allCells,
+                    cellGrid,
+                    out Cell reachableApproach))
+            {
+                pursuitDestination = reachableApproach;
+                return true;
             }
 
             pursuitDestination = bestAttackCell;
             return true;
+        }
+
+        private bool TrySelectClosestReachableApproach(
+            Unit customUnit,
+            IReadOnlyList<Unit> enemies,
+            List<Cell> allCells,
+            CellGrid cellGrid,
+            out Cell destination)
+        {
+            destination = customUnit?.Cell;
+            if (customUnit == null || customUnit.Cell == null || enemies == null || enemies.Count == 0)
+            {
+                return false;
+            }
+
+            int currentDistance = GetClosestEnemyDistance(customUnit, customUnit.Cell, enemies, cellGrid);
+            int bestDistance = currentDistance;
+            float bestCellScore = float.NegativeInfinity;
+            float bestPathCost = float.PositiveInfinity;
+            Cell bestCell = null;
+
+            HashSet<Cell> reachableDestinations = customUnit.GetAvailableDestinations(allCells);
+            foreach (Cell candidateCell in reachableDestinations.Where(cell => cell != null))
+            {
+                int distance = GetClosestEnemyDistance(customUnit, candidateCell, enemies, cellGrid);
+                if (distance > bestDistance)
+                {
+                    continue;
+                }
+
+                IList<Cell> path = customUnit.FindPath(allCells, candidateCell);
+                if (path == null || path.Count == 0)
+                {
+                    continue;
+                }
+
+                float pathCost = path.Sum(customUnit.GetFootprintMovementCost);
+                float cellScore = cellScoresDict != null && cellScoresDict.TryGetValue(candidateCell, out float score)
+                    ? score
+                    : 0f;
+                bool isCloser = distance < bestDistance;
+                bool isBetterTie = distance == bestDistance
+                    && (cellScore > bestCellScore
+                        || (Mathf.Approximately(cellScore, bestCellScore) && pathCost < bestPathCost));
+                if (!isCloser && !isBetterTie)
+                {
+                    continue;
+                }
+
+                bestCell = candidateCell;
+                bestDistance = distance;
+                bestCellScore = cellScore;
+                bestPathCost = pathCost;
+            }
+
+            if (bestCell == null || bestDistance >= currentDistance)
+            {
+                return false;
+            }
+
+            destination = bestCell;
+            return true;
+        }
+
+        private static int GetClosestEnemyDistance(Unit unit, Cell anchorCell, IEnumerable<Unit> enemies, CellGrid cellGrid)
+        {
+            return enemies
+                .Where(enemy => enemy != null && enemy.Cell != null && enemy.IsAliveForBattle)
+                .Select(enemy => unit.GetFootprintDistanceTo(enemy, anchorCell, enemy.Cell, cellGrid))
+                .DefaultIfEmpty(int.MaxValue)
+                .Min();
         }
     }
 }
