@@ -19,20 +19,36 @@ namespace Windy.Srpg.Game.Grid
         public DeploymentSlot[] GetDeploymentSlots()
         {
             Transform root = grid.ResolveDeploymentSlotsParent();
+            DeploymentSlot[] deploymentSlots;
             if (root != null)
             {
-                return root.GetComponentsInChildren<DeploymentSlot>(true)
+                deploymentSlots = root.GetComponentsInChildren<DeploymentSlot>(true)
+                    .Where(slot => slot != null && slot.gameObject.scene.IsValid())
+                    .OrderBy(slot => slot.SlotIndex)
+                    .ThenBy(slot => slot.name, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            }
+            else
+            {
+                deploymentSlots = Resources.FindObjectsOfTypeAll<DeploymentSlot>()
                     .Where(slot => slot != null && slot.gameObject.scene.IsValid())
                     .OrderBy(slot => slot.SlotIndex)
                     .ThenBy(slot => slot.name, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
             }
 
-            return Resources.FindObjectsOfTypeAll<DeploymentSlot>()
-                .Where(slot => slot != null && slot.gameObject.scene.IsValid())
-                .OrderBy(slot => slot.SlotIndex)
-                .ThenBy(slot => slot.name, StringComparer.OrdinalIgnoreCase)
+            // Generated or legacy slot instances may not carry a serialized board-cell reference.
+            // Resolve those references before applying the initial saved roster.
+            Cell[] sceneCells = Resources.FindObjectsOfTypeAll<Cell>()
+                .Where(cell => cell != null && cell.gameObject.scene == grid.gameObject.scene)
                 .ToArray();
+            foreach (DeploymentSlot deploymentSlot in deploymentSlots)
+            {
+                deploymentSlot.EnsureRegistryCellBinding(sceneCells);
+                deploymentSlot.SyncToCell();
+            }
+
+            return deploymentSlots;
         }
 
         public IReadOnlyList<Cell> GetDeploymentSlotCells()

@@ -110,10 +110,19 @@ namespace Windy.Srpg.Game.Grid
 
         internal Cell FindCellByCoordinates(Vector2Int coordinates)
         {
-            if (cachedCoordinateCellCount != Cells.Count)
+            // Pre-battle deployment is applied before InitializeSceneRegistry so that the
+            // registry only sees the selected roster. During that phase SceneCells is still
+            // empty; use the authored hierarchy as the coordinate source instead.
+            IReadOnlyList<Cell> coordinateCells = Cells.Count > 0
+                ? Cells
+                : GetComponentsInChildren<Cell>(true)
+                    .Where(cell => cell != null && cell.gameObject.activeInHierarchy)
+                    .ToArray();
+
+            if (cachedCoordinateCellCount != coordinateCells.Count)
             {
                 cellByCoordinate.Clear();
-                foreach (Cell cell in Cells)
+                foreach (Cell cell in coordinateCells)
                 {
                     if (cell != null && !cellByCoordinate.ContainsKey(cell.Coordinates))
                     {
@@ -121,7 +130,7 @@ namespace Windy.Srpg.Game.Grid
                     }
                 }
 
-                cachedCoordinateCellCount = Cells.Count;
+                cachedCoordinateCellCount = coordinateCells.Count;
             }
 
             return cellByCoordinate.TryGetValue(coordinates, out Cell result) ? result : null;

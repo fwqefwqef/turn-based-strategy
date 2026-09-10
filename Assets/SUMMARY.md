@@ -214,7 +214,7 @@ Acting position during pending move uses `Unit.PreviewCell` (where the unit *wil
 
 | Step      | Method                                                                                      | Data                                                  |
 | --------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Load      | `CampaignSaveManager.Load()`                                                                | `CampaignSaveData` (JSON on disk)                     |
+| Load      | `CampaignSaveManager.Load()`                                                                | Scene-routed `CampaignSaveData` JSON on disk           |
 | Seed      | `CampaignSaveFactory.EnsureStarterOwnedUnits(CampaignSaveData, IEnumerable<UnitPreset>)`    | merges starter presets not already in save            |
 | Roster    | `GetResolvedDeploymentRosterForCurrentScene(CampaignSaveData, int slotCount)`               | `string[]` unit IDs                                   |
 | Apply     | `ApplyFriendlyDeployment(DeploymentSlot[], CampaignSaveData, IReadOnlyList<string> roster)` | per slot: `OwnedUnitSaveData` + optional `UnitPreset` |
@@ -234,6 +234,11 @@ PreBattleUIController
 ```
 
 **Persist:** `cellGrid.SaveDeploymentRosterChanges()` → `CampaignSaveManager.Save(CampaignSaveData)`. Battle start may auto-save via `TryPersistOwnedUnitSave()` → `CampaignSaveFactory.CreateFromOwnedUnits(IEnumerable<Unit>, ...)`.
+
+Save storage is split by active scene path. Scenes under `Assets/Scenes/Level` or
+`Assets/Scenes/Levels` use `campaign_save.json`; PaintedMap and all other scenes use
+`debug_save.json`. A one-time migration moves the former single `campaign_save.json` into the
+debug slot because the pre-split project save is designated as debug data.
 
 ### 3.5 Turn loop and battle end
 

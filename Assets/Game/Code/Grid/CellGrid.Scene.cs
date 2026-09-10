@@ -53,13 +53,16 @@ namespace Windy.Srpg.Game.Grid
         private void Awake()
         {
             EnsureSceneCellAnchors();
-            PrepareFriendlyDeploymentFromSave();
             WireSceneGridEvents();
             SubscribeToExistingCells();
         }
 
         private void Start()
         {
+            // Apply the saved roster after every unit and deployment slot has completed Awake,
+            // but before the battle registry initializes those units.
+            PrepareFriendlyDeploymentFromSave();
+
             if (enablePreBattleUi && !startBattleImmediatelyWithCurrentRoster)
             {
                 RequestFrameworkInitialize();

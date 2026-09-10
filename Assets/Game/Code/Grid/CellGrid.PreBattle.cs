@@ -455,6 +455,12 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
+            if (!GetDeploymentRosterForPreBattle().Any(unitId => !string.IsNullOrWhiteSpace(unitId)))
+            {
+                Debug.LogWarning("CellGrid: Battle cannot start without at least one deployed unit.", this);
+                return;
+            }
+
             ExitPreBattleDeploymentSwapMode();
             battleStarted = true;
             SetDeploymentSlotVisibility(false);

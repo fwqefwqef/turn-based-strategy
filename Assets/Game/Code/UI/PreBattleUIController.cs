@@ -382,10 +382,10 @@ namespace Windy.Srpg.Game.UI
 
             IReadOnlyList<string> roster = cellGrid.GetDeploymentRosterForPreBattle();
             int deploymentSlotLimit = GetDeploymentSlotLimit();
+            int filledSlotCount = CountFilledRosterSlots(roster);
 
             if (statusText != null)
             {
-                int filledSlotCount = CountFilledRosterSlots(roster);
                 string baseStatus = deploymentSlotLimit > 0
                     ? GameTextCatalog.Format("ui.pre_battle.status_roster", "Roster: {0}/{1}", filledSlotCount, deploymentSlotLimit)
                     : GameTextCatalog.Get("ui.pre_battle.status_no_slots", "No deployment slots.");
@@ -397,6 +397,11 @@ namespace Windy.Srpg.Game.UI
             if (saveButton != null)
             {
                 saveButton.interactable = cellGrid.HasUnsavedPreBattleChanges;
+            }
+
+            if (battleStartButton != null)
+            {
+                battleStartButton.interactable = filledSlotCount > 0;
             }
 
             RefreshSelectUnitsPanel();
@@ -1030,7 +1035,7 @@ namespace Windy.Srpg.Game.UI
             int buttonIndex = 0;
             int deploymentSlotLimit = GetDeploymentSlotLimit();
             int filledSlotCount = CountFilledRosterSlots(roster);
-            bool canRemoveSelectedUnit = filledSlotCount > 1;
+            bool canRemoveSelectedUnit = filledSlotCount > 0;
             bool hasEmptySlot = FindFirstEmptyRosterSlotIndex(roster) >= 0 && deploymentSlotLimit > 0;
             for (int i = 0; i < roster.Count; i++)
             {
@@ -1145,11 +1150,6 @@ namespace Windy.Srpg.Game.UI
             int existingIndex = roster.FindIndex(rosterUnitId => string.Equals(rosterUnitId, unitId, StringComparison.OrdinalIgnoreCase));
             if (existingIndex >= 0)
             {
-                if (CountFilledRosterSlots(roster) <= 1)
-                {
-                    return;
-                }
-
                 cellGrid.ClearDeploymentSlotUnit(existingIndex);
                 return;
             }

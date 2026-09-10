@@ -2,8 +2,14 @@
 
 ## Next planned features ✔
 
-# Design Levels 1-4. Design 4-6 Characters.
+# Map Painter: 
+1. Move unit feature: Moves the unit to another tile without deleting the floor tiles underneath it.
 
-# Custom AI for bosses
+2. Erase unit feature: Erase units without deleting the floor tiles under it.
+
+# Overworld 
+1. make wiring for a "reset save file" button that wipes the campaign save.
+
+# Design Lv1-4
 
 # Design Overcharge Mechanic

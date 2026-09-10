@@ -79,7 +79,9 @@ namespace Windy.Srpg.Game.UI
             EnsureUiExists();
             HookButtons();
             RefreshLevelScenesFromProject();
-            campaignSave = CampaignSaveManager.Load() ?? new CampaignSaveData();
+            // The overworld is outside the Levels folder, but it presents campaign progression.
+            // Do not use the scene-derived debug slot here.
+            campaignSave = CampaignSaveManager.Load(CampaignSaveSlot.Campaign) ?? new CampaignSaveData();
             RebuildLevelList();
         }
 
