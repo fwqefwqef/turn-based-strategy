@@ -52,6 +52,6 @@ sysinfo.txt
 /Tools/**/obj/
 
 # Non-publishable local assets
-/Assets/Game/Non-Publishable/
+/Assets/Non-Publishable/
 
 /Docs/

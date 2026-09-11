@@ -24,18 +24,18 @@ var poison = toxic.Buffs.Entries.Single();
 Check(poison.Stacks == 5 && poison.RemainingDuration == 3, "Toxic caps at five with a shared three-tick duration");
 toxic.Buffs.OnTurnEnd();
 Check(poison.RemainingDuration == 3, "Counterattack-applied Toxic does not age at turn end");
-toxic.Buffs.OnDotTick();
+toxic.ApplyTurnStartHealthPhase();
 Check(toxic.HitPoints == 175 && poison.RemainingDuration == 2, "Five stacks deal 25 damage");
 Hit("toxic_sword", toxic);
 Check(poison.Stacks == 5 && poison.RemainingDuration == 3, "Reapplication at cap refreshes all stacks");
 for (int i = 0; i < 3; i++)
 {
-    toxic.Buffs.OnDotTick();
+    toxic.ApplyTurnStartHealthPhase();
     toxic.Buffs.OnTurnStart();
     toxic.Buffs.OnTurnEnd();
 }
 Check(toxic.HitPoints == 100 && toxic.Buffs.Entries.Count == 0, "Exactly three refreshed ticks then expiration");
-toxic.Buffs.OnDotTick();
+toxic.ApplyTurnStartHealthPhase();
 Check(toxic.HitPoints == 100, "Expired Toxic cannot tick again");
 
 var stunned = new Unit();
@@ -86,26 +86,26 @@ Check(deathsDoor.Buffs.RemoveRemovableDebuffs() == 1
 
 var fogEdge = new Unit { HitPoints = 101, ComputedTotalHitPoints = 101, BlackFogDepth = 0 };
 fogEdge.AddBuffById("black_fog");
-fogEdge.Buffs.OnDotTick();
+fogEdge.ApplyTurnStartHealthPhase();
 Check(fogEdge.HitPoints == 75, "Black Fog depth zero deals a rounded-up 25% Max HP");
 Check(fogEdge.Buffs.HasBuff("black_fog") && !fogEdge.Buffs.GetBuff("black_fog").Removable,
     "Black Fog is infinite while present and cannot be cleansed normally");
 
 var fogDepthOne = new Unit { HitPoints = 101, ComputedTotalHitPoints = 101, BlackFogDepth = 1 };
 fogDepthOne.AddBuffById("black_fog");
-fogDepthOne.Buffs.OnDotTick();
+fogDepthOne.ApplyTurnStartHealthPhase();
 Check(fogDepthOne.HitPoints == 50, "Black Fog depth one deals a rounded-up 50% Max HP");
 
 var outsideFog = new Unit { HitPoints = 101, ComputedTotalHitPoints = 101 };
 outsideFog.AddBuffById("black_fog");
-outsideFog.Buffs.OnDotTick();
+outsideFog.ApplyTurnStartHealthPhase();
 Check(outsideFog.HitPoints == 101, "A stale Black Fog status deals no damage outside fog coverage");
 
 var burned = new Unit { HitPoints = 20, ComputedTotalHitPoints = 20 };
 burned.AddBuffById("burn");
-burned.Buffs.OnDotTick();
+burned.ApplyTurnStartHealthPhase();
 Check(burned.HitPoints == 15 && burned.Buffs.HasBuff("burn"), "Burn deals five Pain damage on its first tick");
-burned.Buffs.OnDotTick();
+burned.ApplyTurnStartHealthPhase();
 Check(burned.HitPoints == 10 && !burned.Buffs.HasBuff("burn"), "Burn expires after exactly two Pain ticks");
 
 var evadeModifiers = new SecondaryStatModifiers { Evade = 20 } + new SecondaryStatModifiers { Evade = 20 };

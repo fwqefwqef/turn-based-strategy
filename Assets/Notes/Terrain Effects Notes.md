@@ -7,7 +7,7 @@ Design status: implemented. Unity Play Mode verification is still recommended fo
 - `Cell` owns its battle-local `TerrainEffectInstance` collection and raises `TerrainEffectsChanged`.
 - `TerrainEffectSystem` initializes preset effects, ages temporary effects by round, applies live stat modifiers and occupant statuses, and clears battle state.
 - `CellGrid.TerrainEffects` exposes the terrain API used by skills, Black Fog, and UI.
-- `TerrainEffectRegistry` loads definitions from `Assets/Game/Data/gdata.json`.
+- `TerrainEffectRegistry` loads definitions from `Assets/Data/gdata.json`.
 - `BlackFogSystem` only calculates chapter-driven coverage and depth; it publishes `black_fog` terrain effects.
 
 Every terrain effect maintains an infinite, non-removable occupancy buff while the unit touches the terrain. Throne, Forest, and Magic Tile bonuses are sourced entirely from those buffs, not from `TerrainEffectData`. The terrain system removes the occupancy buff immediately on exit. Burning Terrain additionally applies a separate, removable `burn` Pain debuff; Black Fog uses its occupancy buff for depth-scaled Pain.
@@ -22,7 +22,7 @@ Every terrain effect maintains an infinite, non-removable occupancy buff while t
 | Forest | 2 | Evade +20 |
 | Magic Tile | 1 | Magic +5 |
 
-The preset assets are under `Assets/Game/Data/Preset Data (Unit, Tile)/Tiles` and appear in the Map Painter tile palette.
+The preset assets are under `Assets/Data/Preset Data (Unit, Tile)/Tiles` and appear in the Map Painter tile palette.
 
 ## Temporary terrain
 

@@ -43,6 +43,13 @@ namespace Windy.Srpg.Game.Units
         public Buff AddBuffById(string id) => Buffs.AddBuffById(id);
         public bool RemoveBuff(Buff entry) => Buffs.RemoveBuff(entry);
         public void ApplyPainDamage(int damage) => HitPoints = Math.Max(0, HitPoints - damage);
+        internal int ResolveTurnStartHealthDelta(int delta) => delta;
+        public void ApplyTurnStartHealthPhase()
+        {
+            int delta = Buffs.ConsumeTurnStartHealthDelta();
+            if (delta < 0) ApplyPainDamage(-delta);
+            else if (delta > 0) RestoreHitPoints(delta, this);
+        }
         public void RestoreHitPoints(int amount, Unit source) => HitPoints += amount;
     }
     public enum DamageChangePhase { Outcome, Damage }
@@ -56,6 +63,7 @@ namespace Windy.Srpg.Game.Units
     }
     public class CombatSequenceContext { }
     public interface IP_TakeDamageChange { void TakeDamageChange(DamageChangeContext context); }
+    public interface IP_TurnStartHealthEffect { int GetTurnStartHealthDelta(Unit unit); }
     public interface IP_DamageChange { void DamageChange(DamageChangeContext context); }
     public interface IP_AfterCombat_Attacker { void AfterCombatSequenceAsAttacker(CombatSequenceContext context); }
 }

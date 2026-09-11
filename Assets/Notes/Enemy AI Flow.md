@@ -4,15 +4,15 @@ This document describes the current code path for enemy AI, from turn start thro
 
 Main implementation files:
 
-- `Assets/Game/Code/Players/AiPlayer.cs`
-- `Assets/Game/Code/Players/AiBattlePlayerController.cs`
-- `Assets/Game/Code/AI/AiDecisionAction.cs`
-- `Assets/Game/Code/AI/MoveToPositionAIAction.cs`
-- `Assets/Game/Code/AI/AttackAIAction.cs`
-- `Assets/Game/Code/AI/AiBehaviorUtility.cs`
-- `Assets/Game/Code/AI/AiCombatPlanner.cs`
-- `Assets/Game/Code/AI/Evaluators/DamageCellEvaluator.cs`
-- `Assets/Game/Code/Units/UnitPreset.cs`
+- `Assets/Code/Players/AiPlayer.cs`
+- `Assets/Code/Players/AiBattlePlayerController.cs`
+- `Assets/Code/AI/AiDecisionAction.cs`
+- `Assets/Code/AI/MoveToPositionAIAction.cs`
+- `Assets/Code/AI/AttackAIAction.cs`
+- `Assets/Code/AI/AiBehaviorUtility.cs`
+- `Assets/Code/AI/AiCombatPlanner.cs`
+- `Assets/Code/AI/Evaluators/DamageCellEvaluator.cs`
+- `Assets/Code/Units/UnitPreset.cs`
 
 ## Big Picture
 
@@ -650,4 +650,3 @@ To configure a scene enemy:
 
 - Set `ActionAiMode`, `MovementAiMode`, and `WaitGroupId` on its `UnitPreset`.
 - For placed scene enemies, use the map painter/preset override fields where available.
-

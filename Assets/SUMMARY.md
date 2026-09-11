@@ -38,10 +38,10 @@ Namespaces were consolidated under `Windy.Srpg.Game.*` (Phase 9). A few UI MonoB
 
 ### Assembly
 
-- `**com.windy.srpg.game`** — all code under `Assets/Game/Code/` (`rootNamespace: Windy.Srpg.Game`)
+- `**com.windy.srpg.game`** — all code under `Assets/Code/` (`rootNamespace: Windy.Srpg.Game`)
 - `**com.windy.srpg.game.scenes**` — scene scripts under `Assets/Scenes/` (e.g. `SampleUnit`)
 
-Game data catalogs load from `Assets/Game/Data/gdata.json` via `CatalogResourceLoader`.
+Game data catalogs load from `Assets/Data/gdata.json` via `CatalogResourceLoader`.
 
 Skill action economy is defined by `SkillData.EndsTurn`. `UnitSkillList` owns a per-unit,
 per-turn usage ledger keyed by skill ID. A skill is usage-limited when `OncePerTurn` is
@@ -293,7 +293,7 @@ Every state implements `IRightClickHandler.OnRightClick()` for cancel/back behav
 
 ## 5. Class reference
 
-Paths are under `Assets/Game/Code/` unless noted.
+Paths are under `Assets/Code/` unless noted.
 
 ### Abilities (`Windy.Srpg.Game.Abilities`)
 
@@ -394,7 +394,7 @@ All types live in `JsonCatalogLoader.cs`.
 
 | Class                                                                                          | Role                                                                                                                                     |
 | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `CatalogResourceLoader`                                                                        | Static loader for item, skill, passive, buff, and terrain catalogs from `Assets/Game/Data/gdata.json`.                                  |
+| `CatalogResourceLoader`                                                                        | Static loader for item, skill, passive, buff, and terrain catalogs from `Assets/Data/gdata.json`.                                       |
 | `GameDataCatalogResource`                                                                      | Root JSON document wrapper.                                                                                                              |
 | `ItemCatalogResource`, `SkillCatalogResource`, `PassiveCatalogResource`, `BuffCatalogResource`, `TerrainEffectCatalogResource` | Section containers with `ToRuntimeDefinitions()`.                                                           |
 | `*CatalogEntry` types                                                                          | Serializable JSON rows (weapons, skills, passives, buffs, consumables, …) mapped to runtime `*Data` objects.                             |

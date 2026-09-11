@@ -44,9 +44,9 @@ The `colossus` enemy preset is a ready-to-place 3x3 example. Death's Door, Black
 
 ## Project Layout
 
-- `Assets/Game/Code` — gameplay code in the `com.windy.srpg.game` assembly
-- `Assets/Game/Data/gdata.json` — unified item, skill, passive, buff, and terrain-effect catalog
-- `Assets/Game/Data/Preset Data (Unit, Tile)` — friendly units, enemies, and tile presets
+- `Assets/Code` — gameplay code in the `com.windy.srpg.game` assembly
+- `Assets/Data/gdata.json` — unified item, skill, passive, buff, and terrain-effect catalog
+- `Assets/Data/Preset Data (Unit, Tile)` — friendly units, enemies, and tile presets
 - `Assets/Scenes/Level` — chapter and free-battle scenes
 - `Assets/Notes` — architecture and mechanic documentation
 - `Assets/Tools~` — standalone tuning and verification utilities excluded from Unity asset import

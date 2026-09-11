@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../Game/Code/Skills/SkillData.cs" Link="Runtime/SkillData.cs" />
-    <Compile Include="../../Game/Code/Skills/UnitSkillList.cs" Link="Runtime/UnitSkillList.cs" />
+    <Compile Include="../../Code/Skills/SkillData.cs" Link="Runtime/SkillData.cs" />
+    <Compile Include="../../Code/Skills/UnitSkillList.cs" Link="Runtime/UnitSkillList.cs" />
   </ItemGroup>
 </Project>

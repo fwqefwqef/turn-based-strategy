@@ -2,14 +2,8 @@
 
 ## Next planned features ✔
 
-# Map Painter: 
-1. Move unit feature: Moves the unit to another tile without deleting the floor tiles underneath it.
+# Design playable characters
 
-2. Erase unit feature: Erase units without deleting the floor tiles under it.
+https://docs.google.com/document/d/1YpD_cgvgve4h3kB-s3rbhk1psgXvmgzFs_ZreC7C0Dw/edit?tab=t.0
 
-# Overworld 
-1. make wiring for a "reset save file" button that wipes the campaign save.
-
-# Design Lv1-4
-
-# Design Overcharge Mechanic
+# Design Levels 1-4

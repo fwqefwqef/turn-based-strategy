@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../Game/Code/Grid/TerrainEffectData.cs" Link="Runtime/TerrainEffectData.cs" />
-    <Compile Include="../../Game/Code/Grid/TerrainEffectSystem.cs" Link="Runtime/TerrainEffectSystem.cs" />
+    <Compile Include="../../Code/Grid/TerrainEffectData.cs" Link="Runtime/TerrainEffectData.cs" />
+    <Compile Include="../../Code/Grid/TerrainEffectSystem.cs" Link="Runtime/TerrainEffectSystem.cs" />
   </ItemGroup>
 </Project>
