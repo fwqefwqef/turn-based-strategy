@@ -35,6 +35,7 @@ namespace Windy.Srpg.Game.Grid
 
         public event EventHandler TurnStarted;
         public int RoundCount { get; private set; }
+        public bool EnemyBossDefeated { get; private set; }
         public bool IsPreBattlePhase => enablePreBattleUi && !battleStarted;
         internal bool IsBattleStarted => battleStarted;
 

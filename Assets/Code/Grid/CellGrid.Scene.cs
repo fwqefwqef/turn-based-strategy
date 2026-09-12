@@ -883,6 +883,7 @@ namespace Windy.Srpg.Game.Grid
             SceneLevelLoading?.Invoke(this, EventArgs.Empty);
 
             gameFinished = false;
+            EnemyBossDefeated = false;
             allocatedUnitId = 0;
             scenePlayers.Clear();
             sceneTurnPlayers.Clear();
@@ -1239,6 +1240,11 @@ namespace Windy.Srpg.Game.Grid
             if (unit == null)
             {
                 return;
+            }
+
+            if (unit.PlayerId != 0 && unit.IsBoss)
+            {
+                EnemyBossDefeated = true;
             }
 
             UnregisterSceneUnit(unit);

@@ -194,6 +194,7 @@ namespace Windy.Srpg.Game.Units
         public int PlayerId => PlayerNumber;
         public string UnitId => unitId;
         public string VisualId => visualId;
+        public bool IsBoss => preset != null && preset.IsBoss;
 
         public void AssignSceneUnitId(string value)
         {

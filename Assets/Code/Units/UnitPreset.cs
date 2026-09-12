@@ -132,6 +132,8 @@ namespace Windy.Srpg.Game.Units
     {
         public string PresetId = "unit_preset";
         public string UnitName = "Enemy";
+        [Tooltip("Defeating an enemy created from this preset satisfies the Defeat Boss chapter victory condition.")]
+        public bool IsBoss;
         public Sprite UnitSprite;
         public Sprite FaceSprite;
         public UnitSpriteLayoutSettings SpriteLayout;

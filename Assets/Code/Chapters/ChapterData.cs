@@ -17,7 +17,8 @@ namespace Windy.Srpg.Game.Chapters
     public enum ChapterBattleConditionKind
     {
         DefeatAllEnemies,
-        LoseAllAllies
+        LoseAllAllies,
+        DefeatTheBoss
     }
 
     public enum BlackFogDirection
@@ -60,6 +61,7 @@ namespace Windy.Srpg.Game.Chapters
             return Kind switch
             {
                 ChapterBattleConditionKind.DefeatAllEnemies => aliveAllies > 0 && aliveEnemies == 0,
+                ChapterBattleConditionKind.DefeatTheBoss => aliveAllies > 0 && grid.EnemyBossDefeated,
                 ChapterBattleConditionKind.LoseAllAllies => aliveAllies == 0,
                 _ => false
             };
