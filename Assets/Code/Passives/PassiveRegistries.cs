@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Units;
 
 namespace Windy.Srpg.Game.Passives
@@ -10,6 +11,16 @@ namespace Windy.Srpg.Game.Passives
         void OnRemove(Unit unit, Passive entry);
         void OnTurnStart(Unit unit, Passive entry);
         void OnTurnEnd(Unit unit, Passive entry);
+    }
+
+    public interface IP_DynamicSecondaryStatModifier
+    {
+        SecondaryStatModifiers GetSecondaryStatModifiers(Unit unit);
+    }
+
+    public interface IP_MovementPointModifier
+    {
+        float GetMovementPointModifier(Unit unit);
     }
 
     public abstract class PassiveEffectBase : IP_PassiveEffect

@@ -69,6 +69,14 @@ namespace Windy.Srpg.Game.Units
         void TakeDamageMultiplier(DamageChangeContext context);
     }
 
+    /// <summary>
+    /// Causes a legal defender counterattack to resolve before the attacker's strikes.
+    /// That preemptive counter replaces the ordinary post-attack counterattack.
+    /// </summary>
+    public interface IP_Vantage
+    {
+    }
+
     public sealed class CombatSequenceContext
     {
         public Unit Attacker { get; }

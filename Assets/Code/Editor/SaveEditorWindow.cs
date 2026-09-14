@@ -12,7 +12,7 @@ namespace Windy.Srpg.Game.Editor
 {
     public sealed class SaveEditorWindow : EditorWindow
     {
-        private CampaignSaveSlot slot = CampaignSaveSlot.Campaign;
+        private CampaignSaveSlot slot = CampaignSaveSlot.Debug;
         private CampaignSaveData save;
         private Vector2 scroll;
         private string status;
@@ -40,6 +40,7 @@ namespace Windy.Srpg.Game.Editor
                 return;
             }
 
+            EditorGUI.BeginChangeCheck();
             scroll = EditorGUILayout.BeginScrollView(scroll);
             DrawGlobalValues();
             DrawFloatArray("Cleared Chapters", ref save.ClearedChapterIds);
@@ -47,6 +48,10 @@ namespace Windy.Srpg.Game.Editor
             DrawInventory("Storage Items", ref save.StorageItems);
             DrawOwnedUnits();
             EditorGUILayout.EndScrollView();
+            if (EditorGUI.EndChangeCheck())
+            {
+                SaveSelectedSlot(autoSave: true);
+            }
         }
 
         private void DrawToolbar()
@@ -62,7 +67,8 @@ namespace Windy.Srpg.Game.Editor
             EditorGUILayout.SelectableLabel(CampaignSaveManager.GetSavePath(slot), EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Reload")) LoadSelectedSlot(createIfMissing: true);
-            if (GUILayout.Button("Save")) SaveSelectedSlot();
+            if (GUILayout.Button("Save Now")) SaveSelectedSlot();
+            if (GUILayout.Button("Reset Save")) ResetSelectedSave();
             if (GUILayout.Button("New Blank")) NewBlankSave();
             if (GUILayout.Button("Reveal File")) EditorUtility.RevealInFinder(CampaignSaveManager.GetSavePath(slot));
             if (GUILayout.Button("Delete")) DeleteSelectedSlot();
@@ -99,7 +105,7 @@ namespace Windy.Srpg.Game.Editor
                 }
             }
             EditorGUILayout.HelpBox(
-                "Imports the preset's identity, level, stats, growths, proficiencies, inventory, skills, and class passives. Press Save to write the change to disk.",
+                "Imports the preset's identity, level, stats, growths, proficiencies, inventory, skills, and class passives. Changes are saved automatically.",
                 MessageType.Info);
             EditorGUILayout.EndVertical();
 
@@ -163,7 +169,7 @@ namespace Windy.Srpg.Game.Editor
             importedUnit.UnitId = CreateUniqueUnitId(importedUnit.UnitId);
             Append(ref save.OwnedUnits, importedUnit);
             expandedUnits.Add((save.OwnedUnits.Length - 1).ToString());
-            status = $"Imported {DisplayUnitName(importedUnit)} from {preset.name}. Press Save to write the change.";
+            status = $"Imported {DisplayUnitName(importedUnit)} from {preset.name}.";
         }
 
         private string CreateUniqueUnitId(string requestedId)
@@ -311,19 +317,36 @@ namespace Windy.Srpg.Game.Editor
             status = save == null ? "Save does not exist." : $"Loaded {slot} save.";
         }
 
-        private void SaveSelectedSlot()
+        private void SaveSelectedSlot(bool autoSave = false)
         {
             NormalizeArrays();
             CampaignSaveManager.Save(save, slot);
-            status = $"Saved {slot} save at {DateTime.Now:T}.";
+            status = $"{(autoSave ? "Auto-saved" : "Saved")} {slot} save at {DateTime.Now:T}.";
         }
 
         private void NewBlankSave()
         {
-            if (!EditorUtility.DisplayDialog("New Blank Save", $"Replace the editor buffer for the {slot} slot? The file is not changed until Save is pressed.", "Create", "Cancel")) return;
+            if (!EditorUtility.DisplayDialog("New Blank Save", $"Replace and immediately save a blank {slot} save file?", "Create", "Cancel")) return;
             save = new CampaignSaveData();
             expandedUnits.Clear();
-            status = "Created a blank in-memory save. Press Save to write it.";
+            SaveSelectedSlot(autoSave: true);
+        }
+
+        private void ResetSelectedSave()
+        {
+            if (!EditorUtility.DisplayDialog(
+                    "Reset Save",
+                    $"Reset the {slot} save to its defaults? This clears owned units, deployment, storage, and chapter progress, and restores gold to 5000.",
+                    "Reset",
+                    "Cancel"))
+            {
+                return;
+            }
+
+            save = new CampaignSaveData();
+            expandedUnits.Clear();
+            SaveSelectedSlot();
+            status = $"Reset the {slot} save to defaults.";
         }
 
         private void DeleteSelectedSlot()

@@ -142,6 +142,10 @@ namespace Windy.Srpg.Game.Grid
             selectedPreBattleDeploymentUnit = null;
             battleStarted = true;
             RoundCount = 1;
+            foreach (Unit unit in GetAllUnits())
+            {
+                unit?.ResetSkillUsageForBattle();
+            }
             SetDeploymentSlotVisibility(false);
             RebuildSceneCellOccupancy();
             UpdateDeploymentSlotSelectionVisuals();

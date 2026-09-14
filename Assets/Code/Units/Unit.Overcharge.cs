@@ -12,11 +12,35 @@ namespace Windy.Srpg.Game.Units
     {
         public const string BastionOverchargePassiveId = "fortress";
         public const string BastionUltimateSkillId = "break";
+        public const string ProtagonistOverchargePassiveId = "accelerated_movement";
+        public const string ProtagonistUltimateSkillId = "mass_accelerate";
+        public const string ThunderOverchargePassiveId = "wrath";
+        public const string ThunderUltimateSkillId = "atrocity";
         private const int OverchargeDurationTurns = 3;
+
+        private readonly struct OverchargeProfile
+        {
+            public readonly string PassiveId;
+            public readonly string UltimateSkillId;
+            public readonly string DisplayName;
+            public readonly bool GrantsPostActionMovement;
+
+            public OverchargeProfile(string passiveId, string ultimateSkillId, string displayName, bool grantsPostActionMovement = false)
+            {
+                PassiveId = passiveId;
+                UltimateSkillId = ultimateSkillId;
+                DisplayName = displayName;
+                GrantsPostActionMovement = grantsPostActionMovement;
+            }
+        }
 
         [NonSerialized] private OverchargeState overchargeState;
         [NonSerialized] private int overchargeTurnsRemaining;
         [NonSerialized] private Passive overchargePassive;
+        [NonSerialized] private string activeOverchargeUltimateSkillId;
+        [NonSerialized] private string activeOverchargeDisplayName;
+        [NonSerialized] private bool overchargeGrantsPostActionMovement;
+        [NonSerialized] private bool postActionMovementActive;
         [NonSerialized] private SpriteRenderer overchargeSpriteRenderer;
         [NonSerialized] private Vector3 overchargeBaseSpriteScale = Vector3.one;
         [NonSerialized] private bool overchargeBaseSpriteScaleCaptured;
@@ -26,34 +50,56 @@ namespace Windy.Srpg.Game.Units
         public bool IsOverchargeActive => overchargeState == OverchargeState.PendingActivation
             || overchargeState == OverchargeState.Active;
         public bool CanActivateOvercharge => PlayerNumber == 0 && overchargeState == OverchargeState.Ready;
+        public bool IsPostActionMovementActive => postActionMovementActive;
 
-        private bool IsBastionOverchargeUnit()
+        private bool TryGetOverchargeProfile(out OverchargeProfile profile)
         {
-            return PlayerNumber == 0
-                && (string.Equals(UnitId, "bastion", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(AssignedPreset?.PresetId, "bastion", StringComparison.OrdinalIgnoreCase));
+            string identity = !string.IsNullOrWhiteSpace(AssignedPreset?.PresetId)
+                ? AssignedPreset.PresetId
+                : UnitId;
+            if (PlayerNumber == 0 && string.Equals(identity, "bastion", StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new OverchargeProfile(BastionOverchargePassiveId, BastionUltimateSkillId, "Fortress");
+                return true;
+            }
+            if (PlayerNumber == 0 && string.Equals(identity, "protagonist", StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new OverchargeProfile(ProtagonistOverchargePassiveId, ProtagonistUltimateSkillId, "Accelerated Movement", grantsPostActionMovement: true);
+                return true;
+            }
+            if (PlayerNumber == 0 && string.Equals(identity, "thunder", StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new OverchargeProfile(ThunderOverchargePassiveId, ThunderUltimateSkillId, "Wrath");
+                return true;
+            }
+
+            profile = default;
+            return false;
         }
 
         internal void ResetOverchargeForBattle()
         {
             EndOverchargeInternal(markSpent: false);
-            overchargeState = IsBastionOverchargeUnit() ? OverchargeState.Ready : OverchargeState.Unavailable;
+            overchargeState = TryGetOverchargeProfile(out _) ? OverchargeState.Ready : OverchargeState.Unavailable;
             RefreshOverchargeVisual();
         }
 
         public bool TryActivateOvercharge()
         {
-            if (!CanActivateOvercharge) return false;
+            if (!CanActivateOvercharge || !TryGetOverchargeProfile(out OverchargeProfile profile)) return false;
 
             EnsurePassiveList();
-            overchargePassive = PassiveList.AddPassiveByIdFirst(BastionOverchargePassiveId);
+            overchargePassive = PassiveList.AddPassiveByIdFirst(profile.PassiveId);
             if (overchargePassive == null) return false;
 
             overchargeState = OverchargeState.PendingActivation;
             overchargeTurnsRemaining = OverchargeDurationTurns;
-            SkillList?.SetOverchargeGrantedSkill(BastionUltimateSkillId);
+            activeOverchargeUltimateSkillId = profile.UltimateSkillId;
+            activeOverchargeDisplayName = profile.DisplayName;
+            overchargeGrantsPostActionMovement = profile.GrantsPostActionMovement;
+            SkillList?.SetOverchargeGrantedSkill(profile.UltimateSkillId);
             RefreshOverchargeVisual();
-            BattleLog.Log("Action", $"{unitName} prepares Overcharge: Fortress.");
+            BattleLog.Log("Action", $"{unitName} prepares Overcharge: {profile.DisplayName}.");
             RaiseBuffsChanged();
             return true;
         }
@@ -61,10 +107,11 @@ namespace Windy.Srpg.Game.Units
         public bool CancelPendingOvercharge()
         {
             if (overchargeState != OverchargeState.PendingActivation) return false;
+            string displayName = activeOverchargeDisplayName;
             EndOverchargeInternal(markSpent: false);
             overchargeState = OverchargeState.Ready;
             RefreshOverchargeVisual();
-            BattleLog.Log("Action", $"{unitName} cancels Overcharge.");
+            BattleLog.Log("Action", $"{unitName} cancels Overcharge: {displayName}.");
             RaiseBuffsChanged();
             return true;
         }
@@ -73,16 +120,37 @@ namespace Windy.Srpg.Game.Units
         {
             if (overchargeState != OverchargeState.PendingActivation) return;
             overchargeState = OverchargeState.Active;
-            BattleLog.Log("Action", $"{unitName} activates Overcharge: Fortress.");
+            BattleLog.Log("Action", $"{unitName} activates Overcharge: {activeOverchargeDisplayName}.");
             RefreshOverchargeVisual();
         }
 
         internal void NotifySkillCommitted(Skills.Skill skill)
         {
-            if (IsOverchargeActive && string.Equals(skill?.SkillId, BastionUltimateSkillId, StringComparison.OrdinalIgnoreCase))
+            if (IsOverchargeActive && string.Equals(skill?.SkillId, activeOverchargeUltimateSkillId, StringComparison.OrdinalIgnoreCase))
             {
                 EndOverchargeInternal(markSpent: true);
             }
+        }
+
+        internal bool TryBeginPostActionMovement()
+        {
+            if (!IsOverchargeActive || !overchargeGrantsPostActionMovement || postActionMovementActive
+                || !IsAliveForBattle || IsActionBlocked || !IsFinishedForTurn)
+            {
+                return false;
+            }
+
+            postActionMovementActive = true;
+            cachedPaths = null;
+            MovementPoints = 2f;
+            SetTurnStateKind(UnitTurnStateKind.Friendly);
+            return true;
+        }
+
+        internal void FinishPostActionMovement()
+        {
+            postActionMovementActive = false;
+            EndTurnForUnit();
         }
 
         private void AdvanceOverchargeTurn()
@@ -97,6 +165,10 @@ namespace Windy.Srpg.Game.Units
             SkillList?.SetOverchargeGrantedSkill(null);
             if (overchargePassive != null) PassiveList?.RemovePassive(overchargePassive);
             overchargePassive = null;
+            activeOverchargeUltimateSkillId = null;
+            activeOverchargeDisplayName = null;
+            overchargeGrantsPostActionMovement = false;
+            postActionMovementActive = false;
             overchargeTurnsRemaining = 0;
             if (markSpent) overchargeState = OverchargeState.Spent;
             RefreshOverchargeVisual();

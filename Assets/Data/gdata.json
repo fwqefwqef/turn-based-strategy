@@ -79,6 +79,45 @@
         "GrantedSkillIds": []
       },
       {
+        "Id": "time_sword",
+        "Name": "Time Sword",
+        "Description": "A low-might, high-accuracy sword that grants Spd +3.",
+        "Value": 100,
+        "WeaponType": "Sword",
+        "DamageType": "Physical",
+        "Might": 3,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 120,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "StatModifiers": {
+          "Speed": 3
+        },
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "thunder_lance",
+        "Name": "Thunder Lance",
+        "Description": "A close-range lance with a high critical-hit rate.",
+        "Value": 100,
+        "WeaponType": "Lance",
+        "DamageType": "Physical",
+        "Might": 10,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 90,
+        "Crit": 20,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
         "Id": "magic_sword",
         "Name": "Magic Sword",
         "Description": "A magical blade that attacks with magic.",
@@ -231,6 +270,116 @@
           "Crit": 0,
           "MinRange": 1,
           "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "accelerate",
+        "Name": "Accelerate",
+        "Description": "Refresh an adjacent ally so they can move and act again.",
+        "Category": "Spell",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "OncePerBattle": false,
+        "SelfImmune": true,
+        "MpCost": 3,
+        "EffectId": "refresh_action",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "mass_accelerate",
+        "Name": "Mass Accelerate",
+        "Description": "Ultimate: Refresh all adjacent allies so they can move and act again. Excludes the caster.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "OncePerBattle": false,
+        "SelfImmune": true,
+        "MpCost": 12,
+        "EffectId": "refresh_action",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 0,
+          "MaxRange": 0,
+          "Radius": 1,
+          "Might": 0,
+          "IsMagic": true,
+          "AffectsAllies": true,
+          "AffectsEnemies": false
+        }
+      },
+      {
+        "Id": "thunderbolt",
+        "Name": "Thunderbolt",
+        "Description": "Strike an enemy at range with magic damage and a high critical-hit rate.",
+        "Category": "Spell",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "OncePerBattle": false,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "Might": 15,
+          "Accuracy": 80,
+          "Crit": 30,
+          "MinRange": 2,
+          "MaxRange": 3,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "atrocity",
+        "Name": "Atrocity",
+        "Description": "Ultimate: A devastating lance strike that ignores Defense.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Melee",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "OncePerBattle": false,
+        "SelfImmune": false,
+        "MpCost": 6,
+        "EffectId": "ignore_def_mag",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": 15,
+          "Accuracy": 10,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
           "NumHits": 1,
           "PreventsCounterattack": false
         }
@@ -795,6 +944,36 @@
         "Description": "While Overcharged, reduce all combat damage taken by 5 and regenerate 20% of Max HP at turn start.",
         "Cost": 0,
         "EffectId": "fortress"
+      },
+      {
+        "Id": "untouchable",
+        "Name": "Untouchable",
+        "Description": "Avoid +25.",
+        "Cost": 0,
+        "SecondaryStatModifiers": {
+          "Evade": 25
+        }
+      },
+      {
+        "Id": "vantage",
+        "Name": "Vantage",
+        "Description": "When able to counterattack, counter before the enemy attacks. Replaces the normal counterattack.",
+        "Cost": 0,
+        "EffectId": "vantage"
+      },
+      {
+        "Id": "wrath",
+        "Name": "Wrath",
+        "Description": "While Overcharged, gain Crit +2% for every missing point of HP.",
+        "Cost": 0,
+        "EffectId": "wrath_missing_hp_crit"
+      },
+      {
+        "Id": "accelerated_movement",
+        "Name": "Accelerated Movement",
+        "Description": "While Overcharged, gain Movement +2 and move up to 2 additional tiles directly after taking an action.",
+        "Cost": 0,
+        "EffectId": "accelerated_movement"
       },
       {
         "Id": "deep_breath",

@@ -208,9 +208,27 @@ namespace Windy.Srpg.Game.Passives
                 }
 
                 modifiers += entry.Data.SecondaryStatModifiers;
+                if (entry.EffectInstance is IP_DynamicSecondaryStatModifier dynamicModifier)
+                {
+                    modifiers += dynamicModifier.GetSecondaryStatModifiers(owner);
+                }
             }
 
             return modifiers;
+        }
+
+        public float GetMovementPointModifier()
+        {
+            float modifier = 0f;
+            foreach (Passive entry in Entries)
+            {
+                if (entry?.EffectInstance is IP_MovementPointModifier movementModifier)
+                {
+                    modifier += movementModifier.GetMovementPointModifier(owner);
+                }
+            }
+
+            return modifier;
         }
 
         public void Clear()

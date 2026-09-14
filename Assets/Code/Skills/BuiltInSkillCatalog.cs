@@ -29,8 +29,32 @@ namespace Windy.Srpg.Game.Skills
             SkillEffectRegistry.Register("shove", () => new ShoveSkillEffect());
             SkillEffectRegistry.Register("cleanse", () => new CleanseSkillEffect());
             SkillEffectRegistry.Register("break_current_hp", () => new BreakCurrentHitPointsEffect());
+            SkillEffectRegistry.Register("refresh_action", () => new RefreshActionSkillEffect());
 
             isRegistered = true;
+        }
+
+        private sealed class RefreshActionSkillEffect : ISkillEffect
+        {
+            public bool CanUse(Unit user, SkillContext context)
+            {
+                Unit target = context?.PrimaryTargetUnit;
+                return user != null
+                    && target != null
+                    && target != user
+                    && target.PlayerNumber == user.PlayerNumber
+                    && target.IsAliveForBattle
+                    && target.IsFinishedForTurn
+                    && !target.IsActionBlocked;
+            }
+
+            public void Use(Unit user, SkillContext context)
+            {
+                if (CanUse(user, context))
+                {
+                    context.PrimaryTargetUnit.RefreshAction();
+                }
+            }
         }
 
         private sealed class CleanseSkillEffect : ISkillEffect

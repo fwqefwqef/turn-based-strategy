@@ -59,6 +59,7 @@ namespace Windy.Srpg.Game.Units
         public bool IsFinishedForTurn => currentTurnStateKind == UnitTurnStateKind.Finished;
         public bool IsActionBlocked => BuffList != null && BuffList.GetActiveEffects().Any(effect => effect is IP_ActionBlocker);
         public bool HasRemovableDebuffs => BuffList != null && BuffList.Entries.Any(entry => entry.Removable && entry.Category != BuffCategory.Buff);
+        public bool HasVantage => PassiveList != null && PassiveList.GetActiveEffects().Any(effect => effect is IP_Vantage);
         public bool IsAtDeathsDoor => BuffList != null && BuffList.HasBuff(DeathsDoorBuffId);
         public bool IsAliveForBattle => HitPoints > 0 || IsAtDeathsDoor;
         public bool CanStartActionThisTurn => !IsFinishedForTurn && !IsActionBlocked;
@@ -79,7 +80,11 @@ namespace Windy.Srpg.Game.Units
         }
         public float ComputedTotalMovementPoints
         {
-            get => BuffList != null ? BuffList.ApplyMovementPointCaps(customTotalMovementPoints) : customTotalMovementPoints;
+            get
+            {
+                float total = customTotalMovementPoints + (PassiveList?.GetMovementPointModifier() ?? 0f);
+                return BuffList != null ? BuffList.ApplyMovementPointCaps(total) : total;
+            }
             internal set => customTotalMovementPoints = value;
         }
 
@@ -654,9 +659,11 @@ namespace Windy.Srpg.Game.Units
 
         public Sprite GetPortraitSprite()
         {
-            if (preset != null && preset.FaceSprite != null)
+            if (preset != null)
             {
-                return preset.FaceSprite;
+                return preset.FaceSprite != null
+                    ? preset.FaceSprite
+                    : preset.UnitSprite;
             }
 
             return ResolveUnitSpriteRenderer()?.sprite;
@@ -1101,6 +1108,7 @@ namespace Windy.Srpg.Game.Units
         // CTRL+F: PENDING MOVE
         internal PendingMove? _pendingMove;
         internal int _previewMoveVersion;
+        internal bool pendingMoveBeganAfterPendingOvercharge;
 
         internal struct PendingMove
         {
@@ -1113,6 +1121,11 @@ namespace Windy.Srpg.Game.Units
         }
 
         public bool HasPendingMove => _pendingMove.HasValue;
+        public bool IsPendingMoveInPlace => _pendingMove.HasValue
+            && _pendingMove.Value.FromCell == _pendingMove.Value.ToCell;
+        public bool ShouldCancelPendingMoveBeforeOvercharge => _pendingMove.HasValue
+            && pendingMoveBeganAfterPendingOvercharge
+            && CurrentOverchargeState == OverchargeState.PendingActivation;
         public Cell PreviewCell
         {
             get

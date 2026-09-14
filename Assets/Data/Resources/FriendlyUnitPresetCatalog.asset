@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d376315ab24de69564ffb56853ac49, type: 3}
+  m_Name: FriendlyUnitPresetCatalog
+  m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.FriendlyUnitPresetCatalog
+  Presets:
+  - {fileID: 11400000, guid: 1d9072877b8740ccb7d8fc3a76413f88, type: 2}
+  - {fileID: 11400000, guid: 173e295c008fbc04a91506b9ebb48778, type: 2}
+  - {fileID: 11400000, guid: 6dbf3055e63e456cb7f45b47015c52b7, type: 2}
+  - {fileID: 11400000, guid: 11c3c2cca3a3469495317fe78c8927ab, type: 2}
+  - {fileID: 11400000, guid: 3da3188a491947e7887e2824acd58311, type: 2}
+  - {fileID: 11400000, guid: 5c67dd4501de46fc8cb315b8e06bbe22, type: 2}

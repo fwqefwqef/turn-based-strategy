@@ -330,6 +330,8 @@ namespace Windy.Srpg.Game.Grid.States
 
         public override void OnRightClick()
         {
+            var customMoveAbility = abilities.OfType<MoveAbility>().FirstOrDefault();
+            customMoveAbility?.OnMovementSelectionCanceled();
             _cellGrid.EnterWaitingState();
         }
 

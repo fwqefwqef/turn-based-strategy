@@ -349,6 +349,11 @@ namespace Windy.Srpg.Game.Abilities
 
         protected override void HandleUnitClicked(Unit unit, CellGrid cellGrid)
         {
+            if (UnitReference.IsPostActionMovementActive && unit != UnitReference)
+            {
+                return;
+            }
+
             if (cellGrid != null
                 && cellGrid.GetCurrentPlayerUnits().Contains(unit)
                 && unit != null
@@ -379,6 +384,11 @@ namespace Windy.Srpg.Game.Abilities
             EnterPendingMoveConfirmState(cellGrid);
             GameplayCameraController.SetFocusedWorldPosition(UnitReference.GetFootprintWorldCenter(UnitReference.PreviewCell, cellGrid));
             StartCoroutine(CompletePendingMovePreview(cellGrid, UnitReference.PreviewCell, waitForPreviewCamera: false));
+        }
+
+        public void OnMovementSelectionCanceled()
+        {
+            UnitReference?.CancelPendingOvercharge();
         }
 
         protected override void HandleCellClicked(Cell cell, CellGrid cellGrid)
@@ -701,7 +711,7 @@ namespace Windy.Srpg.Game.Abilities
             cellGrid?.EnterBlockedInputState();
         }
 
-        private void EndTurnAndCommitPendingMove(CellGrid cellGrid)
+        private void EndTurnAndCommitPendingMove(CellGrid cellGrid, bool allowPostActionMovement = false)
         {
             if (UnitReference.HasPendingMove)
             {
@@ -710,6 +720,10 @@ namespace Windy.Srpg.Game.Abilities
 
             UnitReference.OnUnitDeselected();
             UnitReference.EndTurnForUnit();
+            if (allowPostActionMovement && BeginPostActionMovement(cellGrid))
+            {
+                return;
+            }
             cellGrid?.EnterWaitingState();
         }
 
@@ -764,7 +778,24 @@ namespace Windy.Srpg.Game.Abilities
         private void CompletePendingActionResolution(CellGrid cellGrid)
         {
             resolvingPendingAttack = false;
+            if (BeginPostActionMovement(cellGrid))
+            {
+                return;
+            }
             cellGrid?.EnterPostCombatGridState();
+        }
+
+        private bool BeginPostActionMovement(CellGrid cellGrid)
+        {
+            if (cellGrid?.GameFinished == true || UnitReference == null || !UnitReference.TryBeginPostActionMovement())
+            {
+                return false;
+            }
+
+            cellGrid?.EnterSelectedState(UnitReference);
+            OnAbilitySelected(cellGrid);
+            Display(cellGrid);
+            return true;
         }
 
         private void ShowActionMenu(CellGrid cellGrid)
@@ -780,6 +811,10 @@ namespace Windy.Srpg.Game.Abilities
                 }
 
                 UnitReference.OnUnitDeselected();
+                if (UnitReference.IsPostActionMovementActive)
+                {
+                    UnitReference.FinishPostActionMovement();
+                }
                 cellGrid?.EnterWaitingState();
                 return;
             }
@@ -821,6 +856,37 @@ namespace Windy.Srpg.Game.Abilities
                     ? UnitReference.GetFootprintWorldCenter(actingCell, cellGrid)
                     : UnitReference.GetVisualFootprintWorldCenter();
 
+            if (UnitReference.IsPostActionMovementActive)
+            {
+                actionMenuUi.Show(
+                    worldPosition: actionMenuWorldPosition,
+                    showAttack: false,
+                    showHeal: false,
+                    showSkill: false,
+                    showItem: false,
+                    showTrade: false,
+                    showOvercharge: false,
+                    onAttack: null,
+                    onHeal: null,
+                    onSkill: null,
+                    onItem: null,
+                    onTrade: null,
+                    onOvercharge: null,
+                    onWait: () =>
+                    {
+                        if (UnitReference.HasPendingMove)
+                        {
+                            UnitReference.ConfirmPendingMove();
+                        }
+                        UnitReference.OnUnitDeselected();
+                        UnitReference.FinishPostActionMovement();
+                        cellGrid?.EnterWaitingState();
+                        actionMenuUi.Hide();
+                    },
+                    onCancel: () => CancelPendingMoveAndRestoreSelection(cellGrid));
+                return;
+            }
+
             actionMenuUi.Show(
                 worldPosition: actionMenuWorldPosition,
                 showAttack: canAttackFromPreview,
@@ -836,7 +902,19 @@ namespace Windy.Srpg.Game.Abilities
                 onTrade: () => BeginTradeTargeting(cellGrid),
                 onOvercharge: () =>
                 {
-                    UnitReference.TryActivateOvercharge();
+                    bool returnToMovementSelection = UnitReference.IsPendingMoveInPlace;
+                    if (!UnitReference.TryActivateOvercharge())
+                    {
+                        ShowActionMenu(cellGrid);
+                        return;
+                    }
+
+                    if (returnToMovementSelection)
+                    {
+                        CancelPendingMoveAndRestoreSelection(cellGrid, preservePendingOvercharge: true);
+                        return;
+                    }
+
                     ShowActionMenu(cellGrid);
                 },
                 onWait: () =>

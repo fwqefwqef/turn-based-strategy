@@ -286,7 +286,7 @@ namespace Windy.Srpg.Game.Abilities
                 },
                 () =>
                 {
-                    EndTurnAndCommitPendingMove(cellGrid);
+                    EndTurnAndCommitPendingMove(cellGrid, allowPostActionMovement: true);
                 });
         }
 
@@ -410,9 +410,10 @@ namespace Windy.Srpg.Game.Abilities
             ShowActionMenu(cellGrid);
         }
 
-        private void CancelPendingMoveAndRestoreSelection(CellGrid cellGrid)
+        private void CancelPendingMoveAndRestoreSelection(CellGrid cellGrid, bool preservePendingOvercharge = false)
         {
-            if (UnitReference.CancelPendingOvercharge())
+            bool cancelMovementFirst = preservePendingOvercharge || UnitReference.ShouldCancelPendingMoveBeforeOvercharge;
+            if (!cancelMovementFirst && UnitReference.CancelPendingOvercharge())
             {
                 ShowActionMenu(cellGrid);
                 return;
@@ -1921,7 +1922,10 @@ namespace Windy.Srpg.Game.Abilities
                 resolvingPendingAttack = false;
                 if (executed)
                 {
-                    cellGrid?.EnterPostCombatGridState();
+                    if (!BeginPostActionMovement(cellGrid))
+                    {
+                        cellGrid?.EnterPostCombatGridState();
+                    }
                 }
                 else if (cellGrid != null && !cellGrid.GameFinished)
                 {

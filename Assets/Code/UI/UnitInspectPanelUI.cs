@@ -1300,6 +1300,11 @@ namespace Windy.Srpg.Game.UI
                 lines.Add(combatLine);
             }
 
+            if (skillData.OncePerBattle)
+            {
+                lines.Add(GameTextCatalog.Get("ui.inspect.skill_once_per_battle", "Once per battle"));
+            }
+
             if (!string.IsNullOrWhiteSpace(skillData.Description))
             {
                 lines.Add(skillData.Description);

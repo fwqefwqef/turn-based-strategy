@@ -86,6 +86,8 @@ namespace Windy.Srpg.Game.Skills
 
         public bool EndsTurn = true;
         public bool OncePerTurn = true;
+        [Tooltip("Limits this skill to one committed use by the unit for the entire battle.")]
+        public bool OncePerBattle = false;
         public bool SelfImmune = false;
         public int MpCost = 3;
 

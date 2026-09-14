@@ -56,6 +56,7 @@ namespace Windy.Srpg.Game.Skills
         private readonly Dictionary<string, Skill> equipmentGrantedEntries = new Dictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
         private Skill overchargeGrantedEntry;
         private readonly HashSet<string> usedSkillIdsThisTurn = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> usedSkillIdsThisBattle = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly List<Skill> combinedEntries = new List<Skill>();
         private bool combinedEntriesDirty = true;
 
@@ -78,6 +79,7 @@ namespace Windy.Srpg.Game.Skills
         {
             entries.Clear();
             usedSkillIdsThisTurn.Clear();
+            usedSkillIdsThisBattle.Clear();
             MarkEntriesDirty();
 
             if (startingSkills == null)
@@ -160,6 +162,11 @@ namespace Windy.Srpg.Game.Skills
                 return false;
             }
 
+            if (data.OncePerBattle && usedSkillIdsThisBattle.Contains(entry.SkillId))
+            {
+                return false;
+            }
+
             return !data.HasOncePerTurnUsageLimit || !usedSkillIdsThisTurn.Contains(entry.SkillId);
         }
 
@@ -181,7 +188,18 @@ namespace Windy.Srpg.Game.Skills
                 entry.MarkUsedThisTurn();
             }
 
+            if (entry.Data.OncePerBattle)
+            {
+                usedSkillIdsThisBattle.Add(entry.SkillId);
+            }
+
             return true;
+        }
+
+        public void ResetBattleUsage()
+        {
+            usedSkillIdsThisBattle.Clear();
+            ResetTurnUsage();
         }
 
         public void ResetTurnUsage()
@@ -213,6 +231,7 @@ namespace Windy.Srpg.Game.Skills
             equipmentGrantedEntries.Clear();
             overchargeGrantedEntry = null;
             usedSkillIdsThisTurn.Clear();
+            usedSkillIdsThisBattle.Clear();
             MarkEntriesDirty();
         }
 

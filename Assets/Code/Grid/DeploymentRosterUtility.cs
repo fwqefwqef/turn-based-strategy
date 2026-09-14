@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Units;
 
@@ -85,7 +86,11 @@ namespace Windy.Srpg.Game.Grid
 
         public static Dictionary<string, UnitPreset> BuildVisualPresetsById(IEnumerable<UnitPreset> presets)
         {
-            return (presets ?? Enumerable.Empty<UnitPreset>())
+            FriendlyUnitPresetCatalog catalog = Resources.Load<FriendlyUnitPresetCatalog>("FriendlyUnitPresetCatalog");
+            IEnumerable<UnitPreset> discoveredFriendlyPresets = catalog?.Presets ?? Array.Empty<UnitPreset>();
+
+            return discoveredFriendlyPresets
+                .Concat(presets ?? Enumerable.Empty<UnitPreset>())
                 .Where(preset => preset != null && !string.IsNullOrWhiteSpace(preset.PresetId))
                 .GroupBy(preset => preset.PresetId, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);

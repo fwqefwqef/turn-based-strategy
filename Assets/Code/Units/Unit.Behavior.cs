@@ -55,8 +55,23 @@ namespace Windy.Srpg.Game.Units
         public virtual void ResetTurnState()
         {
             turnSkippedByDebuff = false;
+            postActionMovementActive = false;
             MovementPoints = ComputedTotalMovementPoints;
             SetTurnStateKind(UnitTurnStateKind.Normal);
+        }
+        public bool RefreshAction()
+        {
+            if (!IsAliveForBattle || IsActionBlocked)
+            {
+                return false;
+            }
+
+            turnSkippedByDebuff = false;
+            cachedPaths = null;
+            MovementPoints = ComputedTotalMovementPoints;
+            SetTurnStateKind(UnitTurnStateKind.Friendly);
+            BattleLog.Log("Action", $"{unitName}'s action is refreshed.");
+            return true;
         }
         internal void ResetAiWaitState()
         {
@@ -186,6 +201,9 @@ namespace Windy.Srpg.Game.Units
             resolvedSecondaryStatOffsets = default;
             ResetAiBehaviorDefaults();
 
+            // Retain the resolved visual preset so portrait UI, footprint data, and other
+            // visual metadata remain available after loading an owned unit from save data.
+            preset = visualPreset;
             ApplySavedIdentityAndBaseStats(saveData);
             ApplySavedGrowthRates(saveData);
             ApplyPresetSprite(visualPreset);
@@ -582,6 +600,10 @@ namespace Windy.Srpg.Game.Units
         {
             EnsureSkillList();
             return SkillList.MarkUsed(entry);
+        }
+        internal void ResetSkillUsageForBattle()
+        {
+            SkillList?.ResetBattleUsage();
         }
         internal void SetTerrainStatModifiers(PrimaryStatModifiers primary, SecondaryStatModifiers secondary)
         {
@@ -1578,7 +1600,18 @@ namespace Windy.Srpg.Game.Units
                 int initialOffense = attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength);
                 int initialAccuracy = Accuracy;
                 int initialCrit = Crit;
+                bool pursuitAttack = unitToAttack != null
+                    && attackProfile.CanPursuitAttack
+                    && Speed >= unitToAttack.Speed + PursuitAttackSpeedThreshold;
+                bool vantageCounterTriggered = unitToAttack != null
+                    && unitToAttack.HasVantage
+                    && unitToAttack.ShouldTriggerCounterAttack(this, attackProfile.PreventsCounterattack);
                 BattleLog.Log("Combat", $"{name} starts a {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
+
+                if (vantageCounterTriggered)
+                {
+                    yield return StartCoroutine(unitToAttack.CounterAttack(this, attackProfile.PreventsCounterattack, isVantage: true));
+                }
 
                 int initialHits = Mathf.Max(1, attackProfile.NumHits);
                 for (int i = 0; i < initialHits; i++)
@@ -1606,16 +1639,12 @@ namespace Windy.Srpg.Game.Units
                     }
                 }
 
-                if (unitToAttack != null && IsAliveForBattle && unitToAttack.IsAliveForBattle)
+                if (!vantageCounterTriggered && unitToAttack != null && IsAliveForBattle && unitToAttack.IsAliveForBattle)
                 {
                     yield return StartCoroutine(unitToAttack.CounterAttack(this, attackProfile.PreventsCounterattack));
                 }
 
                 ExperienceAwardResult counterExperienceAward = unitToAttack?.TakeQueuedDeferredExperienceAward();
-
-                bool pursuitAttack = unitToAttack != null
-                    && attackProfile.CanPursuitAttack
-                    && Speed >= unitToAttack.Speed + PursuitAttackSpeedThreshold;
 
                 if (pursuitAttack && !IsActionBlocked && IsAliveForBattle && unitToAttack != null && unitToAttack.IsAliveForBattle)
                 {
@@ -2062,7 +2091,7 @@ namespace Windy.Srpg.Game.Units
                 .Select(DescribeUnit)
                 .Distinct());
         }
-        private IEnumerator CounterAttack(Unit aggressor, bool counterPrevented = false)
+        private IEnumerator CounterAttack(Unit aggressor, bool counterPrevented = false, bool isVantage = false)
         {
             if (!ShouldTriggerCounterAttack(aggressor, counterPrevented))
             {
@@ -2088,7 +2117,8 @@ namespace Windy.Srpg.Game.Units
                     experienceTarget.CombatDestroyed += destroyedHandler;
                 }
 
-                BattleLog.Log("Combat", $"{name} counterattacks {aggressor.name} after attack resolution. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
+                string timing = isVantage ? "before the incoming attack" : "after attack resolution";
+                BattleLog.Log("Combat", $"{name} counterattacks {aggressor.name} {timing}. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
                 MarkAsAttacking(aggressor);
                 yield return StartCoroutine(PlayAttackLungeAnimation(aggressor));
                 var counterDamage = Attack;
@@ -2761,6 +2791,7 @@ namespace Windy.Srpg.Game.Units
                 MovementCost = SumPathMovementCost(path),
                 FromLocalPos = transform.localPosition
             };
+            pendingMoveBeganAfterPendingOvercharge = CurrentOverchargeState == OverchargeState.PendingActivation;
 
             FindSceneCellGrid()?.NotifyOccupancyChanged();
 
@@ -2808,6 +2839,7 @@ namespace Windy.Srpg.Game.Units
             FindSceneCellGrid()?.RequestBattleOutcomeEvaluation();
 
             _pendingMove = null;
+            pendingMoveBeganAfterPendingOvercharge = false;
             CommitPendingOvercharge();
             return true;
         }
@@ -2825,6 +2857,7 @@ namespace Windy.Srpg.Game.Units
             transform.localPosition = p.FromLocalPos;
 
             _pendingMove = null;
+            pendingMoveBeganAfterPendingOvercharge = false;
             PreviewMoveCameraFollowReleased?.Invoke();
             FindSceneCellGrid()?.NotifyOccupancyChanged();
             return true;
@@ -2848,6 +2881,10 @@ namespace Windy.Srpg.Game.Units
                 MovementCost = 0f,
                 FromLocalPos = transform.localPosition
             };
+            // An in-place pending move is only a shell used to reopen the action menu.
+            // It must not sit above Overcharge in the pending-action order, otherwise
+            // repeatedly pressing Cancel could never reach the pending Overcharge.
+            pendingMoveBeganAfterPendingOvercharge = false;
 
             FindSceneCellGrid()?.NotifyOccupancyChanged();
 

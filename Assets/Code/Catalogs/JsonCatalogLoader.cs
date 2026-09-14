@@ -306,6 +306,7 @@ namespace Windy.Srpg.Game.Catalogs
         public string RequiredWeaponType = nameof(CombatArtWeaponType.Any);
         public bool EndsTurn = true;
         public bool OncePerTurn = true;
+        public bool OncePerBattle;
         public bool SelfImmune;
         public int MpCost = 3;
         public string EffectId;
@@ -325,6 +326,7 @@ namespace Windy.Srpg.Game.Catalogs
                 RequiredWeaponType = CatalogResourceLoader.ParseEnum(RequiredWeaponType, CombatArtWeaponType.Any),
                 EndsTurn = EndsTurn,
                 OncePerTurn = OncePerTurn,
+                OncePerBattle = OncePerBattle,
                 SelfImmune = SelfImmune,
                 MpCost = MpCost,
                 EffectId = CatalogResourceLoader.NormalizeOptionalString(EffectId),

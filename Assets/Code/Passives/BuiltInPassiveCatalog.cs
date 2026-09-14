@@ -26,7 +26,34 @@ namespace Windy.Srpg.Game.Passives
             PassiveEffectRegistry.Register("exp_set_100", () => new SetExperienceGainEffect(100));
             PassiveEffectRegistry.Register("prevent_exp_to_attackers", () => new PreventExperienceToAttackersEffect());
             PassiveEffectRegistry.Register("fortress", () => new FortressEffect());
+            PassiveEffectRegistry.Register("vantage", () => new VantageEffect());
+            PassiveEffectRegistry.Register("wrath_missing_hp_crit", () => new WrathEffect());
+            PassiveEffectRegistry.Register("accelerated_movement", () => new AcceleratedMovementEffect());
             isRegistered = true;
+        }
+
+        private sealed class AcceleratedMovementEffect : PassiveEffectBase, IP_MovementPointModifier
+        {
+            public float GetMovementPointModifier(Unit unit) => 2f;
+        }
+
+        private sealed class VantageEffect : PassiveEffectBase, IP_Vantage
+        {
+        }
+
+        private sealed class WrathEffect : PassiveEffectBase, IP_DynamicSecondaryStatModifier
+        {
+            public SecondaryStatModifiers GetSecondaryStatModifiers(Unit unit)
+            {
+                if (unit == null)
+                {
+                    return default;
+                }
+
+                int currentHitPoints = Mathf.Min(unit.HitPoints, unit.MaxHitPoints);
+                int missingHitPoints = Mathf.Max(0, unit.MaxHitPoints - currentHitPoints);
+                return new SecondaryStatModifiers { Crit = missingHitPoints * 2 };
+            }
         }
 
         private sealed class FortressEffect : PassiveEffectBase, IP_TakeDamageChange, IP_PainDamageChange, IP_TurnStartHealthEffect
