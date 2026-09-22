@@ -9,11 +9,140 @@ namespace Windy.Srpg.Game.Units
         public int Accuracy;
         public int Crit;
         public int NumHits;
+        public int PursuitSpeed;
         public bool IsMagic;
         public bool CanPursuitAttack;
         public bool PreventsCounterattack;
         public bool EndsTurn;
         public bool UsesWeaponEffects;
+    }
+
+    public enum CombatStrikePhaseKind
+    {
+        InitialAttack,
+        InitialCounter,
+        PursuitAttack,
+        PursuitCounter
+    }
+
+    public readonly struct CombatStrikePhase
+    {
+        public CombatStrikePhaseKind Kind { get; }
+        public Unit Attacker { get; }
+        public Unit Defender { get; }
+        public int HitCount { get; }
+        public bool IsCounter => Kind == CombatStrikePhaseKind.InitialCounter
+            || Kind == CombatStrikePhaseKind.PursuitCounter;
+        public bool IsPursuit => Kind == CombatStrikePhaseKind.PursuitAttack
+            || Kind == CombatStrikePhaseKind.PursuitCounter;
+        public bool HasVantagePriority { get; }
+
+        public CombatStrikePhase(
+            CombatStrikePhaseKind kind,
+            Unit attacker,
+            Unit defender,
+            int hitCount,
+            bool hasVantagePriority = false)
+        {
+            Kind = kind;
+            Attacker = attacker;
+            Defender = defender;
+            HitCount = Math.Max(1, hitCount);
+            HasVantagePriority = hasVantagePriority;
+        }
+    }
+
+    public sealed class CombatSequencePlan
+    {
+        public System.Collections.Generic.IReadOnlyList<CombatStrikePhase> Phases { get; }
+
+        public CombatSequencePlan(System.Collections.Generic.IReadOnlyList<CombatStrikePhase> phases)
+        {
+            Phases = phases ?? Array.Empty<CombatStrikePhase>();
+        }
+
+        public int GetTotalHitCount(Unit attacker)
+        {
+            int total = 0;
+            foreach (CombatStrikePhase phase in Phases)
+            {
+                if (phase.Attacker == attacker)
+                {
+                    total += phase.HitCount;
+                }
+            }
+
+            return total;
+        }
+
+        public bool HasCounterPhase
+        {
+            get
+            {
+                foreach (CombatStrikePhase phase in Phases)
+                {
+                    if (phase.IsCounter) return true;
+                }
+
+                return false;
+            }
+        }
+    }
+
+    public static class CombatSequenceBuilder
+    {
+        public static CombatSequencePlan Build(
+            Unit attacker,
+            Unit defender,
+            ResolvedAttackProfile attackProfile,
+            bool? canCounterOverride = null,
+            bool? attackerPursuesOverride = null,
+            bool? defenderPursuesOverride = null)
+        {
+            var phases = new System.Collections.Generic.List<CombatStrikePhase>();
+            if (attacker == null || defender == null)
+            {
+                return new CombatSequencePlan(phases);
+            }
+
+            bool canCounter = canCounterOverride
+                ?? defender.CanCounterAttackAgainst(attacker, attackProfile.PreventsCounterattack);
+            bool vantage = canCounter && defender.HasVantage;
+            int pursuitSpeed = attackProfile.PursuitSpeed > 0
+                ? attackProfile.PursuitSpeed
+                : attacker.Speed;
+            bool attackerPursues = attackerPursuesOverride
+                ?? (attackProfile.CanPursuitAttack
+                    && pursuitSpeed >= defender.Speed + attacker.PursuitAttackSpeedThreshold);
+            bool defenderPursues = canCounter && (defenderPursuesOverride
+                ?? defender.CanPursuitAttackAgainst(attacker));
+
+            var initialAttack = new CombatStrikePhase(
+                CombatStrikePhaseKind.InitialAttack, attacker, defender, attackProfile.NumHits);
+            var initialCounter = new CombatStrikePhase(
+                CombatStrikePhaseKind.InitialCounter, defender, attacker, defender.NumHits, vantage);
+            var pursuitAttack = new CombatStrikePhase(
+                CombatStrikePhaseKind.PursuitAttack, attacker, defender, attackProfile.NumHits);
+            var pursuitCounter = new CombatStrikePhase(
+                CombatStrikePhaseKind.PursuitCounter, defender, attacker, defender.NumHits, vantage);
+
+            if (vantage)
+            {
+                phases.Add(initialCounter);
+                phases.Add(initialAttack);
+                if (defenderPursues) phases.Add(pursuitCounter);
+                if (attackerPursues) phases.Add(pursuitAttack);
+            }
+            else
+            {
+                phases.Add(initialAttack);
+                if (canCounter) phases.Add(initialCounter);
+                if (attackerPursues) phases.Add(pursuitAttack);
+                if (defenderPursues) phases.Add(pursuitCounter);
+            }
+
+            return new CombatSequencePlan(phases);
+        }
     }
 
     public enum DamageChangePhase
@@ -31,6 +160,7 @@ namespace Windy.Srpg.Game.Units
         public bool IsMagicAttack;
         public bool IsCrit;
         public bool IsCounterAttack;
+        public bool IsAreaSpell;
         public bool IsSimulated;
         public DamageChangePhase Phase;
     }
@@ -40,9 +170,28 @@ namespace Windy.Srpg.Game.Units
         void DamageChange(DamageChangeContext context);
     }
 
+    public interface IP_AttackHitEffect
+    {
+        void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack);
+    }
+
+    public interface IP_CancelCounterattackOnHit : IP_AttackHitEffect
+    {
+        bool HitLanded { get; }
+    }
+
+    public interface IP_AttackNeverMisses { }
+
     public interface IP_TakeDamageChange
     {
         void TakeDamageChange(DamageChangeContext context);
+    }
+
+    // Runs after every ordinary damage modifier, so survival effects cannot be
+    // bypassed by a later multiplier. Simulations must not consume limited uses.
+    public interface IP_AttackSurvivalGuard
+    {
+        int LimitAttackDamage(Unit defender, int damage, bool simulateOnly);
     }
 
     public interface IP_PainDamageChange

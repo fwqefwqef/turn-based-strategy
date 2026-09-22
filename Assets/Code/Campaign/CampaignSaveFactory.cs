@@ -12,7 +12,22 @@ namespace Windy.Srpg.Game.Campaign
 {
     public static class CampaignSaveFactory
     {
-        public const int CurrentSaveVersion = 6;
+        public const int CurrentSaveVersion = 12;
+        public const int StartingGold = 1000;
+
+        private static readonly string[] StartingUnitPresetIds =
+        {
+            "protagonist",
+            "thunder",
+            "flame",
+            "darkness"
+        };
+
+        public static CampaignSaveData CreateNewSave(IEnumerable<UnitPreset> availablePresets = null)
+        {
+            return EnsureStarterOwnedUnits(new CampaignSaveData(), availablePresets);
+        }
+
         public static CampaignSaveData CreateFromOwnedUnits(
             IEnumerable<Unit> ownedUnits,
             CampaignSaveData existingSave = null,
@@ -33,10 +48,17 @@ namespace Windy.Srpg.Game.Campaign
 
         public static CampaignSaveData EnsureStarterOwnedUnits(CampaignSaveData existingSave, IEnumerable<UnitPreset> starterPresets)
         {
-            UnitPreset[] presets = starterPresets?
+            FriendlyUnitPresetCatalog catalog = Resources.Load<FriendlyUnitPresetCatalog>("FriendlyUnitPresetCatalog");
+            Dictionary<string, UnitPreset> availablePresetsById = (starterPresets ?? Enumerable.Empty<UnitPreset>())
+                .Concat(catalog?.Presets ?? Array.Empty<UnitPreset>())
+                .Where(preset => preset != null && !string.IsNullOrWhiteSpace(preset.PresetId))
+                .GroupBy(preset => preset.PresetId.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
+
+            UnitPreset[] presets = StartingUnitPresetIds
+                .Select(presetId => availablePresetsById.TryGetValue(presetId, out UnitPreset preset) ? preset : null)
                 .Where(preset => preset != null)
-                .ToArray()
-                ?? Array.Empty<UnitPreset>();
+                .ToArray();
 
             HashSet<string> existingUnitIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (OwnedUnitSaveData existingUnit in existingSave?.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
@@ -59,7 +81,11 @@ namespace Windy.Srpg.Game.Campaign
                 return EnsureSaveInitialized(existingSave ?? new CampaignSaveData());
             }
 
-            return MergeOwnedUnits(existingSave, starterUnits, existingSave?.DeploymentRosterUnitIds);
+            bool isNewParty = (existingSave?.OwnedUnits?.Length ?? 0) == 0;
+            IEnumerable<string> deploymentRoster = isNewParty
+                ? starterUnits.Select(unit => unit.UnitId)
+                : existingSave?.DeploymentRosterUnitIds;
+            return MergeOwnedUnits(existingSave, starterUnits, deploymentRoster);
         }
 
         public static CampaignSaveData MergeOwnedUnits(
@@ -108,6 +134,8 @@ namespace Windy.Srpg.Game.Campaign
                 Gold = baseSave.Gold,
                 ClearedChapterIds = CampaignProgressUtility.NormalizeClearedChapterIds(baseSave.ClearedChapterIds),
                 StorageItems = CloneStorageEntries(baseSave.StorageItems),
+                ShopStockInitialized = baseSave.ShopStockInitialized,
+                ShopStockItems = ShopStockUtility.CloneAndMerge(baseSave.ShopStockItems),
                 DeploymentRosterUnitIds = NormalizeRoster(deploymentRosterUnitIds ?? baseSave.DeploymentRosterUnitIds),
                 OwnedUnits = savedUnits.ToArray()
             };
@@ -247,9 +275,179 @@ namespace Windy.Srpg.Game.Campaign
         {
             save ??= new CampaignSaveData();
             save.ClearedChapterIds = CampaignProgressUtility.NormalizeClearedChapterIds(save.ClearedChapterIds);
+            save.ShopStockItems = ShopStockUtility.CloneAndMerge(save.ShopStockItems);
             NormalizeClassPassives(save);
+            if (save.Version < 7)
+            {
+                AddNewCharacterSkills(save);
+            }
+            if (save.Version < 8)
+            {
+                ReplaceProtagonistDistortionWithSlow(save);
+            }
+            if (save.Version < 9)
+            {
+                MoveCharacterSkillsToWeapons(save);
+            }
+            if (save.Version < 10)
+            {
+                BackfillCandyStockForClearedChapters(save);
+            }
+            if (save.Version < 11)
+            {
+                RemoveLegacyStarterUnits(save);
+            }
+            if (save.Version < 12)
+            {
+                AddCharacterSkillsToLearnedLists(save);
+            }
             save.Version = Mathf.Max(CurrentSaveVersion, save.Version);
             return save;
+        }
+
+        private static void AddCharacterSkillsToLearnedLists(CampaignSaveData save)
+        {
+            foreach (OwnedUnitSaveData unit in save.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (unit == null)
+                {
+                    continue;
+                }
+
+                string identity = (!string.IsNullOrWhiteSpace(unit.VisualId) ? unit.VisualId : unit.UnitId)
+                    ?.Trim().ToLowerInvariant();
+                string skillId = identity switch
+                {
+                    "protagonist" => "slow",
+                    "thunder" => "storm_surge",
+                    "flame" => "clang",
+                    "darkness" => "anathema",
+                    "shopkeep" => "punish",
+                    "nurse" => "bash",
+                    _ => null
+                };
+                if (skillId == null)
+                {
+                    continue;
+                }
+
+                unit.SkillIds = (unit.SkillIds ?? Array.Empty<string>())
+                    .Append(skillId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            }
+        }
+
+        private static void RemoveLegacyStarterUnits(CampaignSaveData save)
+        {
+            HashSet<string> removedUnitIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "pip",
+                "bastion",
+                "nova",
+                "gooby"
+            };
+
+            save.OwnedUnits = (save.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+                .Where(unit => unit != null && !removedUnitIds.Contains(unit.UnitId?.Trim() ?? string.Empty))
+                .ToArray();
+            save.DeploymentRosterUnitIds = (save.DeploymentRosterUnitIds ?? Array.Empty<string>())
+                .Where(unitId => !removedUnitIds.Contains(unitId?.Trim() ?? string.Empty))
+                .ToArray();
+        }
+
+        private static void BackfillCandyStockForClearedChapters(CampaignSaveData save)
+        {
+            string[] candyItemIds =
+            {
+                "strength_candy",
+                "magic_candy",
+                "defense_candy",
+                "speed_candy",
+                "luck_candy",
+                "movement_candy"
+            };
+
+            int clearedRestockCount = 0;
+            if (CampaignProgressUtility.IsChapterCleared(save, 1f)) clearedRestockCount++;
+            if (CampaignProgressUtility.IsChapterCleared(save, 2f)) clearedRestockCount++;
+            if (clearedRestockCount == 0)
+            {
+                return;
+            }
+
+            ShopStockUtility.AddStock(save, candyItemIds.Select(itemId => new ShopStockEntryData
+            {
+                ItemId = itemId,
+                Quantity = clearedRestockCount
+            }));
+        }
+
+        private static void AddNewCharacterSkills(CampaignSaveData save)
+        {
+            foreach (OwnedUnitSaveData unit in save.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (unit == null) continue;
+                string identity = !string.IsNullOrWhiteSpace(unit.VisualId) ? unit.VisualId : unit.UnitId;
+                string skillId = identity?.Trim().ToLowerInvariant() switch
+                {
+                    "protagonist" => "slow",
+                    "thunder" => "storm_surge",
+                    "flame" => "clang",
+                    "darkness" => "anathema",
+                    _ => null
+                };
+                if (skillId == null || (unit.SkillIds ?? Array.Empty<string>())
+                    .Any(id => string.Equals(id, skillId, StringComparison.OrdinalIgnoreCase))) continue;
+
+                unit.SkillIds = (unit.SkillIds ?? Array.Empty<string>()).Append(skillId).ToArray();
+            }
+        }
+
+        private static void ReplaceProtagonistDistortionWithSlow(CampaignSaveData save)
+        {
+            foreach (OwnedUnitSaveData unit in save.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (unit == null) continue;
+                string identity = !string.IsNullOrWhiteSpace(unit.VisualId) ? unit.VisualId : unit.UnitId;
+                if (!string.Equals(identity?.Trim(), "protagonist", StringComparison.OrdinalIgnoreCase)) continue;
+
+                unit.SkillIds = (unit.SkillIds ?? Array.Empty<string>())
+                    .Where(id => !string.Equals(id, "distortion", StringComparison.OrdinalIgnoreCase))
+                    .Append("slow")
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            }
+        }
+
+        private static void MoveCharacterSkillsToWeapons(CampaignSaveData save)
+        {
+            foreach (OwnedUnitSaveData unit in save.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (unit == null) continue;
+                string identity = (!string.IsNullOrWhiteSpace(unit.VisualId) ? unit.VisualId : unit.UnitId)
+                    ?.Trim().ToLowerInvariant();
+                string weaponSkillId = identity switch
+                {
+                    "protagonist" => "slow",
+                    "thunder" => "storm_surge",
+                    "flame" => "clang",
+                    "darkness" => "anathema",
+                    _ => null
+                };
+                if (weaponSkillId != null)
+                {
+                    unit.SkillIds = (unit.SkillIds ?? Array.Empty<string>())
+                        .Where(id => !string.Equals(id, weaponSkillId, StringComparison.OrdinalIgnoreCase))
+                        .ToArray();
+                }
+
+                if (identity is "protagonist" or "thunder" or "flame" or "darkness"
+                    or "bastion" or "gooby" or "nova" or "pip")
+                {
+                    unit.WeaponProficiencyIds = new[] { "Melee", "Ranged", "Magic" };
+                }
+            }
         }
 
         private static void NormalizeClassPassives(CampaignSaveData save)

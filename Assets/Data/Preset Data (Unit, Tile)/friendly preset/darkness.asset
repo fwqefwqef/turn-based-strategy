@@ -10,12 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
-  m_Name: mage_1
+  m_Name: darkness
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
-  PresetId: mage
-  UnitName: Mage
-  UnitSprite: {fileID: 21300000, guid: e7a1b2c3d4e5f6789012345678a1b012, type: 3}
-  FaceSprite: {fileID: 0}
+  PresetId: darkness
+  UnitName: Darkness
+  IsBoss: 0
+  UnitSprite: {fileID: 21300000, guid: abd7245a2622e8d4e9b8efce47f9f982, type: 3}
+  FaceSprite: {fileID: 21300000, guid: 8820bfe62cb44dc4394430968dcab342, type: 3}
   SpriteLayout:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
@@ -23,30 +24,33 @@ MonoBehaviour:
   IsMultiTile: 0
   FootprintWidth: 1
   FootprintHeight: 1
-  ActionAiMode: 1
+  ActionAiMode: 0
   MovementAiMode: 0
   WaitGroupId: 0
   BaseLevel: 1
   WeaponProficiencies: -1
   BaseStats:
-    HitPoints: 100
-    ManaPoints: 20
+    HitPoints: 23
+    ManaPoints: 24
     MovementPoints: 5
-    Strength: 0
-    Defense: 0
-    Magic: 0
-    Speed: 0
-    Luck: 0
+    Strength: 2
+    Magic: 5
+    Defense: 3
+    Speed: 4
+    Luck: 3
   GrowthRates:
-    Strength: 20
-    Magic: 20
-    Defense: 20
+    Strength: 10
+    Magic: 35
+    Defense: 15
     Speed: 20
     Luck: 20
   StartingInventory:
-  - ItemId: iron_sword
+  - ItemId: dark_tome
     InitialCharges: -1
-    IsDroppable: 1
+    IsDroppable: 0
     ChargesInitialized: 1
-  StartingSkills: []
-  StartingClassPassives: []
+  StartingSkills:
+  - SkillId: dark_heal
+  - SkillId: anathema
+  StartingClassPassives:
+  - PassiveId: cursed_existence

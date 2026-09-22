@@ -13,6 +13,13 @@ namespace Windy.Srpg.Game.Units
     {
         public bool Enabled = true;
         public UnitStatBlock StatBonuses;
+        [Header("AI Behavior")]
+        public bool OverrideActionAiMode;
+        public UnitActionAiMode ActionAiMode = UnitActionAiMode.Attack;
+        public bool OverrideMovementAiMode;
+        public UnitMovementAiMode MovementAiMode = UnitMovementAiMode.Move;
+        public bool OverrideWaitGroupId;
+        [Min(0)] public int WaitGroupId;
         public List<StartingInventoryItem> AdditionalInventory = new List<StartingInventoryItem>();
         public List<StartingSkillEntry> AdditionalSkills = new List<StartingSkillEntry>();
         public List<StartingPassiveEntry> AdditionalPassives = new List<StartingPassiveEntry>();
@@ -29,6 +36,21 @@ namespace Windy.Srpg.Game.Units
             basis.Speed += StatBonuses.Speed;
             basis.Luck += StatBonuses.Luck;
             return basis;
+        }
+
+        public UnitActionAiMode ResolveActionAiMode(UnitActionAiMode inherited)
+        {
+            return Enabled && OverrideActionAiMode ? ActionAiMode : inherited;
+        }
+
+        public UnitMovementAiMode ResolveMovementAiMode(UnitMovementAiMode inherited)
+        {
+            return Enabled && OverrideMovementAiMode ? MovementAiMode : inherited;
+        }
+
+        public int ResolveWaitGroupId(int inherited)
+        {
+            return Mathf.Max(0, Enabled && OverrideWaitGroupId ? WaitGroupId : inherited);
         }
 
         public List<StartingInventoryItem> ResolveInventory(IEnumerable<StartingInventoryItem> inherited)
@@ -90,8 +112,8 @@ namespace Windy.Srpg.Game.Units
         public int ManaPoints;
         public int MovementPoints;
         public int Strength;
-        public int Defense;
         public int Magic;
+        public int Defense;
         public int Speed;
         public int Luck;
     }
@@ -144,6 +166,9 @@ namespace Windy.Srpg.Game.Units
         public UnitActionAiMode ActionAiMode = UnitActionAiMode.Attack;
         public UnitMovementAiMode MovementAiMode = UnitMovementAiMode.Move;
         public int WaitGroupId = 0;
+        [Header("Overcharge")]
+        [Tooltip("Allows this preset's character-specific Overcharge profile to be used. Disabled by default.")]
+        public bool EnableOvercharge;
         public int BaseLevel = 1;
         public WeaponProficiency WeaponProficiencies = WeaponProficiency.Melee | WeaponProficiency.Ranged | WeaponProficiency.Magic;
         public UnitStatBlock BaseStats;

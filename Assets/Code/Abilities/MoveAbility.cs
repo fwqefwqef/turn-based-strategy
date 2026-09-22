@@ -46,18 +46,12 @@ namespace Windy.Srpg.Game.Abilities
             public readonly string Name;
             public readonly int CurrentHitPoints;
             public readonly int ProjectedHitPoints;
-            public readonly int HitChance;
-            public readonly int CritChance;
-            public readonly bool ShowsCombatChances;
 
-            public AreaConfirmTargetPreviewData(string name, int currentHitPoints, int projectedHitPoints, int hitChance = 0, int critChance = 0, bool showsCombatChances = false)
+            public AreaConfirmTargetPreviewData(string name, int currentHitPoints, int projectedHitPoints)
             {
                 Name = string.IsNullOrWhiteSpace(name) ? GameTextCatalog.Get("ui.common.unit", "Unit") : name;
                 CurrentHitPoints = Mathf.Max(0, currentHitPoints);
                 ProjectedHitPoints = Mathf.Max(0, projectedHitPoints);
-                HitChance = Mathf.Clamp(hitChance, 0, 100);
-                CritChance = Mathf.Clamp(critChance, 0, 100);
-                ShowsCombatChances = showsCombatChances;
             }
         }
 
@@ -75,9 +69,51 @@ namespace Windy.Srpg.Game.Abilities
         private IList<Cell> currentPath;
         private readonly HashSet<Cell> currentDestinationFootprintPreviewCells = new HashSet<Cell>();
         public HashSet<Cell> availableDestinations;
-        private bool awaitingAttackTargetSelection;
-        private bool awaitingSkillTargetSelection;
-        private bool awaitingTradeTargetSelection;
+        private enum PendingUiMode
+        {
+            ActionMenu,
+            AttackTargeting,
+            SkillTargeting,
+            AreaSkillConfirmation,
+            Inventory,
+            TradeTargeting,
+            TradeMenu
+        }
+
+        private PendingUiMode pendingUiMode = PendingUiMode.ActionMenu;
+
+        // Transitional compatibility properties keep the current targeting code small
+        // while making the modes mutually exclusive. New code should set pendingUiMode
+        // directly instead of adding another independent boolean.
+        private bool awaitingAttackTargetSelection
+        {
+            get => pendingUiMode == PendingUiMode.AttackTargeting;
+            set
+            {
+                if (value) pendingUiMode = PendingUiMode.AttackTargeting;
+                else if (pendingUiMode == PendingUiMode.AttackTargeting) pendingUiMode = PendingUiMode.ActionMenu;
+            }
+        }
+        private bool awaitingSkillTargetSelection
+        {
+            get => pendingUiMode == PendingUiMode.SkillTargeting
+                || pendingUiMode == PendingUiMode.AreaSkillConfirmation;
+            set
+            {
+                if (value) pendingUiMode = PendingUiMode.SkillTargeting;
+                else if (pendingUiMode == PendingUiMode.SkillTargeting
+                    || pendingUiMode == PendingUiMode.AreaSkillConfirmation) pendingUiMode = PendingUiMode.ActionMenu;
+            }
+        }
+        private bool awaitingTradeTargetSelection
+        {
+            get => pendingUiMode == PendingUiMode.TradeTargeting;
+            set
+            {
+                if (value) pendingUiMode = PendingUiMode.TradeTargeting;
+                else if (pendingUiMode == PendingUiMode.TradeTargeting) pendingUiMode = PendingUiMode.ActionMenu;
+            }
+        }
         private readonly List<Unit> pendingAttackableEnemies = new List<Unit>();
         private readonly List<Cell> pendingAttackPreviewCells = new List<Cell>();
         private readonly List<Unit> pendingSkillTargets = new List<Unit>();
@@ -93,9 +129,19 @@ namespace Windy.Srpg.Game.Abilities
         private Unit selectedSkillPreviewTarget;
         private Cell selectedSkillPreviewTargetCell;
         private Skill selectedTargetingSkill;
+        public bool IsAreaSkillTargetSelectionActive => awaitingSkillTargetSelection
+            && !awaitingAreaSkillConfirmation && IsAreaSkill(selectedTargetingSkill);
         private Cell selectedAreaSkillCenterCell;
         private Item selectedSkillPreviewWeaponEntry;
-        private bool awaitingAreaSkillConfirmation;
+        private bool awaitingAreaSkillConfirmation
+        {
+            get => pendingUiMode == PendingUiMode.AreaSkillConfirmation;
+            set
+            {
+                if (value) pendingUiMode = PendingUiMode.AreaSkillConfirmation;
+                else if (pendingUiMode == PendingUiMode.AreaSkillConfirmation) pendingUiMode = PendingUiMode.ActionMenu;
+            }
+        }
         private int attackPreviewWeaponIndex = -1;
         private int skillPreviewIndex = -1;
         private bool resolvingPendingAttack;
@@ -196,8 +242,24 @@ namespace Windy.Srpg.Game.Abilities
         private ISkillMenuUI _skillMenuUi;
         private IAreaConfirmUI _areaConfirmUi;
         private ITradeMenuUI _tradeMenuUi;
-        private bool showingInventoryMenu;
-        private bool showingTradeMenu;
+        private bool showingInventoryMenu
+        {
+            get => pendingUiMode == PendingUiMode.Inventory;
+            set
+            {
+                if (value) pendingUiMode = PendingUiMode.Inventory;
+                else if (pendingUiMode == PendingUiMode.Inventory) pendingUiMode = PendingUiMode.ActionMenu;
+            }
+        }
+        private bool showingTradeMenu
+        {
+            get => pendingUiMode == PendingUiMode.TradeMenu;
+            set
+            {
+                if (value) pendingUiMode = PendingUiMode.TradeMenu;
+                else if (pendingUiMode == PendingUiMode.TradeMenu) pendingUiMode = PendingUiMode.ActionMenu;
+            }
+        }
 
         private static T FindSceneUi<T>(ref T cachedUi) where T : class
         {
@@ -388,7 +450,18 @@ namespace Windy.Srpg.Game.Abilities
 
         public void OnMovementSelectionCanceled()
         {
-            UnitReference?.CancelPendingOvercharge();
+            if (UnitReference == null)
+            {
+                return;
+            }
+
+            if (UnitReference.IsPostActionMovementActive)
+            {
+                UnitReference.FinishPostActionMovement();
+                return;
+            }
+
+            UnitReference.CancelPendingOvercharge();
         }
 
         protected override void HandleCellClicked(Cell cell, CellGrid cellGrid)
@@ -696,14 +769,9 @@ namespace Windy.Srpg.Game.Abilities
             cellGrid?.PreparePendingCombatPresentation();
         }
 
-        private void CommitPendingMoveAfterCombatPresentation(CellGrid cellGrid)
+        private bool CommitPendingAction(CellGrid cellGrid, CellGrid.PendingActionCommitReason reason)
         {
-            cellGrid?.TryCommitPendingMoveAfterCombatPresentation(UnitReference);
-        }
-
-        private void CommitPendingMoveFromPendingAction(CellGrid cellGrid, bool consumeAllRemainingMovement = false)
-        {
-            cellGrid?.TryCommitPendingMoveFromPendingAction(UnitReference, consumeAllRemainingMovement);
+            return cellGrid != null && cellGrid.CommitPendingAction(UnitReference, reason);
         }
 
         private void EnterPendingMenuBlockedInput(CellGrid cellGrid)
@@ -713,13 +781,14 @@ namespace Windy.Srpg.Game.Abilities
 
         private void EndTurnAndCommitPendingMove(CellGrid cellGrid, bool allowPostActionMovement = false)
         {
-            if (UnitReference.HasPendingMove)
+            CellGrid.PendingActionCommitReason reason = allowPostActionMovement
+                ? CellGrid.PendingActionCommitReason.ConsumableUsed
+                : CellGrid.PendingActionCommitReason.Wait;
+            if (!CommitPendingAction(cellGrid, reason))
             {
-                UnitReference.ConfirmPendingMove();
+                return;
             }
 
-            UnitReference.OnUnitDeselected();
-            UnitReference.EndTurnForUnit();
             if (allowPostActionMovement && BeginPostActionMovement(cellGrid))
             {
                 return;
@@ -767,7 +836,7 @@ namespace Windy.Srpg.Game.Abilities
                 UnitReference.OnUnitDeselected();
                 yield return new WaitUntil(() => UnitReference == null || !UnitReference.IsAttackSequenceRunning);
 
-                CommitPendingMoveAfterCombatPresentation(cellGrid);
+                CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.CombatPresentationCompleted);
             }
             finally
             {
@@ -792,9 +861,7 @@ namespace Windy.Srpg.Game.Abilities
                 return false;
             }
 
-            cellGrid?.EnterSelectedState(UnitReference);
-            OnAbilitySelected(cellGrid);
-            Display(cellGrid);
+            cellGrid?.EnterPostActionMovementState(UnitReference);
             return true;
         }
 
@@ -805,16 +872,10 @@ namespace Windy.Srpg.Game.Abilities
             var actionMenuUi = FindActionMenuUI();
             if (actionMenuUi == null)
             {
-                if (UnitReference.HasPendingMove)
-                {
-                    UnitReference.ConfirmPendingMove();
-                }
-
-                UnitReference.OnUnitDeselected();
-                if (UnitReference.IsPostActionMovementActive)
-                {
-                    UnitReference.FinishPostActionMovement();
-                }
+                CellGrid.PendingActionCommitReason reason = UnitReference.IsPostActionMovementActive
+                    ? CellGrid.PendingActionCommitReason.CantoCompleted
+                    : CellGrid.PendingActionCommitReason.Wait;
+                CommitPendingAction(cellGrid, reason);
                 cellGrid?.EnterWaitingState();
                 return;
             }
@@ -874,12 +935,10 @@ namespace Windy.Srpg.Game.Abilities
                     onOvercharge: null,
                     onWait: () =>
                     {
-                        if (UnitReference.HasPendingMove)
+                        if (!CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.CantoCompleted))
                         {
-                            UnitReference.ConfirmPendingMove();
+                            return;
                         }
-                        UnitReference.OnUnitDeselected();
-                        UnitReference.FinishPostActionMovement();
                         cellGrid?.EnterWaitingState();
                         actionMenuUi.Hide();
                     },
@@ -902,16 +961,9 @@ namespace Windy.Srpg.Game.Abilities
                 onTrade: () => BeginTradeTargeting(cellGrid),
                 onOvercharge: () =>
                 {
-                    bool returnToMovementSelection = UnitReference.IsPendingMoveInPlace;
                     if (!UnitReference.TryActivateOvercharge())
                     {
                         ShowActionMenu(cellGrid);
-                        return;
-                    }
-
-                    if (returnToMovementSelection)
-                    {
-                        CancelPendingMoveAndRestoreSelection(cellGrid, preservePendingOvercharge: true);
                         return;
                     }
 
@@ -945,55 +997,35 @@ namespace Windy.Srpg.Game.Abilities
                 return false;
             }
 
-            if (showingInventoryMenu)
+            switch (pendingUiMode)
             {
-                return true;
-            }
+                case PendingUiMode.Inventory:
+                case PendingUiMode.TradeMenu:
+                    // These modal UIs own their close/cancel controls.
+                    return true;
 
-            if (showingTradeMenu)
-            {
-                return true;
-            }
+                case PendingUiMode.AttackTargeting:
+                    if (IsAttackPreviewOpen()) CancelAttackPreview(cellGrid);
+                    else CancelAttackTargeting(cellGrid);
+                    return true;
 
-            if (awaitingAttackTargetSelection)
-            {
-                if (IsAttackPreviewOpen())
-                {
-                    CancelAttackPreview(cellGrid);
-                }
-                else
-                {
-                    CancelAttackTargeting(cellGrid);
-                }
+                case PendingUiMode.SkillTargeting:
+                    if (IsSkillPreviewOpen()) CancelSkillPreview(cellGrid);
+                    else CancelSkillTargeting(cellGrid);
+                    return true;
 
-                return true;
-            }
-
-            if (awaitingSkillTargetSelection)
-            {
-                if (IsSkillPreviewOpen())
-                {
-                    CancelSkillPreview(cellGrid);
-                }
-                else if (awaitingAreaSkillConfirmation)
-                {
+                case PendingUiMode.AreaSkillConfirmation:
                     CancelAreaSkillConfirmation(cellGrid);
-                }
-                else
-                {
-                    CancelSkillTargeting(cellGrid);
-                }
+                    return true;
 
-                return true;
+                case PendingUiMode.TradeTargeting:
+                    CancelTradeTargeting(cellGrid);
+                    return true;
+
+                case PendingUiMode.ActionMenu:
+                default:
+                    return false;
             }
-
-            if (awaitingTradeTargetSelection)
-            {
-                CancelTradeTargeting(cellGrid);
-                return true;
-            }
-
-            return false;
         }
 
     }

@@ -10,30 +10,34 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
-  m_Name: ranger
+  m_Name: rogue
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
-  PresetId: ranger
-  UnitName: Ranger
-  UnitSprite: {fileID: 21300000, guid: e7a1b2c3d4e5f6789012345678a1b011, type: 3}
+  PresetId: rogue
+  UnitName: Rogue
+  IsBoss: 0
+  UnitSprite: {fileID: 21300000, guid: e7a1b2c3d4e5f6789012345678a1b012, type: 3}
   FaceSprite: {fileID: 0}
   SpriteLayout:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
     OffsetY: 0
+  IsMultiTile: 0
+  FootprintWidth: 1
+  FootprintHeight: 1
   ActionAiMode: 0
-  MovementAiMode: 0
+  MovementAiMode: 1
   WaitGroupId: 0
-  BaseLevel: 1
+  BaseLevel: 3
   WeaponProficiencies: -1
   BaseStats:
-    HitPoints: 50
-    ManaPoints: 20
+    HitPoints: 25
+    ManaPoints: 12
     MovementPoints: 5
-    Strength: 5
-    Defense: 0
+    Strength: 0
     Magic: 0
-    Speed: 3
-    Luck: 5
+    Defense: 0
+    Speed: 5
+    Luck: 0
   GrowthRates:
     Strength: 20
     Magic: 20
@@ -41,12 +45,9 @@ MonoBehaviour:
     Speed: 20
     Luck: 20
   StartingInventory:
-  - ItemId: super_bow
+  - ItemId: iron_sword
     InitialCharges: -1
+    IsDroppable: 0
     ChargesInitialized: 1
-  - ItemId: potion
-    InitialCharges: -1
-    ChargesInitialized: 1
-  StartingSkills:
-  - SkillId: close_range_volley
+  StartingSkills: []
   StartingClassPassives: []

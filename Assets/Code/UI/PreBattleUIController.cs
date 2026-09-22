@@ -79,6 +79,8 @@ namespace Windy.Srpg.Game.UI
         [SerializeField] private RectTransform inventoryManagementActionPanel;
         [SerializeField] private TMP_Text inventoryManagementActionText;
         [SerializeField] private Button inventoryManagementConfirmActionButton;
+        [Tooltip("Optional authored Use Button under the inventory confirmation root.")]
+        [SerializeField] private Button inventoryManagementUseActionButton;
         [SerializeField] private Button inventoryManagementCancelActionButton;
 
         [Header("Passive Management UI")]
@@ -266,6 +268,13 @@ namespace Windy.Srpg.Game.UI
                 mainMenuButton = CreateSceneAuthoredMainMenuButton();
             }
 
+            if (inventoryManagementUseActionButton == null && inventoryManagementActionPanel != null)
+            {
+                inventoryManagementUseActionButton = inventoryManagementActionPanel
+                    .GetComponentsInChildren<Button>(includeInactive: true)
+                    .FirstOrDefault(button => string.Equals(button.name, "Use Button", StringComparison.OrdinalIgnoreCase));
+            }
+
             PrepareInventoryButtonTemplate(inventoryManagementUnitButtonTemplate);
             PrepareInventoryButtonTemplate(inventoryManagementOwnItemButtonTemplate);
             PrepareInventoryButtonTemplate(inventoryManagementOtherItemButtonTemplate);
@@ -301,6 +310,7 @@ namespace Windy.Srpg.Game.UI
             inventoryManagementConsumableFilterButton?.onClick.AddListener(SetInventoryFilterConsumable);
             inventoryManagementAllFilterButton?.onClick.AddListener(SetInventoryFilterAll);
             inventoryManagementConfirmActionButton?.onClick.AddListener(ConfirmPendingInventoryAction);
+            inventoryManagementUseActionButton?.onClick.AddListener(UsePendingInventoryItem);
             inventoryManagementCancelActionButton?.onClick.AddListener(ClearPendingInventoryAction);
         }
 
@@ -320,6 +330,7 @@ namespace Windy.Srpg.Game.UI
             inventoryManagementConsumableFilterButton?.onClick.RemoveListener(SetInventoryFilterConsumable);
             inventoryManagementAllFilterButton?.onClick.RemoveListener(SetInventoryFilterAll);
             inventoryManagementConfirmActionButton?.onClick.RemoveListener(ConfirmPendingInventoryAction);
+            inventoryManagementUseActionButton?.onClick.RemoveListener(UsePendingInventoryItem);
             inventoryManagementCancelActionButton?.onClick.RemoveListener(ClearPendingInventoryAction);
         }
 
@@ -810,7 +821,7 @@ namespace Windy.Srpg.Game.UI
                     otherItemsContainer,
                     itemLabel,
                     () => BeginTakeInventoryAction(selectedUnit?.UnitId, null, sourceIndex, sourceIsStorage: true, itemName),
-                    !targetInventoryFull,
+                    !targetInventoryFull || cellGrid.CanUsePreBattleInventoryItem(selectedUnit?.UnitId, null, sourceIndex, sourceIsStorage: true),
                     indexedEntry.Entry.IsDroppable ? DroppableItemTextColor : null);
                 button.name = $"PreBattleInventoryStorage:{sourceIndex}";
                 buttonIndex++;
@@ -840,7 +851,7 @@ namespace Windy.Srpg.Game.UI
                         otherItemsContainer,
                         itemLabel,
                         () => BeginTakeInventoryAction(selectedUnit?.UnitId, unit.UnitId, sourceIndex, sourceIsStorage: false, itemName),
-                        !targetInventoryFull,
+                        !targetInventoryFull || cellGrid.CanUsePreBattleInventoryItem(selectedUnit?.UnitId, unit.UnitId, sourceIndex, sourceIsStorage: false),
                         indexedEntry.Entry.IsDroppable ? DroppableItemTextColor : null);
                     button.name = $"PreBattleInventoryOther:{unit.UnitId}:{sourceIndex}";
                     buttonIndex++;
@@ -934,6 +945,7 @@ namespace Windy.Srpg.Game.UI
 
             pendingInventoryManagementAction = new PendingInventoryManagementAction
             {
+                TargetUnitId = sourceUnitId,
                 SourceUnitId = sourceUnitId,
                 SourceItemIndex = sourceItemIndex,
                 GiveToStorage = true,
@@ -964,6 +976,26 @@ namespace Windy.Srpg.Game.UI
             }
         }
 
+        private void UsePendingInventoryItem()
+        {
+            if (pendingInventoryManagementAction == null || cellGrid == null)
+            {
+                return;
+            }
+
+            bool changed = cellGrid.UsePreBattleInventoryItem(
+                pendingInventoryManagementAction.TargetUnitId,
+                pendingInventoryManagementAction.SourceUnitId,
+                pendingInventoryManagementAction.SourceItemIndex,
+                pendingInventoryManagementAction.SourceIsStorage);
+
+            ClearPendingInventoryAction();
+            if (changed)
+            {
+                RefreshAll();
+            }
+        }
+
         private void ClearPendingInventoryAction()
         {
             pendingInventoryManagementAction = null;
@@ -979,6 +1011,16 @@ namespace Windy.Srpg.Game.UI
 
             bool hasAction = pendingInventoryManagementAction != null;
             inventoryManagementActionPanel.gameObject.SetActive(hasAction);
+            bool canUse = hasAction && cellGrid != null && cellGrid.CanUsePreBattleInventoryItem(
+                pendingInventoryManagementAction.TargetUnitId,
+                pendingInventoryManagementAction.SourceUnitId,
+                pendingInventoryManagementAction.SourceItemIndex,
+                pendingInventoryManagementAction.SourceIsStorage);
+            if (inventoryManagementUseActionButton != null)
+            {
+                inventoryManagementUseActionButton.gameObject.SetActive(canUse);
+                inventoryManagementUseActionButton.interactable = canUse;
+            }
             if (!hasAction)
             {
                 return;
@@ -992,6 +1034,14 @@ namespace Windy.Srpg.Game.UI
             }
 
             TMP_Text confirmText = inventoryManagementConfirmActionButton?.GetComponentInChildren<TMP_Text>();
+            if (inventoryManagementConfirmActionButton != null)
+            {
+                OwnedUnitSaveData targetUnit = pendingInventoryManagementAction.GiveToStorage
+                    ? null
+                    : FindOwnedUnit(cellGrid?.GetOwnedUnitsForPreBattle(), pendingInventoryManagementAction.TargetUnitId);
+                inventoryManagementConfirmActionButton.interactable = pendingInventoryManagementAction.GiveToStorage
+                    || CountInventoryEntries(targetUnit?.Inventory) < UnitInventory.MaxSlots;
+            }
             if (confirmText != null)
             {
                 confirmText.text = pendingInventoryManagementAction.GiveToStorage

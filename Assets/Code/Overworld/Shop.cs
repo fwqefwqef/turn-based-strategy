@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -17,13 +18,13 @@ namespace Windy.Srpg.Game.Overworld
 
     public class Shop : MonoBehaviour
     {
-        private const int StartingGold = 5000;
-
         [Header("Navigation")]
         public GameObject ShopPanel;
         public GameObject MainMenuPanel;
         public Button ShopButton;
         public Button MainMenuButton;
+        public Button BuyModeButton;
+        public Button SellModeButton;
 
         [Header("Catalog")]
         public RectTransform CatalogContent;
@@ -57,9 +58,13 @@ namespace Windy.Srpg.Game.Overworld
         }
 
         private CampaignSaveData workingSave;
-        private ShopCatalogEntry selectedCatalogEntry;
+        private ShopStockEntryData selectedCatalogEntry;
         private ShopState state = ShopState.Catalog;
         private bool hasUnsavedChanges;
+        private bool selling;
+        private SavedInventoryEntryData selectedSaleItem;
+        private OwnedUnitSaveData selectedSaleOwner;
+        private int selectedSaleIndex = -1;
 
         private void Awake()
         {
@@ -69,7 +74,9 @@ namespace Windy.Srpg.Game.Overworld
             ShopButton?.onClick.AddListener(OpenShop);
             MainMenuButton?.onClick.AddListener(OpenMainMenu);
             SaveButton?.onClick.AddListener(ApplyChanges);
-            BuyButton?.onClick.AddListener(BuySelectedItemToStorage);
+            BuyButton?.onClick.AddListener(ConfirmTransaction);
+            BuyModeButton?.onClick.AddListener(ShowBuyCatalog);
+            SellModeButton?.onClick.AddListener(ShowSellCatalog);
             CancelButton?.onClick.AddListener(CancelPurchase);
 
             if (CatalogButtonTemplate != null)
@@ -86,7 +93,9 @@ namespace Windy.Srpg.Game.Overworld
             ShopButton?.onClick.RemoveListener(OpenShop);
             MainMenuButton?.onClick.RemoveListener(OpenMainMenu);
             SaveButton?.onClick.RemoveListener(ApplyChanges);
-            BuyButton?.onClick.RemoveListener(BuySelectedItemToStorage);
+            BuyButton?.onClick.RemoveListener(ConfirmTransaction);
+            BuyModeButton?.onClick.RemoveListener(ShowBuyCatalog);
+            SellModeButton?.onClick.RemoveListener(ShowSellCatalog);
             CancelButton?.onClick.RemoveListener(CancelPurchase);
         }
 
@@ -95,18 +104,25 @@ namespace Windy.Srpg.Game.Overworld
             workingSave = CampaignSaveManager.Load(CampaignSaveSlot.Campaign);
             if (workingSave == null)
             {
-                workingSave = new CampaignSaveData();
-            }
-
-            if (workingSave.Gold <= 0)
-            {
-                workingSave.Gold = StartingGold;
+                workingSave = CampaignSaveFactory.CreateNewSave();
                 hasUnsavedChanges = true;
             }
+
+            if (!workingSave.ShopStockInitialized)
+            {
+                ShopStockUtility.AddStock(workingSave, (builtInCatalog ?? Array.Empty<ShopCatalogEntry>())
+                    .Where(entry => entry != null)
+                    .Select(entry => new ShopStockEntryData { ItemId = entry.itemId, Quantity = entry.quantity }));
+                workingSave.ShopStockInitialized = true;
+                hasUnsavedChanges = true;
+            }
+
+            workingSave.ShopStockItems = ShopStockUtility.CloneAndMerge(workingSave.ShopStockItems);
         }
 
         public void ReloadCampaignSave()
         {
+            ClearSaleSelection();
             selectedCatalogEntry = null;
             state = ShopState.Catalog;
             hasUnsavedChanges = false;
@@ -131,6 +147,9 @@ namespace Windy.Srpg.Game.Overworld
 
         private void RefreshShopView()
         {
+            SetButtonText(BuyButton, selling ? "Sell" : "Buy");
+            if (BuyModeButton != null) BuyModeButton.interactable = selling;
+            if (SellModeButton != null) SellModeButton.interactable = !selling;
             RefreshGoldText();
             RefreshStatusText();
             RebuildCatalogButtons();
@@ -153,9 +172,20 @@ namespace Windy.Srpg.Game.Overworld
                 }
 
                 Destroy(child.gameObject);
+                child.gameObject.SetActive(false);
             }
 
-            foreach (ShopCatalogEntry entry in builtInCatalog ?? Array.Empty<ShopCatalogEntry>())
+            if (selling)
+            {
+                AddSaleButtons(workingSave?.StorageItems, null);
+                foreach (OwnedUnitSaveData owner in workingSave?.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+                {
+                    if (owner != null) AddSaleButtons(owner.Inventory, owner);
+                }
+                return;
+            }
+
+            foreach (ShopStockEntryData entry in workingSave?.ShopStockItems ?? Array.Empty<ShopStockEntryData>())
             {
                 ItemData item = ResolveItem(entry);
                 if (item == null)
@@ -165,16 +195,16 @@ namespace Windy.Srpg.Game.Overworld
 
                 Button button = Instantiate(CatalogButtonTemplate, CatalogContent);
                 button.gameObject.SetActive(true);
-                button.interactable = entry.quantity != 0;
+                button.interactable = entry.Quantity != 0;
 
                 SetButtonText(button, BuildCatalogButtonText(entry, item));
 
-                ShopCatalogEntry capturedEntry = entry;
+                ShopStockEntryData capturedEntry = entry;
                 button.onClick.AddListener(() => SelectCatalogEntry(capturedEntry));
             }
         }
 
-        private void SelectCatalogEntry(ShopCatalogEntry entry)
+        private void SelectCatalogEntry(ShopStockEntryData entry)
         {
             selectedCatalogEntry = entry;
             state = ShopState.ConfirmPurchase;
@@ -184,6 +214,11 @@ namespace Windy.Srpg.Game.Overworld
 
         private void RefreshPurchasePanel()
         {
+            if (selling)
+            {
+                RefreshSalePanel();
+                return;
+            }
             bool hasSelection = selectedCatalogEntry != null;
             SetPurchasePanelVisible(hasSelection && state == ShopState.ConfirmPurchase);
             if (!hasSelection)
@@ -209,7 +244,7 @@ namespace Windy.Srpg.Game.Overworld
             SafeSetText(ItemNameText, item.Name);
             SafeSetText(ItemDescriptionText, item.Description);
             SafeSetText(ItemValueText, $"Value: {item.Value}G");
-            SafeSetText(ItemQuantityText, $"Stock: {FormatQuantity(selectedCatalogEntry.quantity)}");
+            SafeSetText(ItemQuantityText, $"Stock: {FormatQuantity(selectedCatalogEntry.Quantity)}");
 
             if (BuyButton != null)
             {
@@ -238,9 +273,9 @@ namespace Windy.Srpg.Game.Overworld
             workingSave.StorageItems = storageItems.ToArray();
             workingSave.Gold -= item.Value;
 
-            if (selectedCatalogEntry.quantity > 0)
+            if (selectedCatalogEntry.Quantity > 0)
             {
-                selectedCatalogEntry.quantity--;
+                selectedCatalogEntry.Quantity--;
             }
 
             hasUnsavedChanges = true;
@@ -252,10 +287,104 @@ namespace Windy.Srpg.Game.Overworld
 
         private void CancelPurchase()
         {
+            ClearSaleSelection();
             selectedCatalogEntry = null;
             state = ShopState.Catalog;
             SetPurchasePanelVisible(false);
             RefreshShopView();
+        }
+
+        private void ShowBuyCatalog()
+        {
+            selling = false;
+            CancelPurchase();
+        }
+
+        private void ShowSellCatalog()
+        {
+            selling = true;
+            CancelPurchase();
+        }
+
+        private void ConfirmTransaction()
+        {
+            if (selling) SellSelectedItem();
+            else BuySelectedItemToStorage();
+        }
+
+        private static int SellValue(ItemData item) => Math.Max(0, item.Value / 2);
+
+        private void AddSaleButtons(SavedInventoryEntryData[] inventory, OwnedUnitSaveData owner)
+        {
+            if (inventory == null) return;
+            for (int i = 0; i < inventory.Length; i++)
+            {
+                SavedInventoryEntryData entry = inventory[i];
+                if (entry == null || string.IsNullOrWhiteSpace(entry.ItemId)) continue;
+                ItemData item = ItemRegistry.Get(entry.ItemId);
+                if (item == null) continue;
+
+                Button button = Instantiate(CatalogButtonTemplate, CatalogContent);
+                button.gameObject.SetActive(true);
+                button.interactable = true;
+                string ownerName = owner == null ? "Storage" : owner.UnitName;
+                SetButtonText(button, $"{item.Name} x1 ({SellValue(item)}G) -- {ownerName}");
+                int index = i;
+                button.onClick.AddListener(() =>
+                {
+                    selectedSaleItem = entry;
+                    selectedSaleOwner = owner;
+                    selectedSaleIndex = index;
+                    state = ShopState.ConfirmPurchase;
+                    RefreshSalePanel();
+                });
+            }
+        }
+
+        private void RefreshSalePanel()
+        {
+            bool hasSelection = selectedSaleItem != null && state == ShopState.ConfirmPurchase;
+            SetPurchasePanelVisible(hasSelection);
+            if (!hasSelection) return;
+            ItemData item = ItemRegistry.Get(selectedSaleItem.ItemId);
+            SafeSetText(ItemNameText, item?.Name ?? "Unknown Item");
+            SafeSetText(ItemDescriptionText, item?.Description ?? string.Empty);
+            SafeSetText(ItemValueText, item == null ? string.Empty : $"Sell: {SellValue(item)}G");
+            string ownerName = selectedSaleOwner == null ? "Storage" : selectedSaleOwner.UnitName;
+            string charges = item is ConsumableData
+                ? $" | Charges: {selectedSaleItem.RemainingCharges}" : string.Empty;
+            SafeSetText(ItemQuantityText, $"From: {ownerName}{charges}");
+            if (BuyButton != null) BuyButton.interactable = item != null;
+        }
+
+        private void SellSelectedItem()
+        {
+            if (workingSave == null || selectedSaleItem == null) return;
+            SavedInventoryEntryData[] inventory = selectedSaleOwner == null
+                ? workingSave.StorageItems : selectedSaleOwner.Inventory;
+            // Validate the exact copy: duplicate items and different remaining charges are distinct.
+            if (inventory == null || selectedSaleIndex < 0 || selectedSaleIndex >= inventory.Length
+                || !ReferenceEquals(inventory[selectedSaleIndex], selectedSaleItem))
+            {
+                CancelPurchase();
+                return;
+            }
+            ItemData item = ItemRegistry.Get(selectedSaleItem.ItemId);
+            if (item == null || workingSave.Gold > int.MaxValue - SellValue(item)) return;
+            var remaining = inventory.ToList();
+            remaining.RemoveAt(selectedSaleIndex);
+            if (selectedSaleOwner == null) workingSave.StorageItems = remaining.ToArray();
+            else selectedSaleOwner.Inventory = remaining.ToArray();
+            workingSave.Gold += SellValue(item);
+            hasUnsavedChanges = true;
+            CancelPurchase();
+        }
+
+        private void ClearSaleSelection()
+        {
+            selectedSaleItem = null;
+            selectedSaleOwner = null;
+            selectedSaleIndex = -1;
         }
 
         private void ApplyChanges()
@@ -265,11 +394,11 @@ namespace Windy.Srpg.Game.Overworld
             RefreshStatusText();
         }
 
-        private bool CanBuy(ShopCatalogEntry entry, ItemData item)
+        private bool CanBuy(ShopStockEntryData entry, ItemData item)
         {
             return entry != null
                 && item != null
-                && entry.quantity != 0
+                && entry.Quantity != 0
                 && workingSave != null
                 && workingSave.Gold >= item.Value;
         }
@@ -285,16 +414,16 @@ namespace Windy.Srpg.Game.Overworld
             };
         }
 
-        private static ItemData ResolveItem(ShopCatalogEntry entry)
+        private static ItemData ResolveItem(ShopStockEntryData entry)
         {
-            return entry == null || string.IsNullOrWhiteSpace(entry.itemId)
+            return entry == null || string.IsNullOrWhiteSpace(entry.ItemId)
                 ? null
-                : ItemRegistry.Get(entry.itemId);
+                : ItemRegistry.Get(entry.ItemId);
         }
 
-        private static string BuildCatalogButtonText(ShopCatalogEntry entry, ItemData item)
+        private static string BuildCatalogButtonText(ShopStockEntryData entry, ItemData item)
         {
-            return $"{item.Name} {FormatButtonQuantity(entry.quantity)} ({item.Value}G)";
+            return $"{item.Name} {FormatButtonQuantity(entry.Quantity)} ({item.Value}G)";
         }
 
         private static string FormatQuantity(int quantity)

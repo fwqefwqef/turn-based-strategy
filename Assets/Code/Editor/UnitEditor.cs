@@ -63,7 +63,7 @@ namespace Windy.Srpg.Game.Editor
                 {
                     EditorGUILayout.Space();
                     EditorGUILayout.LabelField("Preset Overrides", EditorStyles.boldLabel);
-                    EditorGUILayout.HelpBox("Adds to this unit's inherited preset without changing the asset. Zero keeps a stat unchanged. Inventory appends; skills and passives are unique.", MessageType.Info);
+                    EditorGUILayout.HelpBox("Customizes this unit without changing the inherited preset asset. Stats are additive; AI settings can be replaced individually; inventory appends; skills and passives are unique.", MessageType.Info);
                     var overrides = serializedObject.FindProperty("presetOverrides");
                     var enabled = overrides.FindPropertyRelative("Enabled");
                     EditorGUILayout.PropertyField(enabled, new GUIContent("Enable Overrides"));
@@ -71,6 +71,7 @@ namespace Windy.Srpg.Game.Editor
                     {
                         var stats = overrides.FindPropertyRelative("StatBonuses");
                         EditorGUILayout.PropertyField(stats, new GUIContent("Stat Bonuses"), true);
+                        DrawAiOverrides(overrides);
                         if (targets.Length == 1)
                         {
                             DrawCatalogList(overrides.FindPropertyRelative("AdditionalInventory"), "Extra Inventory", "ItemId", "items");
@@ -79,7 +80,7 @@ namespace Windy.Srpg.Game.Editor
                         }
                         else
                         {
-                            EditorGUILayout.HelpBox("Stat bonuses support multi-editing. Select one unit to edit its extra loadout lists or see resolved values. Units without a preset ignore overrides.", MessageType.Info);
+                            EditorGUILayout.HelpBox("Stat and AI overrides support multi-editing. Select one unit to edit its extra loadout lists or see resolved values. Units without a preset ignore overrides.", MessageType.Info);
                         }
                     }
                 }
@@ -104,6 +105,43 @@ namespace Windy.Srpg.Game.Editor
                         EditorGUILayout.TextField("Visual ID", unit.VisualId);
                     }
                 }
+            }
+        }
+
+        private static void DrawAiOverrides(SerializedProperty overrides)
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("AI Behavior", EditorStyles.boldLabel);
+            DrawOptionalOverride(
+                overrides.FindPropertyRelative("OverrideActionAiMode"),
+                overrides.FindPropertyRelative("ActionAiMode"),
+                "Attack Behavior");
+            DrawOptionalOverride(
+                overrides.FindPropertyRelative("OverrideMovementAiMode"),
+                overrides.FindPropertyRelative("MovementAiMode"),
+                "Movement Behavior");
+            DrawOptionalOverride(
+                overrides.FindPropertyRelative("OverrideWaitGroupId"),
+                overrides.FindPropertyRelative("WaitGroupId"),
+                "Wait Group");
+        }
+
+        private static void DrawOptionalOverride(
+            SerializedProperty enabledProperty,
+            SerializedProperty valueProperty,
+            string label)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PropertyField(enabledProperty, GUIContent.none, GUILayout.Width(18f));
+            using (new EditorGUI.DisabledScope(!enabledProperty.boolValue && !enabledProperty.hasMultipleDifferentValues))
+            {
+                EditorGUILayout.PropertyField(valueProperty, new GUIContent(label));
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (valueProperty.propertyType == SerializedPropertyType.Integer)
+            {
+                valueProperty.intValue = Mathf.Max(0, valueProperty.intValue);
             }
         }
 
@@ -194,9 +232,14 @@ namespace Windy.Srpg.Game.Editor
             var preset = unit.AssignedPreset;
             var overrides = unit.PresetOverrides;
             var stats = overrides.ResolveStats(preset.BaseStats);
+            UnitActionAiMode actionAiMode = overrides.ResolveActionAiMode(preset.ActionAiMode);
+            UnitMovementAiMode movementAiMode = overrides.ResolveMovementAiMode(preset.MovementAiMode);
+            int waitGroupId = overrides.ResolveWaitGroupId(preset.WaitGroupId);
             EditorGUILayout.LabelField("Base stats before equipment/passive effects", EditorStyles.miniLabel);
-            EditorGUILayout.LabelField("HP / MP / Move", $"{Mathf.Max(1, stats.HitPoints)} / {Mathf.Max(0, stats.ManaPoints)} / {(preset.MovementAiMode == UnitMovementAiMode.NotMove ? 0 : Mathf.Max(0, stats.MovementPoints))}");
+            EditorGUILayout.LabelField("HP / MP / Move", $"{Mathf.Max(1, stats.HitPoints)} / {Mathf.Max(0, stats.ManaPoints)} / {(movementAiMode == UnitMovementAiMode.NotMove ? 0 : Mathf.Max(0, stats.MovementPoints))}");
             EditorGUILayout.LabelField("Str / Mag / Def / Spd / Lck", $"{stats.Strength} / {stats.Magic} / {stats.Defense} / {stats.Speed} / {stats.Luck}");
+            EditorGUILayout.LabelField("AI Attack / Movement", $"{actionAiMode} / {movementAiMode}");
+            EditorGUILayout.LabelField("Wait Group", waitGroupId.ToString());
             var inventory = overrides.ResolveInventory(preset.StartingInventory);
             EditorGUILayout.LabelField("Inventory", string.Join(", ", inventory.Select(i => i.ItemId)), EditorStyles.wordWrappedLabel);
             EditorGUILayout.LabelField("Skills", string.Join(", ", overrides.ResolveSkills(preset.StartingSkills).Select(i => i.SkillId)), EditorStyles.wordWrappedLabel);
@@ -209,8 +252,8 @@ namespace Windy.Srpg.Game.Editor
                     && (preset.WeaponProficiencies & WeaponProficiencyUtility.ForWeapon(weapon)) == 0)
                     EditorGUILayout.HelpBox($"{weapon.Name} can be carried but cannot be equipped with this preset's weapon proficiencies.", MessageType.Warning);
             }
-            if (preset.MovementAiMode == UnitMovementAiMode.NotMove && overrides.Enabled && overrides.StatBonuses.MovementPoints != 0)
-                EditorGUILayout.HelpBox("The preset's NotMove AI setting keeps movement at zero, including movement bonuses.", MessageType.Info);
+            if (movementAiMode == UnitMovementAiMode.NotMove && overrides.Enabled && overrides.StatBonuses.MovementPoints != 0)
+                EditorGUILayout.HelpBox("The resolved NotMove AI setting keeps movement at zero, including movement bonuses.", MessageType.Info);
             EditorGUILayout.HelpBox("Applies to units initialized from a preset. Units loaded from the campaign save retain their saved stats and loadouts.", MessageType.None);
         }
 

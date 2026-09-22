@@ -3,7 +3,7 @@
 ## Design Rules
 
 - Overcharge is available from the Action Menu.
-- Activating Overcharge does not consume the unit's action and does not commit or lock in pending movement.
+- Activating Overcharge does not consume the unit's action, but it locks the current pending movement choice beneath the pending activation.
 - Overcharge activation remains pending until the unit commits an action or pending movement.
 - Canceling from the Action Menu removes a pending Overcharge activation before normal movement cancellation occurs.
 - An eligible unit may activate Overcharge only once per battle.
@@ -21,7 +21,7 @@ Selecting **Overcharge** creates a pending activation and:
 2. Sets the duration to three turns.
 3. Temporarily inserts the character's ultimate into the available skill list.
 4. Leaves the Action Menu open so the unit may still attack, use a skill or item, trade, or wait.
-5. Leaves pending movement uncommitted, so the existing movement cancellation behavior remains available.
+5. Leaves pending movement uncommitted but locked in place until Overcharge is canceled or the action is committed.
 
 After activation, the Overcharge button is hidden. Canceling nested targeting returns to the Action Menu without removing Overcharge. Canceling from the Action Menu removes the pending activation and remains in the menu; a subsequent Cancel performs the normal pending-movement rollback. Once an action is committed, Overcharge becomes non-cancelable and consumes its once-per-battle use.
 
@@ -75,9 +75,9 @@ If `PlayerNumber == 0` may later include allied NPCs, replace that check with an
 
 ## Passive Behavior
 
-The Overcharge passive is allowed to modify movement range as well as combat properties.
+Overcharge passives may modify movement range as well as combat properties, but Accelerated Movement currently provides no pre-action movement bonus.
 
-Because activation currently happens after movement selection, a movement bonus does not recalculate or reopen movement during the activation turn. It affects movement beginning on the unit's next turn. Reopening movement selection may be added later if desired.
+Activation happens after movement selection. It does not reopen movement selection or recalculate the selected path. Accelerated Movement instead grants up to three tiles of restricted post-action movement.
 
 Apply the passive with an Overcharge-specific runtime source and remove only effects from that source when Overcharge ends. This prevents removal of an identical passive supplied by equipment or another system.
 

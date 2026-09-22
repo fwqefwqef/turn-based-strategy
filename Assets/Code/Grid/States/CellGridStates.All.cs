@@ -256,8 +256,8 @@ namespace Windy.Srpg.Game.Grid.States
     // --- Unit selected ---
     public class UnitSelectedState : CellGridState
     {
-        private readonly List<Ability> abilities;
-        private readonly Unit selectedUnit;
+        protected readonly List<Ability> abilities;
+        protected readonly Unit selectedUnit;
 
         public UnitSelectedState(CellGrid cellGrid, Unit unit, IEnumerable<Ability> abilities) : base(cellGrid)
         {
@@ -335,7 +335,7 @@ namespace Windy.Srpg.Game.Grid.States
             _cellGrid.EnterWaitingState();
         }
 
-        private void HandleUnitClick(Unit unit)
+        protected virtual void HandleUnitClick(Unit unit)
         {
             if (unit == selectedUnit)
             {
@@ -355,6 +355,30 @@ namespace Windy.Srpg.Game.Grid.States
                 return;
             }
 
+            _cellGrid.EnterWaitingState();
+        }
+    }
+
+    // --- Restricted post-action movement (Canto) ---
+    public sealed class CellGridStatePostActionMovement : UnitSelectedState
+    {
+        public CellGridStatePostActionMovement(CellGrid cellGrid, Unit unit, IEnumerable<Ability> abilities)
+            : base(cellGrid, unit, abilities)
+        {
+        }
+
+        public override void OnUnitClicked(Unit unit)
+        {
+            // Canto belongs to the acting unit. Other units cannot replace its selection.
+            if (unit == selectedUnit)
+            {
+                base.OnUnitClicked(unit);
+            }
+        }
+
+        public override void OnRightClick()
+        {
+            selectedUnit?.FinishPostActionMovement();
             _cellGrid.EnterWaitingState();
         }
     }

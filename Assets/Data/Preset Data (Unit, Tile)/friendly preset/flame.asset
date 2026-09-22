@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
-  m_Name: protagonist
+  m_Name: flame
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
-  PresetId: protagonist
-  UnitName: Protagonist
+  PresetId: flame
+  UnitName: Flame
   IsBoss: 0
-  UnitSprite: {fileID: 21300000, guid: 92dd74b2913bab84baffa7befeedde9b, type: 3}
-  FaceSprite: {fileID: 21300000, guid: 36ac75ca2d6f84c42871eaa241a68323, type: 3}
+  UnitSprite: {fileID: 21300000, guid: aa86d051070a354429cdfeb2f5e1c8f2, type: 3}
+  FaceSprite: {fileID: 21300000, guid: b1d0d49e64f5428448f5fd24f676d983, type: 3}
   SpriteLayout:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
@@ -30,27 +30,27 @@ MonoBehaviour:
   BaseLevel: 1
   WeaponProficiencies: -1
   BaseStats:
-    HitPoints: 24
+    HitPoints: 27
     ManaPoints: 18
     MovementPoints: 5
-    Strength: 3
+    Strength: 4
     Magic: 3
-    Defense: 3
-    Speed: 5
-    Luck: 4
+    Defense: 5
+    Speed: 3
+    Luck: 3
   GrowthRates:
-    Strength: 15
-    Magic: 15
-    Defense: 15
-    Speed: 35
-    Luck: 20
+    Strength: 25
+    Magic: 20
+    Defense: 25
+    Speed: 15
+    Luck: 15
   StartingInventory:
-  - ItemId: time_sword
+  - ItemId: fire_bat
     InitialCharges: -1
     IsDroppable: 0
     ChargesInitialized: 1
   StartingSkills:
-  - SkillId: accelerate
-  - SkillId: slow
+  - SkillId: flame_fireball
+  - SkillId: clang
   StartingClassPassives:
-  - PassiveId: untouchable
+  - PassiveId: indomitable

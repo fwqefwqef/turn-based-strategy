@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Windy.Srpg.Game.Inventory;
+using Windy.Srpg.Game.Skills;
 using Windy.Srpg.Game.Units;
 
 namespace Windy.Srpg.Game.Passives
@@ -18,9 +19,24 @@ namespace Windy.Srpg.Game.Passives
         SecondaryStatModifiers GetSecondaryStatModifiers(Unit unit);
     }
 
+    public interface IP_DynamicPrimaryStatModifier
+    {
+        PrimaryStatModifiers GetPrimaryStatModifiers(Unit unit);
+    }
+
     public interface IP_MovementPointModifier
     {
         float GetMovementPointModifier(Unit unit);
+    }
+
+    public interface IP_SpellMaxRangeModifier
+    {
+        int GetSpellMaxRangeModifier(Unit unit, SkillData skill);
+    }
+
+    public interface IP_HealingPerformed
+    {
+        void OnHealingPerformed(Unit healer, Unit target, int actualAmount);
     }
 
     public abstract class PassiveEffectBase : IP_PassiveEffect

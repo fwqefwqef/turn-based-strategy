@@ -16,7 +16,7 @@ MonoBehaviour:
   UnitName: Thunder
   IsBoss: 0
   UnitSprite: {fileID: 21300000, guid: f5a3390533d487b4484acde6af990afa, type: 3}
-  FaceSprite: {fileID: 0}
+  FaceSprite: {fileID: 21300000, guid: 94d3679e3b412b849bbc3d018d9102b4, type: 3}
   SpriteLayout:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
@@ -28,21 +28,21 @@ MonoBehaviour:
   MovementAiMode: 0
   WaitGroupId: 0
   BaseLevel: 1
-  WeaponProficiencies: 1
+  WeaponProficiencies: -1
   BaseStats:
-    HitPoints: 24
-    ManaPoints: 12
-    MovementPoints: 6
-    Strength: 7
+    HitPoints: 26
+    ManaPoints: 15
+    MovementPoints: 5
+    Strength: 5
+    Magic: 2
     Defense: 3
-    Magic: 6
-    Speed: 6
+    Speed: 3
     Luck: 5
   GrowthRates:
     Strength: 25
     Magic: 15
-    Defense: 20
-    Speed: 15
+    Defense: 15
+    Speed: 20
     Luck: 25
   StartingInventory:
   - ItemId: thunder_lance
@@ -51,5 +51,6 @@ MonoBehaviour:
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: thunderbolt
+  - SkillId: storm_surge
   StartingClassPassives:
   - PassiveId: vantage

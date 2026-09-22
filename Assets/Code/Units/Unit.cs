@@ -18,6 +18,12 @@ using RuntimeBuff = Windy.Srpg.Game.Buffs.Buff;
 
 namespace Windy.Srpg.Game.Units
 {
+    public enum PendingUnitOperation
+    {
+        Movement,
+        Overcharge
+    }
+
     /// <summary>
     /// Owned unit data and gameplay behavior.
     /// This class is intentionally split across multiple files by responsibility.
@@ -26,7 +32,6 @@ namespace Windy.Srpg.Game.Units
     public partial class Unit : MonoBehaviour
     {
         public const string DeathsDoorBuffId = "death_door";
-        public const string DeathsDoorPenaltyBuffId = "death_door_penalty";
         private const bool AlliesUseDeathsDoorByDefault = true;
         private const bool EnemiesUseDeathsDoorByDefault = false;
 
@@ -62,6 +67,7 @@ namespace Windy.Srpg.Game.Units
         public bool HasVantage => PassiveList != null && PassiveList.GetActiveEffects().Any(effect => effect is IP_Vantage);
         public bool IsAtDeathsDoor => BuffList != null && BuffList.HasBuff(DeathsDoorBuffId);
         public bool IsAliveForBattle => HitPoints > 0 || IsAtDeathsDoor;
+        public bool AttacksCannotMiss => PassiveList?.GetActiveEffects().Any(effect => effect is IP_AttackNeverMisses) == true;
         public bool CanStartActionThisTurn => !IsFinishedForTurn && !IsActionBlocked;
 
         internal int customTotalHitPoints;
@@ -229,7 +235,16 @@ namespace Windy.Srpg.Game.Units
         public virtual int Speed => BaseSpeed + GetPrimaryStatModifiers().Speed;
         public virtual int BaseLuck => baseLuck;
         public virtual int Luck => BaseLuck + GetPrimaryStatModifiers().Luck;
-        public virtual int Attack => (IsMagic ? Magic : Strength) + Might + GetPrimaryStatModifiers().Attack;
+        public virtual int Attack
+        {
+            get
+            {
+                WeaponData weapon = GetActiveWeapon();
+                return weapon != null
+                    ? GetAttackForWeapon(weapon)
+                    : (IsMagic ? Magic : Strength) + Might + GetPrimaryStatModifiers().Attack;
+            }
+        }
 
         public const int AccuracyPerSpeedPoint = 3;
         private const int CritPerLuck = 5;
@@ -420,6 +435,9 @@ namespace Windy.Srpg.Game.Units
                 modifiers += BuffList.GetPrimaryStatModifiers();
             }
 
+            GetPendingMoveTerrainBuffAdjustment(out PrimaryStatModifiers previewPrimary, out _);
+            modifiers += previewPrimary;
+
             if (PassiveList != null)
             {
                 modifiers += PassiveList.GetPrimaryStatModifiers();
@@ -443,12 +461,112 @@ namespace Windy.Srpg.Game.Units
                 modifiers += BuffList.GetSecondaryStatModifiers();
             }
 
+            GetPendingMoveTerrainBuffAdjustment(out _, out SecondaryStatModifiers previewSecondary);
+            modifiers += previewSecondary;
+
             if (PassiveList != null)
             {
                 modifiers += PassiveList.GetSecondaryStatModifiers();
             }
 
             return modifiers;
+        }
+
+        /// <summary>
+        /// Terrain-owned buffs remain committed to the unit's real footprint until a pending
+        /// move is confirmed. During preview, replace their static stat modifiers with those
+        /// supplied by the preview footprint without mutating the live buff list.
+        /// </summary>
+        private void GetPendingMoveTerrainBuffAdjustment(
+            out PrimaryStatModifiers primary,
+            out SecondaryStatModifiers secondary)
+        {
+            primary = default;
+            secondary = default;
+            if (!HasPendingMove || PreviewCell == null)
+            {
+                return;
+            }
+
+            var terrainManagedBuffIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (TerrainEffectData terrainData in TerrainEffectRegistry.Entries)
+            {
+                if (terrainData == null)
+                {
+                    continue;
+                }
+
+                if (terrainData.RemoveOccupantBuffOnExit && !string.IsNullOrWhiteSpace(terrainData.OccupantBuffId))
+                {
+                    terrainManagedBuffIds.Add(terrainData.OccupantBuffId);
+                }
+
+                if (terrainData.RemoveAppliedBuffOnExit && !string.IsNullOrWhiteSpace(terrainData.AppliedBuffId))
+                {
+                    terrainManagedBuffIds.Add(terrainData.AppliedBuffId);
+                }
+            }
+
+            // Remove the committed footprint's terrain stat buffs from the normal BuffList sum.
+            foreach (string buffId in terrainManagedBuffIds)
+            {
+                RuntimeBuff activeBuff = BuffList?.GetBuff(buffId);
+                BuffData data = activeBuff?.Data;
+                if (data == null)
+                {
+                    continue;
+                }
+
+                int stacks = Mathf.Max(1, activeBuff.Stacks);
+                primary += data.PrimaryStatModifiers * -stacks;
+                secondary += data.SecondaryStatModifiers * -stacks;
+            }
+
+            CellGrid grid = FindAnyObjectByType<CellGrid>();
+            if (grid == null)
+            {
+                return;
+            }
+
+            var desiredBuffIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            IReadOnlyList<Cell> previewFootprint = GetFootprintCells(PreviewCell, grid);
+            foreach (TerrainEffectData terrainData in previewFootprint
+                .Where(cell => cell != null)
+                .SelectMany(cell => cell.TerrainEffects ?? Array.Empty<TerrainEffectInstance>())
+                .Select(effect => effect?.Data)
+                .Where(data => data != null)
+                .GroupBy(data => data.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First()))
+            {
+                bool affectsUnit = terrainData.Targeting != TerrainEffectTargeting.PlayerSide
+                    || PlayerNumber == terrainData.TargetPlayerNumber;
+                if (!affectsUnit)
+                {
+                    continue;
+                }
+
+                if (terrainData.RemoveOccupantBuffOnExit && !string.IsNullOrWhiteSpace(terrainData.OccupantBuffId))
+                {
+                    desiredBuffIds.Add(terrainData.OccupantBuffId);
+                }
+
+                if (terrainData.RemoveAppliedBuffOnExit && !string.IsNullOrWhiteSpace(terrainData.AppliedBuffId))
+                {
+                    desiredBuffIds.Add(terrainData.AppliedBuffId);
+                }
+            }
+
+            foreach (string buffId in desiredBuffIds)
+            {
+                BuffData data = BuffRegistry.Get(buffId);
+                if (data == null)
+                {
+                    continue;
+                }
+
+                primary += data.PrimaryStatModifiers;
+                secondary += data.SecondaryStatModifiers;
+            }
         }
         #endregion
 
@@ -814,7 +932,7 @@ namespace Windy.Srpg.Game.Units
             return BaseLuck + GetPrimaryStatModifiers(weapon).Luck;
         }
 
-        public int GetAttackForWeapon(WeaponData weapon)
+        public int GetAttackForWeapon(WeaponData weapon, bool hybridScalingOverride = false)
         {
             if (weapon == null)
             {
@@ -823,7 +941,11 @@ namespace Windy.Srpg.Game.Units
 
             var primaryModifiers = GetPrimaryStatModifiers(weapon);
             bool isMagic = GetIsMagicForWeapon(weapon);
-            int offensiveStat = isMagic ? BaseMagic + primaryModifiers.Magic : BaseStrength;
+            int strength = BaseStrength + primaryModifiers.Strength;
+            int magic = BaseMagic + primaryModifiers.Magic;
+            int offensiveStat = (weapon.HybridScaling || hybridScalingOverride)
+                ? strength + magic
+                : (isMagic ? magic : strength);
             return offensiveStat + weapon.Might + primaryModifiers.Attack;
         }
 
@@ -850,6 +972,28 @@ namespace Windy.Srpg.Game.Units
         public int GetNumHitsForWeapon(WeaponData weapon)
         {
             return weapon == null ? 0 : Mathf.Max(1, weapon.NumHits);
+        }
+
+        public ResolvedAttackProfile BuildAttackProfileForWeapon(WeaponData weapon)
+        {
+            if (weapon == null)
+            {
+                return default;
+            }
+
+            return new ResolvedAttackProfile
+            {
+                Damage = GetAttackForWeapon(weapon),
+                Accuracy = GetAccuracyForWeapon(weapon),
+                Crit = GetCritForWeapon(weapon),
+                NumHits = GetNumHitsForWeapon(weapon),
+                PursuitSpeed = GetSpeedForWeapon(weapon),
+                IsMagic = GetIsMagicForWeapon(weapon),
+                CanPursuitAttack = weapon.CanPursuitAttack,
+                PreventsCounterattack = weapon.PreventsCounterattack,
+                EndsTurn = true,
+                UsesWeaponEffects = true
+            };
         }
 
 
@@ -1108,7 +1252,7 @@ namespace Windy.Srpg.Game.Units
         // CTRL+F: PENDING MOVE
         internal PendingMove? _pendingMove;
         internal int _previewMoveVersion;
-        internal bool pendingMoveBeganAfterPendingOvercharge;
+        private readonly List<PendingUnitOperation> pendingOperations = new List<PendingUnitOperation>();
 
         internal struct PendingMove
         {
@@ -1118,14 +1262,56 @@ namespace Windy.Srpg.Game.Units
             public float MovementPointsBefore;
             public float MovementCost;
             public Vector3 FromLocalPos;
+            public bool PreviewPositionNotified;
         }
 
         public bool HasPendingMove => _pendingMove.HasValue;
-        public bool IsPendingMoveInPlace => _pendingMove.HasValue
-            && _pendingMove.Value.FromCell == _pendingMove.Value.ToCell;
-        public bool ShouldCancelPendingMoveBeforeOvercharge => _pendingMove.HasValue
-            && pendingMoveBeganAfterPendingOvercharge
-            && CurrentOverchargeState == OverchargeState.PendingActivation;
+        public PendingUnitOperation? LatestPendingOperation => pendingOperations.Count > 0
+            ? pendingOperations[pendingOperations.Count - 1]
+            : null;
+
+        internal void RecordPendingOperation(PendingUnitOperation operation)
+        {
+            RemovePendingOperation(operation);
+            pendingOperations.Add(operation);
+        }
+
+        internal void RemovePendingOperation(PendingUnitOperation operation)
+        {
+            for (int i = pendingOperations.Count - 1; i >= 0; i--)
+            {
+                if (pendingOperations[i] != operation)
+                {
+                    continue;
+                }
+
+                pendingOperations.RemoveAt(i);
+                return;
+            }
+        }
+
+        internal void ClearPendingOperations()
+        {
+            pendingOperations.Clear();
+        }
+
+        public bool TryRollbackLatestPendingOperation(out PendingUnitOperation operation)
+        {
+            PendingUnitOperation? latest = LatestPendingOperation;
+            if (!latest.HasValue)
+            {
+                operation = default;
+                return false;
+            }
+
+            operation = latest.Value;
+            return operation switch
+            {
+                PendingUnitOperation.Movement => CancelPendingMove(),
+                PendingUnitOperation.Overcharge => CancelPendingOvercharge(),
+                _ => false
+            };
+        }
         public Cell PreviewCell
         {
             get

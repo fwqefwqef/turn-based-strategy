@@ -32,6 +32,11 @@ namespace Windy.Srpg.Game.Skills
         void ModifyAttackProfile(Unit user, SkillContext context, ref ResolvedAttackProfile profile);
     }
 
+    public interface IAreaHitPointChangeSkillEffect : ISkillEffect
+    {
+        int GetProjectedHitPointDelta(Unit user, SkillContext context);
+    }
+
     public static class SkillRegistry
     {
         private static readonly Dictionary<string, SkillData> Definitions = new Dictionary<string, SkillData>(StringComparer.OrdinalIgnoreCase);

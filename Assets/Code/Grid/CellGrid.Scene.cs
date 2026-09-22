@@ -191,7 +191,6 @@ namespace Windy.Srpg.Game.Grid
             ChapterData.FindForGrid(this)?.AppendEnemyToTurnOrder(customUnit);
             UnitAdded?.Invoke(this, new UnitAddedEventArgs(customUnit));
             RefreshTerrainEffectsForOccupancyChange();
-            RefreshBlackFogDebuffsForOccupancyChange();
         }
 
         private void OnCombatDestroyed(object sender, AttackEventArgs e)
@@ -753,7 +752,15 @@ namespace Windy.Srpg.Game.Grid
         {
             occupancyRevision++;
             RefreshTerrainEffectsForOccupancyChange();
-            RefreshBlackFogDebuffsForOccupancyChange();
+        }
+
+        /// <summary>
+        /// Invalidates position-dependent previews without reapplying committed terrain buffs.
+        /// Pending movement already calculates terrain stats from PreviewCell on demand.
+        /// </summary>
+        internal void NotifyPreviewPositionChanged()
+        {
+            occupancyRevision++;
         }
 
         internal void RebuildSceneCellOccupancyForDeploymentInternal()

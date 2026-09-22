@@ -42,8 +42,17 @@ namespace Windy.Srpg.Game.Grid
 
         private void SaveOwnedUnits(bool overwriteExistingSave, bool markCurrentChapterCleared = false)
         {
+            CampaignSaveData existingSave = LoadSeededCampaignSave();
+            HashSet<string> ownedUnitIds = new HashSet<string>(
+                (existingSave?.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+                    .Where(unit => unit != null && !string.IsNullOrWhiteSpace(unit.UnitId))
+                    .Select(unit => unit.UnitId.Trim()),
+                StringComparer.OrdinalIgnoreCase);
             List<Unit> deployedUnits = GetAllUnits()
-                .Where(unit => unit != null && unit.PlayerNumber == 0 && unit.IncludeInOwnedUnitSave)
+                .Where(unit => unit != null
+                    && unit.PlayerNumber == 0
+                    && unit.IncludeInOwnedUnitSave
+                    && ownedUnitIds.Contains(unit.UnitId?.Trim() ?? string.Empty))
                 .ToList()
                 ;
 
@@ -52,7 +61,6 @@ namespace Windy.Srpg.Game.Grid
                 return;
             }
 
-            CampaignSaveData existingSave = LoadSeededCampaignSave();
             if (markCurrentChapterCleared)
             {
                 MergePendingBattleStorageIntoSave(existingSave);
@@ -69,7 +77,12 @@ namespace Windy.Srpg.Game.Grid
                 ChapterData chapterData = ChapterData.FindForGrid(this);
                 if (chapterData != null)
                 {
+                    bool wasAlreadyCleared = CampaignProgressUtility.IsChapterCleared(save, chapterData.ChapterId);
                     CampaignProgressUtility.MarkChapterCleared(save, chapterData.ChapterId);
+                    if (!wasAlreadyCleared)
+                    {
+                        ShopStockUtility.AddStock(save, chapterData.ShopRestockOnClear);
+                    }
                 }
             }
 
@@ -562,6 +575,95 @@ namespace Windy.Srpg.Game.Grid
             save.StorageItems = storageItems.ToArray();
             MarkPreBattleInventoryChanged(save);
             return true;
+        }
+
+        public bool CanUsePreBattleInventoryItem(string targetUnitId, string sourceUnitId, int sourceItemIndex, bool sourceIsStorage)
+        {
+            CampaignSaveData save = LoadSeededCampaignSave();
+            OwnedUnitSaveData targetUnit = FindOwnedUnit(save, targetUnitId);
+            if (targetUnit == null || !TryGetPreBattleSourceItem(save, sourceUnitId, sourceItemIndex, sourceIsStorage, out SavedInventoryEntryData item))
+            {
+                return false;
+            }
+
+            BuiltInItemCatalog.EnsureRegistered();
+            return ItemRegistry.TryGet(item.ItemId, out ItemData data)
+                && data is ConsumableData { UsableInPreBattle: true } consumable
+                && ConsumableEffectRegistry.TryCreate(consumable.EffectId, out IConsumableEffect effect)
+                && effect is IPreBattleConsumableEffect preBattleEffect
+                && preBattleEffect.CanUsePreBattle(targetUnit)
+                && (item.RemainingCharges < 0 || item.RemainingCharges > 0);
+        }
+
+        public bool UsePreBattleInventoryItem(string targetUnitId, string sourceUnitId, int sourceItemIndex, bool sourceIsStorage)
+        {
+            CampaignSaveData save = LoadSeededCampaignSave();
+            OwnedUnitSaveData targetUnit = FindOwnedUnit(save, targetUnitId);
+            if (targetUnit == null || !TryGetPreBattleSourceItems(save, sourceUnitId, sourceIsStorage, out List<SavedInventoryEntryData> sourceItems)
+                || sourceItemIndex < 0 || sourceItemIndex >= sourceItems.Count)
+            {
+                return false;
+            }
+
+            SavedInventoryEntryData item = sourceItems[sourceItemIndex];
+            BuiltInItemCatalog.EnsureRegistered();
+            if (item == null || !ItemRegistry.TryGet(item.ItemId, out ItemData data)
+                || data is not ConsumableData { UsableInPreBattle: true } consumable
+                || !ConsumableEffectRegistry.TryCreate(consumable.EffectId, out IConsumableEffect effect)
+                || effect is not IPreBattleConsumableEffect preBattleEffect
+                || !preBattleEffect.CanUsePreBattle(targetUnit)
+                || item.RemainingCharges == 0)
+            {
+                return false;
+            }
+
+            preBattleEffect.UsePreBattle(targetUnit);
+            if (item.RemainingCharges > 1)
+            {
+                item.RemainingCharges--;
+            }
+            else if (item.RemainingCharges == 1)
+            {
+                sourceItems.RemoveAt(sourceItemIndex);
+            }
+
+            if (sourceIsStorage)
+            {
+                save.StorageItems = sourceItems.ToArray();
+            }
+            else
+            {
+                FindOwnedUnit(save, sourceUnitId).Inventory = sourceItems.ToArray();
+            }
+
+            MarkPreBattleInventoryChanged(save);
+            return true;
+        }
+
+        private static bool TryGetPreBattleSourceItem(CampaignSaveData save, string sourceUnitId, int sourceItemIndex, bool sourceIsStorage, out SavedInventoryEntryData item)
+        {
+            item = null;
+            if (!TryGetPreBattleSourceItems(save, sourceUnitId, sourceIsStorage, out List<SavedInventoryEntryData> items)
+                || sourceItemIndex < 0 || sourceItemIndex >= items.Count)
+            {
+                return false;
+            }
+
+            item = items[sourceItemIndex];
+            return item != null;
+        }
+
+        private static bool TryGetPreBattleSourceItems(CampaignSaveData save, string sourceUnitId, bool sourceIsStorage, out List<SavedInventoryEntryData> items)
+        {
+            if (sourceIsStorage)
+            {
+                items = CloneSavedInventoryEntries(save?.StorageItems).ToList();
+                return true;
+            }
+
+            OwnedUnitSaveData sourceUnit = FindOwnedUnit(save, sourceUnitId);
+            items = sourceUnit == null ? null : CloneSavedInventoryEntries(sourceUnit.Inventory).ToList();
+            return sourceUnit != null;
         }
 
         private void ApplyFriendlyDeployment(CampaignSaveData save, IReadOnlyList<string> rosterOverride = null)

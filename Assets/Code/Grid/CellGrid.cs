@@ -260,6 +260,17 @@ namespace Windy.Srpg.Game.Grid
             SetState(new UnitSelectedState(this, unit, unit.GetAbilities()));
         }
 
+        public void EnterPostActionMovementState(Unit unit)
+        {
+            if (unit == null || !unit.IsPostActionMovementActive)
+            {
+                EnterWaitingState();
+                return;
+            }
+
+            SetState(new CellGridStatePostActionMovement(this, unit, unit.GetAbilities()));
+        }
+
         public void EnterPendingMoveConfirmState(MoveAbility moveAbility)
         {
             if (moveAbility == null)
@@ -303,20 +314,52 @@ namespace Windy.Srpg.Game.Grid
             NotifyCombatPresentationBegan();
         }
 
-        /// <summary>
-        /// Commits a pending move after combat presentation.
-        /// </summary>
-        internal void TryCommitPendingMoveAfterCombatPresentation(Unit unit)
+        internal enum PendingActionCommitReason
         {
-            TryCommitPendingMoveFromPendingAction(unit, consumeAllRemainingMovement: false);
+            Wait,
+            ConsumableUsed,
+            CombatPresentationCompleted,
+            ActionEffectStarting,
+            TradeCompleted,
+            CantoCompleted
         }
 
         /// <summary>
-        /// Commits a pending move from a pending-action menu (trade close, item use, skill prep, etc.).
+        /// Single commit boundary for player actions that originate from a pending
+        /// movement preview. This owns movement finalization and the turn-state
+        /// changes that are intrinsic to the commit reason.
         /// </summary>
-        internal void TryCommitPendingMoveFromPendingAction(Unit unit, bool consumeAllRemainingMovement = false)
+        internal bool CommitPendingAction(Unit unit, PendingActionCommitReason reason)
         {
-            CommitPendingMoveOnSceneUnit(unit, consumeAllRemainingMovement);
+            if (unit == null)
+            {
+                return false;
+            }
+
+            bool consumeAllRemainingMovement = reason == PendingActionCommitReason.Wait
+                || reason == PendingActionCommitReason.ConsumableUsed
+                || reason == PendingActionCommitReason.CantoCompleted;
+
+            if (unit.HasPendingMove && !CommitPendingMoveOnSceneUnit(unit, consumeAllRemainingMovement))
+            {
+                return false;
+            }
+
+            switch (reason)
+            {
+                case PendingActionCommitReason.Wait:
+                case PendingActionCommitReason.ConsumableUsed:
+                    unit.OnUnitDeselected();
+                    unit.EndTurnForUnit();
+                    break;
+
+                case PendingActionCommitReason.CantoCompleted:
+                    unit.OnUnitDeselected();
+                    unit.FinishPostActionMovement();
+                    break;
+            }
+
+            return true;
         }
 
         public void EnterPostCombatGridState()
@@ -413,19 +456,20 @@ namespace Windy.Srpg.Game.Grid
             TryFlushDeferredDestroyQueue();
         }
 
-        internal void CommitPendingMoveOnSceneUnit(Unit unit, bool consumeAllRemainingMovement = false)
+        private bool CommitPendingMoveOnSceneUnit(Unit unit, bool consumeAllRemainingMovement)
         {
             if (unit == null || !unit.HasPendingMove)
             {
-                return;
+                return true;
             }
 
             if (!unit.ConfirmPendingMove(consumeAllRemainingMovement))
             {
-                return;
+                return false;
             }
 
             RefreshSceneCellOccupancyNow();
+            return true;
         }
 
         internal List<Unit> GetAttackableEnemiesFromActingCell(Unit actor, Cell actingCell)

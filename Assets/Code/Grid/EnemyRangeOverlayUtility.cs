@@ -434,6 +434,11 @@ namespace Windy.Srpg.Game.Grid
                 return int.MaxValue;
             }
 
+            if (!unit.IsMultiTile)
+            {
+                return originCell.GetDistance(candidate);
+            }
+
             return unit.GetFootprintCells(originCell, grid)
                 .Where(cell => cell != null)
                 .Select(cell => cell.GetDistance(candidate))

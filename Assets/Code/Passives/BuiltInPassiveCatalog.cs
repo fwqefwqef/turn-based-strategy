@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Windy.Srpg.Game.Catalogs;
 using Windy.Srpg.Game.Inventory;
+using Windy.Srpg.Game.Skills;
 using Windy.Srpg.Game.Units;
 using UnityEngine;
 
@@ -29,12 +30,112 @@ namespace Windy.Srpg.Game.Passives
             PassiveEffectRegistry.Register("vantage", () => new VantageEffect());
             PassiveEffectRegistry.Register("wrath_missing_hp_crit", () => new WrathEffect());
             PassiveEffectRegistry.Register("accelerated_movement", () => new AcceleratedMovementEffect());
+            PassiveEffectRegistry.Register("indomitable", () => new IndomitableEffect());
+            PassiveEffectRegistry.Register("joy_of_burning", () => new JoyOfBurningEffect());
+            PassiveEffectRegistry.Register("cursed_existence", () => new CursedExistenceEffect());
+            PassiveEffectRegistry.Register("soul_stealer", () => new SoulStealerEffect());
+            PassiveEffectRegistry.Register("sadist", () => new SadistEffect());
+            PassiveEffectRegistry.Register("penetrate", () => new PenetrateEffect());
+            PassiveEffectRegistry.Register("nurse_compassion", () => new NurseCompassionEffect());
+            PassiveEffectRegistry.Register("apotheosis", () => new ApotheosisEffect());
             isRegistered = true;
         }
 
-        private sealed class AcceleratedMovementEffect : PassiveEffectBase, IP_MovementPointModifier
+        private sealed class IndomitableEffect : PassiveEffectBase, IP_AttackSurvivalGuard
         {
-            public float GetMovementPointModifier(Unit unit) => 2f;
+            private bool usedThisTurn;
+
+            public override void OnTurnStart(Unit unit, Passive entry)
+            {
+                usedThisTurn = false;
+            }
+
+            public int LimitAttackDamage(Unit defender, int damage, bool simulateOnly)
+            {
+                if (usedThisTurn || defender == null || defender.HitPoints <= 0
+                    || damage < defender.HitPoints || damage <= 0)
+                    return damage;
+
+                if (!simulateOnly) usedThisTurn = true;
+                return Mathf.Max(0, defender.HitPoints - 1);
+            }
+        }
+
+        private sealed class CursedExistenceEffect : PassiveEffectBase, IP_AttackHitEffect
+        {
+            public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
+            {
+                if (isBasicAttack && attacker != null && defender != null
+                    && attacker.PlayerNumber != defender.PlayerNumber && defender.IsAliveForBattle)
+                    defender.AddBuffById("curse");
+            }
+        }
+
+        private sealed class SoulStealerEffect : PassiveEffectBase, IP_AttackNeverMisses, IP_AttackHitEffect
+        {
+            public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
+            {
+                if (attacker == null || defender == null || attacker.PlayerNumber == defender.PlayerNumber
+                    || damageDealt <= 0) return;
+
+                int drained = Mathf.Min(defender.CurrentManaPoints, damageDealt / 2);
+                if (drained <= 0) return;
+                defender.SetCurrentManaPoints(defender.CurrentManaPoints - drained);
+                attacker.RestoreManaPoints(drained);
+            }
+        }
+
+        private sealed class JoyOfBurningEffect : PassiveEffectBase, IP_DynamicPrimaryStatModifier
+        {
+            public PrimaryStatModifiers GetPrimaryStatModifiers(Unit unit)
+            {
+                int bonus = 2 * (unit?.CountBurningEnemies() ?? 0);
+                return new PrimaryStatModifiers { Strength = bonus, Magic = bonus };
+            }
+        }
+
+        private sealed class SadistEffect : PassiveEffectBase, IP_DynamicPrimaryStatModifier
+        {
+            public PrimaryStatModifiers GetPrimaryStatModifiers(Unit unit)
+            {
+                int bonus = unit?.CountDamagedEnemies() ?? 0;
+                return new PrimaryStatModifiers { Attack = bonus };
+            }
+        }
+
+        private sealed class PenetrateEffect : PassiveEffectBase, IP_DamageChange
+        {
+            public void DamageChange(DamageChangeContext context)
+            {
+                if (context != null && context.Phase == DamageChangePhase.Damage && context.IsHit
+                    && context.IsMagicAttack && context.Defender != null)
+                    context.Damage += Mathf.FloorToInt(context.Defender.Magic * 0.5f);
+            }
+        }
+
+        private sealed class NurseCompassionEffect : PassiveEffectBase, IP_HealingPerformed
+        {
+            public void OnHealingPerformed(Unit healer, Unit target, int actualAmount)
+            {
+                if (healer == null || target == null || target == healer
+                    || target.PlayerNumber != healer.PlayerNumber || actualAmount <= 0) return;
+                healer.RestoreHitPoints(actualAmount / 2, healer);
+            }
+        }
+
+        private sealed class ApotheosisEffect : PassiveEffectBase, IP_SpellMaxRangeModifier
+        {
+            public int GetSpellMaxRangeModifier(Unit unit, SkillData skill)
+            {
+                return skill != null
+                    && (skill.Category == SkillCategory.Spell || skill.Category == SkillCategory.AreaSpell)
+                    ? 2
+                    : 0;
+            }
+        }
+
+        private sealed class AcceleratedMovementEffect : PassiveEffectBase
+        {
         }
 
         private sealed class VantageEffect : PassiveEffectBase, IP_Vantage

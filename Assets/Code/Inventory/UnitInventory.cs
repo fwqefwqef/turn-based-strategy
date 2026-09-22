@@ -233,6 +233,13 @@ namespace Windy.Srpg.Game.Inventory
                 return false;
             }
 
+            // Avoid invalidating equipment-granted Skill instances when the requested
+            // weapon is already equipped (for example while committing its combat art).
+            if (ReferenceEquals(EquippedWeaponEntry, entry))
+            {
+                return true;
+            }
+
             EquippedWeaponEntry = entry;
             NotifyInventoryChanged();
             return true;

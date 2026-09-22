@@ -4,6 +4,62 @@
     "CTRL_F_WEAPONS_SECTION": "CTRL+F: WEAPONS",
     "Weapons": [
       {
+        "Id": "fire_bat",
+        "Name": "Fire Bat",
+        "Description": "A close-range bat that applies Burn on each successful hit.",
+        "Value": 100,
+        "WeaponType": "Sword",
+        "DamageType": "Physical",
+        "Might": 5,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": [],
+        "EffectId": "apply_burn"
+      },
+      {
+        "Id": "ice_whip",
+        "Name": "Ice Whip",
+        "Description": "A 1-2 range magical whip that scales with both Strength and Magic.",
+        "Value": 100,
+        "WeaponType": "Magic",
+        "DamageType": "Magic",
+        "HybridScaling": true,
+        "Might": 3,
+        "MinRange": 1,
+        "MaxRange": 2,
+        "Accuracy": 95,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "nurse_mace",
+        "Name": "Mace",
+        "Description": "A sturdy 1-range mace.",
+        "Value": 100,
+        "WeaponType": "Blunt",
+        "DamageType": "Physical",
+        "Might": 6,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 95,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
         "Id": "toxic_sword",
         "Name": "Toxic Sword",
         "Description": "Applies Toxic on each successful weapon hit.",
@@ -97,6 +153,25 @@
         "StatModifiers": {
           "Speed": 3
         },
+        "GrantedSkillIds": [],
+        "GrantedPassiveIds": []
+      },
+      {
+        "Id": "dark_tome",
+        "Name": "Dark Tome",
+        "Description": "A dark-magic tome with fixed 2-tile range.",
+        "Value": 100,
+        "WeaponType": "Magic",
+        "DamageType": "Magic",
+        "Might": 7,
+        "MinRange": 2,
+        "MaxRange": 2,
+        "Accuracy": 90,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
         "GrantedSkillIds": []
       },
       {
@@ -164,7 +239,8 @@
         "StatModifiers": {
           "Defense": 5
         },
-        "GrantedSkillIds": []
+        "GrantedSkillIds": [],
+        "GrantedPassiveIds": []
       },
       {
         "Id": "cloak",
@@ -205,6 +281,87 @@
         "Charges": 3,
         "EffectId": "apply_invulnerable_buff",
         "TargetType": "Self"
+      },
+      {
+        "Id": "strength_candy",
+        "Name": "Strength Candy",
+        "Description": "Permanently increases Strength by 2.",
+        "Value": 500,
+        "Charges": 1,
+        "EffectId": "increase_strength_2",
+        "TargetType": "Self",
+        "UsableInPreBattle": true
+      },
+      {
+        "Id": "magic_candy",
+        "Name": "Magic Candy",
+        "Description": "Permanently increases Magic by 2.",
+        "Value": 500,
+        "Charges": 1,
+        "EffectId": "increase_magic_2",
+        "TargetType": "Self",
+        "UsableInPreBattle": true
+      },
+      {
+        "Id": "defense_candy",
+        "Name": "Defense Candy",
+        "Description": "Permanently increases Defense by 2.",
+        "Value": 500,
+        "Charges": 1,
+        "EffectId": "increase_defense_2",
+        "TargetType": "Self",
+        "UsableInPreBattle": true
+      },
+      {
+        "Id": "speed_candy",
+        "Name": "Speed Candy",
+        "Description": "Permanently increases Speed by 2.",
+        "Value": 500,
+        "Charges": 1,
+        "EffectId": "increase_speed_2",
+        "TargetType": "Self",
+        "UsableInPreBattle": true
+      },
+      {
+        "Id": "luck_candy",
+        "Name": "Luck Candy",
+        "Description": "Permanently increases Luck by 2.",
+        "Value": 500,
+        "Charges": 1,
+        "EffectId": "increase_luck_2",
+        "TargetType": "Self",
+        "UsableInPreBattle": true
+      },
+      {
+        "Id": "movement_candy",
+        "Name": "Movement Candy",
+        "Description": "Permanently increases Movement by 2.",
+        "Value": 500,
+        "Charges": 1,
+        "EffectId": "increase_movement_2",
+        "TargetType": "Self",
+        "UsableInPreBattle": true
+      }
+    ],
+    "CTRL_F_VALUABLES_SECTION": "CTRL+F: VALUABLES",
+    "Valuables": [
+      {
+        "Id": "bullion_s",
+        "Name": "Bullion (S)",
+        "Description": "Sells for 500G.",
+        "Value": 1000
+      },
+      {
+        "Id": "bullion_m",
+        "Name": "Bullion (M)",
+        "Description": "Sells for 1000G.",
+        "Value": 2000
+      },
+      {
+        "Id": "bullion_l",
+        "Name": "Bullion (L)",
+        "Description": "Sells for 2000G.",
+        "Value": 4000
       }
     ]
   },
@@ -300,6 +457,30 @@
         }
       },
       {
+        "Id": "slow",
+        "Name": "Slow",
+        "Description": "Inflict Movement -4 and Speed -4 on an enemy for one turn.",
+        "Category": "Spell",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "slow",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 3,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
         "Id": "mass_accelerate",
         "Name": "Mass Accelerate",
         "Description": "Ultimate: Refresh all adjacent allies so they can move and act again. Excludes the caster.",
@@ -355,6 +536,29 @@
           "Crit": 30,
           "MinRange": 2,
           "MaxRange": 3,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "storm_surge",
+        "Name": "Storm Surge",
+        "Description": "Gain Might +10 for the next combat.",
+        "Category": "Spell",
+        "TargetingType": "Self",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": false,
+        "OncePerTurn": true,
+        "MpCost": 3,
+        "EffectId": "storm_surge",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
           "NumHits": 1,
           "PreventsCounterattack": false
         }
@@ -544,6 +748,352 @@
           "MaxRange": -1,
           "NumHits": 2,
           "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "bash",
+        "Name": "Bash",
+        "Description": "Mace combat art. Restore HP equal to half the damage dealt.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Melee",
+        "RequiredWeaponId": "nurse_mace",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "MpCost": 3,
+        "EffectId": "bash_lifesteal",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "HybridScaling": false,
+          "Might": 0,
+          "Accuracy": 0,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "devotion",
+        "Name": "Devotion",
+        "Description": "Heal an adjacent ally for Magic + 10 HP.",
+        "Category": "Spell",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "MpCost": 3,
+        "EffectId": "heal_mag_10",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "shining_pillar",
+        "Name": "Shining Pillar",
+        "Description": "Ultimate: Within a 2-tile radius, deal Magic + 10 damage power to enemies and heal allies for the same value. Range 0-8.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "MpCost": 12,
+        "EffectId": "shining_pillar",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 10,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 8,
+          "NumHits": 1,
+          "PreventsCounterattack": true
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 0,
+          "MaxRange": 8,
+          "Radius": 2,
+          "Might": 10,
+          "IsMagic": true,
+          "AffectsAllies": true,
+          "AffectsEnemies": true
+        }
+      },
+      {
+        "Id": "punish",
+        "Name": "Punish",
+        "Description": "On hit, reduce the target's movement to 0 for one turn.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Magic",
+        "RequiredWeaponId": "ice_whip",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "MpCost": 3,
+        "EffectId": "punish",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "HybridScaling": false,
+          "Might": 0,
+          "Accuracy": 0,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "ice_spikes",
+        "Name": "Ice Spikes",
+        "Description": "Deal magic damage to all enemies in a 2-tile radius and inflict Speed/Movement -2 for one turn.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": true,
+        "MpCost": 5,
+        "EffectId": "ice_spikes",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "HybridScaling": false,
+          "Might": 5,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": true
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 1,
+          "MaxRange": 3,
+          "Radius": 2,
+          "Might": 0,
+          "IsMagic": true,
+          "HybridScaling": false,
+          "AffectsAllies": false,
+          "AffectsEnemies": true
+        }
+      },
+      {
+        "Id": "shopkeep_disintegrate",
+        "Name": "Disintegrate",
+        "Description": "Ultimate: Blast enemies in an infinitely long, 3-tile-wide line.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "MpCost": 12,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "HybridScaling": false,
+          "Might": 12,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": true
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Line",
+          "MinRange": 1,
+          "MaxRange": 11,
+          "Radius": 1,
+          "Might": 0,
+          "IsMagic": true,
+          "HybridScaling": false,
+          "AffectsAllies": false,
+          "AffectsEnemies": true
+        }
+      },
+      {
+        "Id": "flame_fireball",
+        "Name": "Fireball",
+        "Description": "Deal magic damage in a 1-tile radius and Burn every enemy caught in the blast.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "SelfImmune": true,
+        "MpCost": 3,
+        "EffectId": "burn_area_targets",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "Might": 10,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": true
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 1,
+          "MaxRange": 3,
+          "Radius": 1,
+          "Might": 0,
+          "IsMagic": true,
+          "AffectsAllies": false,
+          "AffectsEnemies": true
+        }
+      },
+      {
+        "Id": "clang",
+        "Name": "Clang!",
+        "Description": "Strike with Fire Bat. On hit, cancel the counterattack and push the target back up to 2 tiles.",
+        "Category": "CombatArt",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Melee",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "MpCost": 3,
+        "EffectId": "clang",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": 0,
+          "Accuracy": 0,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "flame_last_stand",
+        "Name": "Insurmountable",
+        "Description": "Ultimate: If at Death's Door, heal to 1 HP. Cannot fall below 1 HP until the start of the next turn.",
+        "Category": "Spell",
+        "TargetingType": "Self",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "OncePerBattle": false,
+        "SelfImmune": false,
+        "MpCost": 6,
+        "EffectId": "flame_last_stand",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "dark_heal",
+        "Name": "Dark Heal",
+        "Description": "Heal an adjacent ally for Magic + 10 HP, doubled if the target is at Death's Door.",
+        "Category": "Spell",
+        "TargetingType": "AllyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "OncePerBattle": false,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "dark_heal",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 1,
+          "MaxRange": 1,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "anathema",
+        "Name": "Anathema",
+        "Description": "Deal magic damage and apply two stacks of Curse to an enemy.",
+        "Category": "Spell",
+        "TargetingType": "EnemyUnit",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "OncePerBattle": false,
+        "SelfImmune": false,
+        "MpCost": 3,
+        "EffectId": "anathema",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "Might": 8,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 2,
+          "MaxRange": 2,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "dark_sanctuary",
+        "Name": "Dark Sanctuary",
+        "Description": "Ultimate: Grant self and allies within 2 tiles Evade +50 and halve area-spell damage for one turn.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": true,
+        "MpCost": 12,
+        "EffectId": "dark_sanctuary",
+        "AttackProfile": {
+          "Enabled": false,
+          "IsMagic": true,
+          "Might": 0,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": false
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 0,
+          "MaxRange": 0,
+          "Radius": 2,
+          "Might": 0,
+          "IsMagic": true,
+          "AffectsAllies": true,
+          "AffectsEnemies": false
         }
       },
       {
@@ -971,9 +1521,65 @@
       {
         "Id": "accelerated_movement",
         "Name": "Accelerated Movement",
-        "Description": "While Overcharged, gain Movement +2 and move up to 2 additional tiles directly after taking an action.",
+        "Description": "While Overcharged, move up to 3 additional tiles directly after taking an action.",
         "Cost": 0,
         "EffectId": "accelerated_movement"
+      },
+      {
+        "Id": "indomitable",
+        "Name": "Indomitable",
+        "Description": "Once per turn, endure an attack that would cause Death's Door at 1 HP instead. Does not activate while already at Death's Door.",
+        "Cost": 0,
+        "EffectId": "indomitable"
+      },
+      {
+        "Id": "joy_of_burning",
+        "Name": "Joy of Burning",
+        "Description": "While Overcharged, gain Str/Mag +2 for each burning enemy on the map.",
+        "Cost": 0,
+        "EffectId": "joy_of_burning"
+      },
+      {
+        "Id": "cursed_existence",
+        "Name": "Cursed Existence",
+        "Description": "Successful basic attacks apply one stack of Curse.",
+        "Cost": 0,
+        "EffectId": "cursed_existence"
+      },
+      {
+        "Id": "soul_stealer",
+        "Name": "Soul Stealer",
+        "Description": "While Overcharged, attacks cannot miss and steal MP equal to half the damage dealt (up to the target's current MP).",
+        "Cost": 0,
+        "EffectId": "soul_stealer"
+      },
+      {
+        "Id": "sadist",
+        "Name": "Sadist",
+        "Description": "Gain Might +1 for every enemy on the map below full HP.",
+        "Cost": 0,
+        "EffectId": "sadist"
+      },
+      {
+        "Id": "penetrate",
+        "Name": "Penetrate",
+        "Description": "While Overcharged, ignore half of the enemy's Magic defense when dealing magic damage.",
+        "Cost": 0,
+        "EffectId": "penetrate"
+      },
+      {
+        "Id": "nurse_compassion",
+        "Name": "Compassion",
+        "Description": "When healing an ally, restore HP to self equal to half the amount actually healed.",
+        "Cost": 0,
+        "EffectId": "nurse_compassion"
+      },
+      {
+        "Id": "apotheosis",
+        "Name": "Apotheosis",
+        "Description": "While Overcharged, increase the maximum range of Spell and Area Spell skills by 2.",
+        "Cost": 0,
+        "EffectId": "apotheosis"
       },
       {
         "Id": "deep_breath",
@@ -1031,12 +1637,94 @@
       {
         "Id": "burn",
         "Name": "Burn",
-        "Description": "Takes 5 Pain damage before each own turn for up to 2 ticks.",
+        "Description": "Takes 5 Pain damage per stack before each own turn for up to 2 ticks. Stacks up to 2 times.",
         "Duration": 2,
         "Category": "Pain",
-        "MaxStacks": 1,
+        "MaxStacks": 2,
         "Removable": true,
         "EffectId": "burn"
+      },
+      {
+        "Id": "flame_last_stand",
+        "Name": "Insurmountable",
+        "Description": "Cannot fall below 1 HP from attacks or Pain damage until the next turn starts.",
+        "Duration": 1,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": false,
+        "EffectId": "flame_last_stand"
+      },
+      {
+        "Id": "punished",
+        "Name": "Punished",
+        "Description": "Movement is reduced to 0 for one turn.",
+        "Duration": 1,
+        "Category": "CC",
+        "MaxStacks": 1,
+        "Removable": true,
+        "EffectId": "movement_cap_0"
+      },
+      {
+        "Id": "ice_spikes_slow",
+        "Name": "Frozen",
+        "Description": "Speed and Movement -2 for one turn.",
+        "Duration": 1,
+        "Category": "Weakening",
+        "MaxStacks": 1,
+        "Removable": true,
+        "PrimaryStatModifiers": {
+          "Speed": -2
+        },
+        "EffectId": "ice_spikes_slow"
+      },
+      {
+        "Id": "slow",
+        "Name": "Slow",
+        "Description": "Movement and Speed -4 for one turn.",
+        "Duration": 1,
+        "Category": "Weakening",
+        "MaxStacks": 1,
+        "Removable": true,
+        "PrimaryStatModifiers": {
+          "Speed": -4
+        },
+        "EffectId": "slow"
+      },
+      {
+        "Id": "storm_surge",
+        "Name": "Storm Surge",
+        "Description": "Might +10 for the next combat, then removed.",
+        "Duration": 0,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": false,
+        "EffectId": "storm_surge"
+      },
+      {
+        "Id": "dark_sanctuary",
+        "Name": "Dark Sanctuary",
+        "Description": "Evade +50 and half damage from area spells for one turn.",
+        "Duration": 1,
+        "Category": "Buff",
+        "MaxStacks": 1,
+        "Removable": false,
+        "SecondaryStatModifiers": {
+          "Evade": 50
+        },
+        "EffectId": "dark_sanctuary"
+      },
+      {
+        "Id": "curse",
+        "Name": "Curse",
+        "Description": "Defense and Magic -2 per stack for 2 turns; up to 3 stacks.",
+        "Duration": 2,
+        "Category": "Weakening",
+        "MaxStacks": 3,
+        "Removable": true,
+        "PrimaryStatModifiers": {
+          "Defense": -2,
+          "Magic": -2
+        }
       },
       {
         "Id": "stun",
@@ -1073,22 +1761,6 @@
         "MaxStacks": 1,
         "Removable": false,
         "EffectId": "movement_cap_1"
-      },
-      {
-        "Id": "death_door_penalty",
-        "Name": "Death's Door Penalty",
-        "Description": "Str/Mag/Def/Spd/Lck -1 per Death's Door entry, up to 5 stacks. Lasts until battle ends.",
-        "Duration": 0,
-        "Category": "Weakening",
-        "MaxStacks": 5,
-        "Removable": false,
-        "PrimaryStatModifiers": {
-          "Strength": -1,
-          "Magic": -1,
-          "Defense": -1,
-          "Speed": -1,
-          "Luck": -1
-        }
       },
       {
         "Id": "throne",

@@ -41,6 +41,7 @@ namespace Windy.Srpg.Game.Skills
     {
         public bool Enabled;
         public bool IsMagic;
+        public bool HybridScaling;
         public int Might;
         public int Accuracy;
         public int Crit;
@@ -60,6 +61,7 @@ namespace Windy.Srpg.Game.Skills
         public int Radius;
         public int Might;
         public bool IsMagic;
+        public bool HybridScaling;
         public bool AffectsAllies;
         public bool AffectsEnemies;
     }
@@ -83,6 +85,8 @@ namespace Windy.Srpg.Game.Skills
         public SkillCategory Category = SkillCategory.Misc;
         public SkillTargetingType TargetingType = SkillTargetingType.None;
         public CombatArtWeaponType RequiredWeaponType = CombatArtWeaponType.Any;
+        [Tooltip("Optional exact weapon id required by this skill. Empty allows any weapon in RequiredWeaponType.")]
+        public string RequiredWeaponId;
 
         public bool EndsTurn = true;
         public bool OncePerTurn = true;

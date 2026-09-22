@@ -73,16 +73,10 @@ Check(deathsDoor.IsAliveForBattle, "Death's Door keeps a unit alive at negative 
 Check(deathsDoor.Buffs.ApplyMovementPointCaps(6f) == 1f, "Death's Door caps movement at one");
 Hit("toxic_sword", deathsDoor);
 Check(deathsDoor.Buffs.HasBuff("toxic"), "Weapon debuffs can apply to a living Death's Door unit");
-deathsDoor.AddBuffById("death_door_penalty");
-deathsDoor.AddBuffById("death_door_penalty");
-var deathsDoorPenalty = deathsDoor.Buffs.GetBuff("death_door_penalty");
-Check(deathsDoorPenalty.Stacks == 2 && !deathsDoorPenalty.Removable
-    && deathsDoor.Buffs.GetPrimaryStatModifiers().Strength == -2,
-    "Death's Door penalty stacks independently from ordinary Weakening");
 Check(deathsDoor.Buffs.RemoveRemovableDebuffs() == 1
     && deathsDoor.Buffs.HasBuff("death_door")
-    && deathsDoor.Buffs.HasBuff("death_door_penalty"),
-    "Cleanse removes Toxic but preserves both non-removable Death's Door statuses");
+    && deathsDoor.Buffs.GetPrimaryStatModifiers().Strength == 0,
+    "Cleanse removes Toxic but preserves Death's Door without a stat penalty");
 
 var fogEdge = new Unit { HitPoints = 101, ComputedTotalHitPoints = 101, BlackFogDepth = 0 };
 fogEdge.AddBuffById("black_fog");
@@ -107,6 +101,14 @@ burned.ApplyTurnStartHealthPhase();
 Check(burned.HitPoints == 15 && burned.Buffs.HasBuff("burn"), "Burn deals five Pain damage on its first tick");
 burned.ApplyTurnStartHealthPhase();
 Check(burned.HitPoints == 10 && !burned.Buffs.HasBuff("burn"), "Burn expires after exactly two Pain ticks");
+
+var stackedBurn = new Unit { HitPoints = 30, ComputedTotalHitPoints = 30 };
+stackedBurn.AddBuffById("burn");
+stackedBurn.AddBuffById("burn");
+stackedBurn.AddBuffById("burn");
+Check(stackedBurn.Buffs.GetBuff("burn").Stacks == 2, "Burn caps at two stacks");
+stackedBurn.ApplyTurnStartHealthPhase();
+Check(stackedBurn.HitPoints == 20, "Two Burn stacks deal ten Pain damage per tick");
 
 var evadeModifiers = new SecondaryStatModifiers { Evade = 20 } + new SecondaryStatModifiers { Evade = 20 };
 Check(evadeModifiers.Evade == 40, "Secondary stat aggregation supports stacked buff-based Evade bonuses");

@@ -13,9 +13,10 @@ MonoBehaviour:
   m_Name: FriendlyUnitPresetCatalog
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.FriendlyUnitPresetCatalog
   Presets:
-  - {fileID: 11400000, guid: 1d9072877b8740ccb7d8fc3a76413f88, type: 2}
+  - {fileID: 11400000, guid: 93f8fb2a71b544d38583aa62db37a7be, type: 2}
+  - {fileID: 11400000, guid: d5a40ab0b3dd4e09b3e9576180114b1f, type: 2}
   - {fileID: 11400000, guid: 173e295c008fbc04a91506b9ebb48778, type: 2}
-  - {fileID: 11400000, guid: 6dbf3055e63e456cb7f45b47015c52b7, type: 2}
-  - {fileID: 11400000, guid: 11c3c2cca3a3469495317fe78c8927ab, type: 2}
+  - {fileID: 11400000, guid: bc15592861b003846bc3d130887b269e, type: 2}
   - {fileID: 11400000, guid: 3da3188a491947e7887e2824acd58311, type: 2}
+  - {fileID: 11400000, guid: 8c7a53f33c2f4ed2a3fb69d38a821ce6, type: 2}
   - {fileID: 11400000, guid: 5c67dd4501de46fc8cb315b8e06bbe22, type: 2}

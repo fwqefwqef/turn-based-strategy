@@ -10,41 +10,47 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
-  m_Name: bastion
+  m_Name: nurse
   m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
-  PresetId: bastion
-  UnitName: Bastion
-  UnitSprite: {fileID: 21300000, guid: e7a1b2c3d4e5f6789012345678a1b004, type: 3}
+  PresetId: nurse
+  UnitName: Nurse
+  IsBoss: 0
+  UnitSprite: {fileID: 21300000, guid: f15a10580f85d2a46936a6ec6a9f3080, type: 3}
   FaceSprite: {fileID: 0}
   SpriteLayout:
     TargetSize: {x: 1.2, y: 1.2}
     OffsetX: 0
     OffsetY: 0
+  IsMultiTile: 0
+  FootprintWidth: 1
+  FootprintHeight: 1
   ActionAiMode: 0
   MovementAiMode: 0
   WaitGroupId: 0
   BaseLevel: 1
   WeaponProficiencies: -1
   BaseStats:
-    HitPoints: 100
-    ManaPoints: 9
+    HitPoints: 29
+    ManaPoints: 27
     MovementPoints: 5
-    Strength: 5
-    Defense: 0
-    Magic: 0
-    Speed: 0
-    Luck: 0
+    Strength: 4
+    Defense: 5
+    Magic: 6
+    Speed: 4
+    Luck: 4
   GrowthRates:
     Strength: 20
-    Magic: 20
+    Magic: 25
     Defense: 20
-    Speed: 20
+    Speed: 15
     Luck: 20
   StartingInventory:
-  - ItemId: iron_sword
+  - ItemId: mace
     InitialCharges: -1
-    IsDroppable: 1
+    IsDroppable: 0
     ChargesInitialized: 1
   StartingSkills:
-  - SkillId: cleanse
-  StartingClassPassives: []
+  - SkillId: devotion
+  - SkillId: bash
+  StartingClassPassives:
+  - PassiveId: compassion

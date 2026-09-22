@@ -28,6 +28,7 @@ The older parallel runtime/mirror grid has been removed. New battle features sho
 - Weapon attacks, combat arts, single-target skills, and area skills
 - Skills that do not end the unit's action are inherently limited to one use per turn
 - Inventory, equipment, trading, shops, and dropped-item handling
+- Equipped weapons and accessories can grant skills (`GrantedSkillIds`) and passives (`GrantedPassiveIds`) from `gdata.json`; those grants are removed on unequip and are not saved as learned abilities
 - Class and equip passives
 - Five-stat progression: Strength, Magic, Defense, Speed, and Luck; Magic also provides magical defense
 - EXP, level-ups, and growth-rate-based stat gains
@@ -41,6 +42,8 @@ The older parallel runtime/mirror grid has been removed. New battle features sho
 - Rectangular multi-tile units with footprint-aware movement, occupancy, targeting, terrain, AI, reinforcements, camera focus, and tile-specific targeting indicators
 
 The `colossus` enemy preset is a ready-to-place 3x3 example. Death's Door, Black Fog, buff-backed terrain bonuses and debuffs, terrain-effect presentation, and multi-tile scene behavior are implemented and awaiting broader Play Mode validation.
+
+Death's Door preserves 0 or negative HP and caps movement at 1 until the unit is healed above 0 HP. It does not reduce primary stats or accumulate a lasting weakening penalty.
 
 ## Project Layout
 

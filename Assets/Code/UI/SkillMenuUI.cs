@@ -587,7 +587,7 @@ namespace Windy.Srpg.Game.UI
 
             if (skillDisplayBodyText != null)
             {
-                skillDisplayBodyText.text = skill.Data.Description;
+                skillDisplayBodyText.text = UnitInspectPanelUI.BuildSkillDetailBody(skill.Data);
             }
         }
 

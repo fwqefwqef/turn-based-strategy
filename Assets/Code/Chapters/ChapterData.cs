@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
+using Windy.Srpg.Game.Campaign;
 
 namespace Windy.Srpg.Game.Chapters
 {
@@ -131,6 +132,9 @@ namespace Windy.Srpg.Game.Chapters
         [Tooltip("Stable Unit IDs in action order. Drag entries to rearrange them; newly added enemies append to the end.")]
         [SerializeField] private List<string> enemyTurnOrderUnitIds = new List<string>();
         [SerializeField] private List<ChapterBattleCondition> battleConditions = CreateDefaultBattleConditions();
+        [Header("Clear Rewards")]
+        [Tooltip("Stock added to the campaign shop the first time this chapter is cleared.")]
+        [SerializeField] private List<ShopStockEntryData> shopRestockOnClear = new List<ShopStockEntryData>();
 
         public string ChapterName => string.IsNullOrWhiteSpace(chapterName) ? gameObject.scene.name : chapterName;
         public float ChapterId => Mathf.Max(0f, chapterId);
@@ -143,6 +147,7 @@ namespace Windy.Srpg.Game.Chapters
         public IReadOnlyList<UnitPreset> EnemyPaintPresets => enemyPaintPresets ??= new List<UnitPreset>();
         public IReadOnlyList<string> EnemyTurnOrderUnitIds => enemyTurnOrderUnitIds ??= new List<string>();
         public IReadOnlyList<ChapterBattleCondition> BattleConditions => GetEffectiveBattleConditions();
+        public IReadOnlyList<ShopStockEntryData> ShopRestockOnClear => shopRestockOnClear ??= new List<ShopStockEntryData>();
 
         public IReadOnlyList<Unit> OrderEnemyUnits(IEnumerable<Unit> units)
         {
@@ -296,6 +301,7 @@ namespace Windy.Srpg.Game.Chapters
             enemyPaintPresets = new List<UnitPreset>();
             enemyTurnOrderUnitIds = new List<string>();
             battleConditions = CreateDefaultBattleConditions();
+            shopRestockOnClear = new List<ShopStockEntryData>();
         }
 
         private void OnValidate()
@@ -312,6 +318,7 @@ namespace Windy.Srpg.Game.Chapters
 
             enemyPaintPresets ??= new List<UnitPreset>();
             enemyTurnOrderUnitIds ??= new List<string>();
+            shopRestockOnClear ??= new List<ShopStockEntryData>();
 
             if (gameObject.scene.IsValid() && gameObject.scene.isLoaded)
             {

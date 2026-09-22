@@ -451,7 +451,6 @@ namespace Windy.Srpg.Game.Units
                 return false;
             }
 
-            AddBuffById(DeathsDoorPenaltyBuffId);
             BattleLog.Log("Combat", $"{name} enters Death's Door instead of being defeated. (unitId={UnitID}, sourceId={source?.UnitID}, damage={damageAmount})");
             return true;
         }
@@ -497,6 +496,11 @@ namespace Windy.Srpg.Game.Units
         public void ApplyPainDamage(int amount)
         {
             if (!IsAliveForBattle || amount <= 0) return;
+            if (BuffList?.HasBuff("flame_last_stand") == true && HitPoints > 0)
+            {
+                amount = Mathf.Min(amount, Mathf.Max(0, HitPoints - 1));
+                if (amount == 0) return;
+            }
             int previous = HitPoints;
             HitPoints -= amount;
             RaiseHealthChanged(previous, HitPoints, null);
@@ -711,7 +715,9 @@ namespace Windy.Srpg.Game.Units
                 {
                     HitPoints = BaseHitPoints,
                     ManaPoints = BaseManaPoints,
-                    MovementPoints = Mathf.Max(0, Mathf.RoundToInt(ComputedTotalMovementPoints > 0f ? ComputedTotalMovementPoints : MovementPoints)),
+                    // Persist the underlying value only. Temporary buffs, terrain, and overcharge
+                    // modifiers are already included in ComputedTotalMovementPoints.
+                    MovementPoints = Mathf.Max(0, Mathf.RoundToInt(MovementPoints)),
                     Strength = BaseStrength,
                     Defense = BaseDefense,
                     Magic = BaseMagic,
@@ -828,9 +834,9 @@ namespace Windy.Srpg.Game.Units
             }
 
             weaponProficiencies = preset.WeaponProficiencies;
-            actionAiMode = preset.ActionAiMode;
-            movementAiMode = preset.MovementAiMode;
-            waitGroupId = Mathf.Max(0, preset.WaitGroupId);
+            actionAiMode = PresetOverrides.ResolveActionAiMode(preset.ActionAiMode);
+            movementAiMode = PresetOverrides.ResolveMovementAiMode(preset.MovementAiMode);
+            waitGroupId = PresetOverrides.ResolveWaitGroupId(preset.WaitGroupId);
             aiWaitTriggered = false;
             UnitStatBlock stats = PresetOverrides.ResolveStats(preset.BaseStats);
             MovementPoints = Mathf.Max(0f, stats.MovementPoints);
@@ -984,6 +990,26 @@ namespace Windy.Srpg.Game.Units
         {
             ApplyBaseStatIncreaseInternal(stat, amount);
             RefreshHealthState();
+        }
+        public void ApplyPermanentStatIncrease(PermanentStatKind stat, int amount)
+        {
+            if (amount <= 0)
+            {
+                return;
+            }
+
+            switch (stat)
+            {
+                case PermanentStatKind.Strength: baseStrength += amount; break;
+                case PermanentStatKind.Magic: baseMagic += amount; break;
+                case PermanentStatKind.Defense: baseDefense += amount; break;
+                case PermanentStatKind.Speed: baseSpeed += amount; break;
+                case PermanentStatKind.Luck: baseLuck += amount; break;
+                case PermanentStatKind.Movement: MovementPoints = Mathf.Max(0f, MovementPoints + amount); break;
+            }
+
+            RefreshHealthState();
+            RaiseStatsChanged();
         }
         public int GrantExperience(int amount)
         {
@@ -1171,6 +1197,7 @@ namespace Windy.Srpg.Game.Units
         public void OnInventoryChanged()
         {
             SkillList?.RefreshEquipmentGrantedSkills();
+            PassiveList?.RefreshEquipmentGrantedPassives(notifyOwner: false);
             RefreshHealthState();
             RaiseStatsChanged();
         }
@@ -1190,6 +1217,18 @@ namespace Windy.Srpg.Game.Units
             HitPoints = Mathf.Min(HitPoints + amount, ComputedTotalHitPoints);
             ClearDeathsDoorIfHealedAboveZero();
             RaiseHealthChanged(previousHitPoints, HitPoints, source);
+            int actualHealing = Mathf.Max(0, HitPoints - previousHitPoints);
+            if (actualHealing > 0 && source != null)
+            {
+                source.PassiveList?.NotifyHealingPerformed(this, actualHealing);
+            }
+        }
+
+        public int GetSpellMaxRangeModifier(SkillData skill)
+        {
+            return skill == null || skill.Category == SkillCategory.CombatArt
+                ? 0
+                : PassiveList?.GetSpellMaxRangeModifier(skill) ?? 0;
         }
         public void SetCurrentHitPoints(int value, Unit source = null)
         {
@@ -1445,6 +1484,22 @@ namespace Windy.Srpg.Game.Units
         {
             return FindAnyObjectByType<CellGrid>();
         }
+        public int CountBurningEnemies()
+        {
+            CellGrid grid = FindSceneCellGrid();
+            return grid == null ? 0 : grid.GetAllUnits().Count(unit => unit != null
+                && unit.PlayerNumber != PlayerNumber
+                && unit.IsAliveForBattle
+                && unit.BuffList?.HasBuff("burn") == true);
+        }
+        public int CountDamagedEnemies()
+        {
+            CellGrid grid = FindSceneCellGrid();
+            return grid == null ? 0 : grid.GetAllUnits().Count(unit => unit != null
+                && unit.PlayerNumber != PlayerNumber
+                && unit.IsAliveForBattle
+                && unit.HitPoints < unit.ComputedTotalHitPoints);
+        }
         internal bool TryGetBlackFogDepth(out int depth)
         {
             depth = 0;
@@ -1495,20 +1550,20 @@ namespace Windy.Srpg.Game.Units
             }
 
             LogBattleAction($"attacks {DescribeUnit(unitToAttack)} with {GetEquippedWeaponDisplayName()}.");
-            StartCoroutine(AttackSequenceRoutine(unitToAttack, BuildDefaultAttackProfile(), targetedCell));
+            StartCoroutine(AttackSequenceRoutine(unitToAttack, BuildDefaultAttackProfile(), targetedCell, isBasicAttack: true));
         }
         public void AttackHandler(Unit unitToAttack, ResolvedAttackProfile attackProfile)
         {
             AttackHandler(unitToAttack, attackProfile, targetedCell: null);
         }
-        public void AttackHandler(Unit unitToAttack, ResolvedAttackProfile attackProfile, Cell targetedCell)
+        public void AttackHandler(Unit unitToAttack, ResolvedAttackProfile attackProfile, Cell targetedCell, IP_AttackHitEffect skillHitEffect = null)
         {
             if (unitToAttack == null || IsAttackSequenceRunning || !CanStartActionThisTurn)
             {
                 return;
             }
 
-            StartCoroutine(AttackSequenceRoutine(unitToAttack, attackProfile, targetedCell));
+            StartCoroutine(AttackSequenceRoutine(unitToAttack, attackProfile, targetedCell, skillHitEffect: skillHitEffect));
         }
         public void UseSupportSkill(Unit primaryTarget, bool endsTurn, Action resolveEffect, SkillData skill = null, Windy.Srpg.Game.Grid.CellGrid cellGrid = null)
         {
@@ -1549,6 +1604,7 @@ namespace Windy.Srpg.Game.Units
                 Accuracy = Accuracy,
                 Crit = Crit,
                 NumHits = NumHits,
+                PursuitSpeed = Speed,
                 IsMagic = IsMagic,
                 CanPursuitAttack = CanPursuitAttack,
                 PreventsCounterattack = PreventsCounterattack,
@@ -1556,7 +1612,7 @@ namespace Windy.Srpg.Game.Units
                 UsesWeaponEffects = true
             };
         }
-        private IEnumerator AttackSequenceRoutine(Unit unitToAttack, ResolvedAttackProfile attackProfile, Cell targetedCell)
+        private IEnumerator AttackSequenceRoutine(Unit unitToAttack, ResolvedAttackProfile attackProfile, Cell targetedCell, bool isBasicAttack = false, IP_AttackHitEffect skillHitEffect = null)
         {
             IsAttackSequenceRunning = true;
             BeginCombatPresentation();
@@ -1600,74 +1656,65 @@ namespace Windy.Srpg.Game.Units
                 int initialOffense = attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength);
                 int initialAccuracy = Accuracy;
                 int initialCrit = Crit;
-                bool pursuitAttack = unitToAttack != null
-                    && attackProfile.CanPursuitAttack
-                    && Speed >= unitToAttack.Speed + PursuitAttackSpeedThreshold;
-                bool vantageCounterTriggered = unitToAttack != null
-                    && unitToAttack.HasVantage
-                    && unitToAttack.ShouldTriggerCounterAttack(this, attackProfile.PreventsCounterattack);
+                CombatSequencePlan combatPlan = CombatSequenceBuilder.Build(this, unitToAttack, attackProfile);
+                ExperienceAwardResult counterExperienceAward = null;
                 BattleLog.Log("Combat", $"{name} starts a {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
 
-                if (vantageCounterTriggered)
+                foreach (CombatStrikePhase phase in combatPlan.Phases)
                 {
-                    yield return StartCoroutine(unitToAttack.CounterAttack(this, attackProfile.PreventsCounterattack, isVantage: true));
-                }
-
-                int initialHits = Mathf.Max(1, attackProfile.NumHits);
-                for (int i = 0; i < initialHits; i++)
-                {
-                    if (IsActionBlocked || unitToAttack == null || !IsAliveForBattle || !unitToAttack.IsAliveForBattle)
+                    if (phase.Attacker == null
+                        || phase.Defender == null
+                        || !phase.Attacker.IsAliveForBattle
+                        || !phase.Defender.IsAliveForBattle
+                        || (phase.IsPursuit && phase.Attacker.IsActionBlocked))
                     {
-                        break;
+                        continue;
                     }
 
-                    MarkAsAttacking(unitToAttack);
-                    yield return StartCoroutine(PlayAttackLungeAnimation(unitToAttack, presentationTargetCell));
-                    unitToAttack.DefendHandler(
-                        this,
-                        baseDamage + (attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength)) - initialOffense,
-                        attackProfile.Accuracy + Accuracy - initialAccuracy,
-                        attackProfile.Crit + Crit - initialCrit,
-                        isMagicAttack: attackProfile.IsMagic,
-                        isCounterAttack: false,
-                        simulateOnly: false,
-                        applyWeaponEffects: attackProfile.UsesWeaponEffects);
-
-                    if (attackHitPauseSeconds > 0f)
+                    if (phase.IsCounter)
                     {
-                        yield return new WaitForSeconds(attackHitPauseSeconds);
+                        if (skillHitEffect is IP_CancelCounterattackOnHit cancelOnHit
+                            && cancelOnHit.HitLanded)
+                            continue;
+
+                        yield return StartCoroutine(phase.Attacker.CounterAttack(
+                            phase.Defender,
+                            attackProfile.PreventsCounterattack,
+                            isVantage: phase.HasVantagePriority,
+                            isPursuit: phase.IsPursuit,
+                            hitCount: phase.HitCount));
+                        counterExperienceAward = phase.Attacker.TakeQueuedDeferredExperienceAward()
+                            ?? counterExperienceAward;
+                        continue;
                     }
-                }
 
-                if (!vantageCounterTriggered && unitToAttack != null && IsAliveForBattle && unitToAttack.IsAliveForBattle)
-                {
-                    yield return StartCoroutine(unitToAttack.CounterAttack(this, attackProfile.PreventsCounterattack));
-                }
-
-                ExperienceAwardResult counterExperienceAward = unitToAttack?.TakeQueuedDeferredExperienceAward();
-
-                if (pursuitAttack && !IsActionBlocked && IsAliveForBattle && unitToAttack != null && unitToAttack.IsAliveForBattle)
-                {
-                    BattleLog.Log("Combat", $"{name} starts a pursuit {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
-                    int pursuitHits = Mathf.Max(1, attackProfile.NumHits);
-                    for (int i = 0; i < pursuitHits; i++)
+                    if (phase.IsPursuit)
                     {
-                        if (IsActionBlocked || unitToAttack == null || !IsAliveForBattle || !unitToAttack.IsAliveForBattle)
+                        BattleLog.Log("Combat", $"{name} starts a pursuit {(attackProfile.IsMagic ? "magic" : "physical")} attack on {unitToAttack.name}. (attackerId={UnitID}, defenderId={unitToAttack.UnitID}, baseDamage={baseDamage}, finishedBefore={IsFinishedForTurn})");
+                    }
+
+                    for (int hit = 0; hit < phase.HitCount; hit++)
+                    {
+                        if (phase.Attacker.IsActionBlocked
+                            || !phase.Attacker.IsAliveForBattle
+                            || !phase.Defender.IsAliveForBattle)
                         {
                             break;
                         }
 
-                        MarkAsAttacking(unitToAttack);
-                        yield return StartCoroutine(PlayAttackLungeAnimation(unitToAttack, presentationTargetCell));
-                        unitToAttack.DefendHandler(
-                            this,
+                        phase.Attacker.MarkAsAttacking(phase.Defender);
+                        yield return StartCoroutine(phase.Attacker.PlayAttackLungeAnimation(phase.Defender, presentationTargetCell));
+                        phase.Defender.DefendHandler(
+                            phase.Attacker,
                             baseDamage + (attackProfile.UsesWeaponEffects ? Attack : (attackProfile.IsMagic ? Magic : Strength)) - initialOffense,
                             attackProfile.Accuracy + Accuracy - initialAccuracy,
                             attackProfile.Crit + Crit - initialCrit,
                             isMagicAttack: attackProfile.IsMagic,
                             isCounterAttack: false,
                             simulateOnly: false,
-                            applyWeaponEffects: attackProfile.UsesWeaponEffects);
+                            applyWeaponEffects: attackProfile.UsesWeaponEffects,
+                            isBasicAttack: isBasicAttack,
+                            skillHitEffect: skillHitEffect);
 
                         if (attackHitPauseSeconds > 0f)
                         {
@@ -1791,7 +1838,7 @@ namespace Windy.Srpg.Game.Units
 
             transform.localPosition = startPos;
         }
-        public int DefendHandler(Unit aggressor, int damage, int aggressorHit, int aggressorCrit, bool isMagicAttack = false, bool isCounterAttack = false, bool simulateOnly = false, bool applyWeaponEffects = true)
+        public int DefendHandler(Unit aggressor, int damage, int aggressorHit, int aggressorCrit, bool isMagicAttack = false, bool isCounterAttack = false, bool simulateOnly = false, bool applyWeaponEffects = true, bool isBasicAttack = false, bool isAreaSpell = false, IP_AttackHitEffect skillHitEffect = null)
         {
             if (aggressor == null)
             {
@@ -1809,10 +1856,13 @@ namespace Windy.Srpg.Game.Units
                 }
 
                 int hitChance = Mathf.Clamp(aggressorHit - Evade, 0, 100);
-                int critChance = Mathf.Clamp(aggressorCrit - CritAvoid, 0, 100);
-                bool isHit = UnityEngine.Random.value * 100f < hitChance;
+                bool neverMisses = aggressor.AttacksCannotMiss;
+                if (neverMisses || isAreaSpell)
+                    hitChance = 100;
+                int critChance = isAreaSpell ? 0 : Mathf.Clamp(aggressorCrit - CritAvoid, 0, 100);
+                bool isHit = isAreaSpell || UnityEngine.Random.value * 100f < hitChance;
                 damageTaken = 0;
-                bool isCrit = isHit && UnityEngine.Random.value * 100f < critChance;
+                bool isCrit = !isAreaSpell && isHit && UnityEngine.Random.value * 100f < critChance;
 
                 var damageContext = new DamageChangeContext
                 {
@@ -1822,6 +1872,7 @@ namespace Windy.Srpg.Game.Units
                     IsCrit = isCrit,
                     IsMagicAttack = isMagicAttack,
                     IsCounterAttack = isCounterAttack,
+                    IsAreaSpell = isAreaSpell,
                     IsSimulated = simulateOnly,
                     Phase = DamageChangePhase.Outcome
                 };
@@ -1830,6 +1881,18 @@ namespace Windy.Srpg.Game.Units
                 ApplyDamageTakenModifiers(this, damageContext, damageContext.Damage);
                 ApplyDamageMultipliers(aggressor, damageContext, damageContext.Damage);
                 ApplyTakeDamageMultipliers(this, damageContext, damageContext.Damage);
+
+                if (isAreaSpell)
+                {
+                    // Area spells resolve against every affected unit without strike rolls.
+                    // Outcome modifiers cannot turn them into misses or critical hits.
+                    damageContext.IsHit = true;
+                    damageContext.IsCrit = false;
+                }
+                else if (neverMisses)
+                {
+                    damageContext.IsHit = true;
+                }
 
                 if (!damageContext.IsHit)
                 {
@@ -1851,6 +1914,27 @@ namespace Windy.Srpg.Game.Units
                     damageTaken = ApplyDamageMultipliers(aggressor, damageContext, damageTaken);
                     damageTaken = ApplyTakeDamageMultipliers(this, damageContext, damageTaken);
                     damageTaken = Mathf.Max(0, damageTaken);
+                    if (damageTaken > 0)
+                    {
+                        // Temporary full protection takes priority; it should not
+                        // consume Indomitable's once-per-turn save unnecessarily.
+                        if (BuffList != null)
+                        {
+                            foreach (var effect in BuffList.GetActiveEffects())
+                            {
+                                if (effect is IP_AttackSurvivalGuard guard)
+                                    damageTaken = Mathf.Clamp(guard.LimitAttackDamage(this, damageTaken, simulateOnly), 0, damageTaken);
+                            }
+                        }
+                        if (PassiveList != null)
+                        {
+                            foreach (var effect in PassiveList.GetActiveEffects())
+                            {
+                                if (effect is IP_AttackSurvivalGuard guard)
+                                    damageTaken = Mathf.Clamp(guard.LimitAttackDamage(this, damageTaken, simulateOnly), 0, damageTaken);
+                            }
+                        }
+                    }
                     damageContext.Damage = damageTaken;
 
                     if (!simulateOnly)
@@ -1891,7 +1975,19 @@ namespace Windy.Srpg.Game.Units
                     {
                         hitEffect.OnWeaponHit(aggressor, this);
                     }
+
+                    if (damageContext.IsHit && aggressor.PassiveList != null)
+                    {
+                        foreach (var effect in aggressor.PassiveList.GetActiveEffects())
+                        {
+                            if (effect is IP_AttackHitEffect hitPassive)
+                                hitPassive.OnAttackHit(aggressor, this, damageTaken, isBasicAttack);
+                        }
+                    }
+                    if (damageContext.IsHit)
+                        skillHitEffect?.OnAttackHit(aggressor, this, damageTaken, isBasicAttack);
                 }
+
             }
 
             return damageTaken;
@@ -2091,7 +2187,12 @@ namespace Windy.Srpg.Game.Units
                 .Select(DescribeUnit)
                 .Distinct());
         }
-        private IEnumerator CounterAttack(Unit aggressor, bool counterPrevented = false, bool isVantage = false)
+        private IEnumerator CounterAttack(
+            Unit aggressor,
+            bool counterPrevented = false,
+            bool isVantage = false,
+            bool isPursuit = false,
+            int hitCount = 0)
         {
             if (!ShouldTriggerCounterAttack(aggressor, counterPrevented))
             {
@@ -2118,22 +2219,44 @@ namespace Windy.Srpg.Game.Units
                 }
 
                 string timing = isVantage ? "before the incoming attack" : "after attack resolution";
-                BattleLog.Log("Combat", $"{name} counterattacks {aggressor.name} {timing}. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
-                MarkAsAttacking(aggressor);
-                yield return StartCoroutine(PlayAttackLungeAnimation(aggressor));
-                var counterDamage = Attack;
-                aggressor.DefendHandler(
-                    this,
-                    counterDamage,
-                    Accuracy,
-                    Crit,
-                    isMagicAttack: IsMagic,
-                    isCounterAttack: true,
-                    simulateOnly: false);
+                int hitsPerVolley = Mathf.Max(1, hitCount > 0 ? hitCount : NumHits);
+                int counterDamage = Attack;
+                int counterAccuracy = Accuracy;
+                int counterCrit = Crit;
+                bool counterIsMagic = IsMagic;
 
-                if (attackHitPauseSeconds > 0f)
+                if (isPursuit)
                 {
-                    yield return new WaitForSeconds(attackHitPauseSeconds);
+                    BattleLog.Log("Combat", $"{name} starts a pursuit counterattack on {aggressor.name}. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
+                }
+                else
+                {
+                    BattleLog.Log("Combat", $"{name} counterattacks {aggressor.name} {timing}. (defenderId={UnitID}, aggressorId={aggressor.UnitID})");
+                }
+
+                for (int hit = 0; hit < hitsPerVolley; hit++)
+                {
+                    if (!IsAliveForBattle || aggressor == null || !aggressor.IsAliveForBattle)
+                    {
+                        break;
+                    }
+
+                    MarkAsAttacking(aggressor);
+                    yield return StartCoroutine(PlayAttackLungeAnimation(aggressor));
+                    aggressor.DefendHandler(
+                        this,
+                        counterDamage,
+                        counterAccuracy,
+                        counterCrit,
+                        isMagicAttack: counterIsMagic,
+                        isCounterAttack: true,
+                        simulateOnly: false,
+                        isBasicAttack: true);
+
+                    if (attackHitPauseSeconds > 0f)
+                    {
+                        yield return new WaitForSeconds(attackHitPauseSeconds);
+                    }
                 }
 
                 if (!targetWasDefeated && experienceTarget != null)
@@ -2751,7 +2874,6 @@ namespace Windy.Srpg.Game.Units
             UnregisterCellOccupancyList(fromCell, notifyGrid: false);
             RegisterCellOccupancyList(canonicalDestination, notifyGrid: false);
             Cell = canonicalDestination;
-            cellGrid?.NotifyOccupancyChanged();
             cachedPaths = null;
             InvalidateCachedPaths();
 
@@ -2768,6 +2890,10 @@ namespace Windy.Srpg.Game.Units
                 OnMoveFinished();
             }
 
+            // Expensive occupancy consumers (terrain and enemy-range overlays) only need
+            // the final position. Running them before the animation causes its first frame
+            // to stall on enemy-heavy maps.
+            cellGrid?.NotifyOccupancyChanged();
             cellGrid?.RequestBattleOutcomeEvaluation();
         }
         internal float GetPendingMovementPointsBefore() =>
@@ -2789,11 +2915,10 @@ namespace Windy.Srpg.Game.Units
                 Path = path,
                 MovementPointsBefore = MovementPoints,
                 MovementCost = SumPathMovementCost(path),
-                FromLocalPos = transform.localPosition
+                FromLocalPos = transform.localPosition,
+                PreviewPositionNotified = false
             };
-            pendingMoveBeganAfterPendingOvercharge = CurrentOverchargeState == OverchargeState.PendingActivation;
-
-            FindSceneCellGrid()?.NotifyOccupancyChanged();
+            RecordPendingOperation(PendingUnitOperation.Movement);
 
             // Do NOT touch Cell/occupancy or MovementPoints here.
             if (MovementAnimationSpeed > 0)
@@ -2809,6 +2934,17 @@ namespace Windy.Srpg.Game.Units
                 if (isMap2D)
                     destLocal = new Vector3(destLocal.x, destLocal.y, transform.localPosition.z);
                 transform.localPosition = destLocal;
+            }
+
+            if (previewMoveVersion == _previewMoveVersion && _pendingMove.HasValue)
+            {
+                PendingMove pendingMove = _pendingMove.Value;
+                if (pendingMove.ToCell != pendingMove.FromCell)
+                {
+                    pendingMove.PreviewPositionNotified = true;
+                    _pendingMove = pendingMove;
+                    FindSceneCellGrid()?.NotifyPreviewPositionChanged();
+                }
             }
         }
         public virtual bool ConfirmPendingMove(bool consumeAllRemainingMovement = true)
@@ -2839,8 +2975,8 @@ namespace Windy.Srpg.Game.Units
             FindSceneCellGrid()?.RequestBattleOutcomeEvaluation();
 
             _pendingMove = null;
-            pendingMoveBeganAfterPendingOvercharge = false;
             CommitPendingOvercharge();
+            ClearPendingOperations();
             return true;
         }
         public virtual bool CancelPendingMove()
@@ -2857,9 +2993,12 @@ namespace Windy.Srpg.Game.Units
             transform.localPosition = p.FromLocalPos;
 
             _pendingMove = null;
-            pendingMoveBeganAfterPendingOvercharge = false;
+            RemovePendingOperation(PendingUnitOperation.Movement);
             PreviewMoveCameraFollowReleased?.Invoke();
-            FindSceneCellGrid()?.NotifyOccupancyChanged();
+            if (p.PreviewPositionNotified)
+            {
+                FindSceneCellGrid()?.NotifyPreviewPositionChanged();
+            }
             return true;
         }
         public virtual bool BeginPendingMoveInPlace()
@@ -2879,14 +3018,11 @@ namespace Windy.Srpg.Game.Units
                 Path = new List<Cell>() { Cell },
                 MovementPointsBefore = MovementPoints,
                 MovementCost = 0f,
-                FromLocalPos = transform.localPosition
+                FromLocalPos = transform.localPosition,
+                PreviewPositionNotified = false
             };
-            // An in-place pending move is only a shell used to reopen the action menu.
-            // It must not sit above Overcharge in the pending-action order, otherwise
-            // repeatedly pressing Cancel could never reach the pending Overcharge.
-            pendingMoveBeganAfterPendingOvercharge = false;
-
-            FindSceneCellGrid()?.NotifyOccupancyChanged();
+            // An in-place move is an action-menu shell, not a reversible movement
+            // operation, so it is deliberately absent from the pending ledger.
 
             return true;
         }
@@ -3007,8 +3143,9 @@ namespace Windy.Srpg.Game.Units
 
             Cell originCell = ResolvePathfindingCell(cells ?? new List<Cell>(), Cell);
             HashSet<Cell> reachableCells = new HashSet<Cell>();
-            foreach (Cell candidate in cells ?? new List<Cell>())
+            foreach (KeyValuePair<Cell, IList<Cell>> cachedPath in cachedPaths)
             {
+                Cell candidate = cachedPath.Key;
                 if (candidate == null
                     || candidate == originCell
                     || (originCell != null && candidate.Coordinates == originCell.Coordinates))
@@ -3021,10 +3158,7 @@ namespace Windy.Srpg.Game.Units
                     continue;
                 }
 
-                if (!TryGetCachedPath(candidate, out IList<Cell> route) || route == null)
-                {
-                    continue;
-                }
+                IList<Cell> route = cachedPath.Value;
 
                 if (route.Count < 1)
                 {
@@ -3111,7 +3245,7 @@ namespace Windy.Srpg.Game.Units
                 return new Dictionary<Cell, IList<Cell>>();
             }
 
-            return ScenePathfinder.FindAllPaths(edges, originCell);
+            return ScenePathfinder.FindAllPaths(edges, originCell, Mathf.Max(0f, MovementPoints));
         }
         private static Cell ResolvePathfindingCell(List<Cell> cells, Cell preferredCell)
         {
@@ -3153,7 +3287,7 @@ namespace Windy.Srpg.Game.Units
 
             return total;
         }
-        private bool CanOccupyCell(Cell cell)
+        private bool CanOccupyCell(Cell cell, CellGrid grid = null)
         {
             if (cell == null || cell == Cell)
             {
@@ -3162,9 +3296,9 @@ namespace Windy.Srpg.Game.Units
 
             // A unit may only finish movement on an unoccupied tile. Allied units
             // are pass-through occupants, not valid destinations.
-            return CanPlaceFootprint(cell, hostileOnly: false);
+            return CanPlaceFootprint(cell, hostileOnly: false, grid);
         }
-        private bool CanTraverseCell(Cell cell)
+        private bool CanTraverseCell(Cell cell, CellGrid grid = null)
         {
             if (cell == null)
             {
@@ -3178,7 +3312,7 @@ namespace Windy.Srpg.Game.Units
 
             // Hostile units obstruct the route. Obstructable units owned by the
             // same player may be crossed, while remaining unavailable as endpoints.
-            return CanPlaceFootprint(cell, hostileOnly: true);
+            return CanPlaceFootprint(cell, hostileOnly: true, grid);
         }
         private bool HasBlockingOccupant(Cell cell, bool hostileOnly, CellGrid grid = null)
         {
@@ -3213,6 +3347,7 @@ namespace Windy.Srpg.Game.Units
         private Dictionary<Cell, Dictionary<Cell, float>> GetSceneGraphEdges(List<Cell> cells)
         {
             Cell originCell = ResolvePathfindingCell(cells, Cell);
+            CellGrid sceneGrid = FindSceneCellGrid();
             Dictionary<Cell, Dictionary<Cell, float>> edgeLookup = new Dictionary<Cell, Dictionary<Cell, float>>();
             if (cells == null)
             {
@@ -3226,22 +3361,22 @@ namespace Windy.Srpg.Game.Units
                     continue;
                 }
 
-                if (!IsCellTraversable(cell) && cell != originCell)
+                if (!CanTraverseCell(cell, sceneGrid) && cell != originCell)
                 {
                     continue;
                 }
 
                 Dictionary<Cell, float> neighbours = new Dictionary<Cell, float>();
-                foreach (Cell adjacentCell in cell.GetNeighbours(cells))
+                foreach (Cell adjacentCell in cell.GetNeighbours(sceneGrid, cells))
                 {
                     if (adjacentCell == null)
                     {
                         continue;
                     }
 
-                    if (IsCellTraversable(adjacentCell) || IsCellMovableTo(adjacentCell))
+                    if (CanTraverseCell(adjacentCell, sceneGrid) || CanOccupyCell(adjacentCell, sceneGrid))
                     {
-                        neighbours[adjacentCell] = GetFootprintMovementCost(adjacentCell);
+                        neighbours[adjacentCell] = GetFootprintMovementCost(adjacentCell, sceneGrid);
                     }
                 }
 

@@ -51,6 +51,7 @@ namespace Windy.Srpg.Game.Editor
         [SerializeField] private int mapWidth = 20;
         [SerializeField] private int mapHeight = 20;
         [SerializeField] private bool enableScenePainting = true;
+        [SerializeField] private bool enablePaintPalette = true;
         [SerializeField] private PaintMode paintMode = PaintMode.Tile;
 
         private Vector2 scrollPosition;
@@ -178,14 +179,31 @@ namespace Windy.Srpg.Game.Editor
         private void DrawPaletteSection()
         {
             EditorGUILayout.LabelField("Paint Palette", EditorStyles.boldLabel);
-            PaintMode previousMode = paintMode;
-            paintMode = (PaintMode)GUILayout.Toolbar(
-                (int)paintMode,
-                new[] { "Tile", "Deploy", "Enemy", "Friendly", "Reinforce", "Erase All", "Move Unit", "Erase Unit" });
-            if (paintMode != previousMode)
+            bool wasEnabled = enablePaintPalette;
+            enablePaintPalette = EditorGUILayout.Toggle("Enable Paint Palette", enablePaintPalette);
+            if (wasEnabled != enablePaintPalette)
             {
                 unitPendingMove = null;
                 SceneView.RepaintAll();
+            }
+
+            using (new EditorGUI.DisabledScope(!enablePaintPalette))
+            {
+                PaintMode previousMode = paintMode;
+                paintMode = (PaintMode)GUILayout.Toolbar(
+                    (int)paintMode,
+                    new[] { "Tile", "Deploy", "Enemy", "Friendly", "Reinforce", "Erase All", "Move Unit", "Erase Unit" });
+                if (paintMode != previousMode)
+                {
+                    unitPendingMove = null;
+                    SceneView.RepaintAll();
+                }
+            }
+
+            if (!enablePaintPalette)
+            {
+                EditorGUILayout.HelpBox("Painting is disabled. Clicking tiles in the Scene view will not modify the map.", MessageType.Info);
+                return;
             }
 
             switch (paintMode)
@@ -413,7 +431,7 @@ namespace Windy.Srpg.Game.Editor
             hoveredCoordinate = GetHoveredCoordinate(context, Event.current.mousePosition, sceneView.camera);
             DrawHoveredCoordinate(context);
 
-            if (!enableScenePainting || Application.isPlaying)
+            if (!enableScenePainting || !enablePaintPalette || Application.isPlaying)
             {
                 return;
             }
@@ -821,15 +839,8 @@ namespace Windy.Srpg.Game.Editor
 
         private bool PaintReinforcementTileAt(MapPainterSceneContext context, Vector2Int coordinate)
         {
-            if (reinforcementUnits == null
-                || reinforcementUnits.Count == 0
-                || reinforcementUnits.Any(entry => entry == null || entry.Preset == null))
-            {
-                Debug.LogWarning("Map Painter: Every reinforcement unit entry requires a UnitPreset.");
-                return false;
-            }
-
-            List<ReinforcementUnitEntry> configuredUnits = reinforcementUnits
+            List<ReinforcementUnitEntry> configuredUnits = (reinforcementUnits ?? new List<ReinforcementUnitEntry>())
+                .Where(entry => entry != null && entry.Preset != null)
                 .Select(entry => new ReinforcementUnitEntry
                 {
                     PlayerNumber = Mathf.Max(0, entry.PlayerNumber),
@@ -839,21 +850,39 @@ namespace Windy.Srpg.Game.Editor
             List<int> configuredTurns = (reinforcementSpawnTurns ?? new List<int>())
                 .Select(turn => Mathf.Max(1, turn))
                 .ToList();
-            if (configuredTurns.Count == 0)
-            {
-                Debug.LogWarning("Map Painter: A reinforcement tile requires at least one spawn turn.");
-                return false;
-            }
 
-            Cell cell = EnsureTraversableCellAt(context, coordinate);
+            Cell cell = GetCellAtCoordinate(context, coordinate);
             Transform reinforcementTilesParent = GetOrCreateReinforcementTilesParent(context);
-            if (cell == null || reinforcementTilesParent == null)
+            if (cell == null)
             {
+                Debug.LogWarning($"Map Painter: Cannot place a reinforcement marker at {coordinate}; no floor tile exists there.");
                 return false;
             }
 
-            RemoveDeploymentSlotAtCoordinate(context, coordinate);
-            RemoveUnitAtCoordinate(context, coordinate);
+            if (!cell.IsTraversable)
+            {
+                Debug.LogWarning($"Map Painter: Cannot place a reinforcement marker at {coordinate}; the floor tile is not traversable.");
+                return false;
+            }
+
+            ReinforcementTile reinforcementTile = GetReinforcementTileAtCoordinate(context, coordinate);
+            Unit occupyingUnit = GetUnitAtCoordinate(context, coordinate);
+            if (occupyingUnit != null && occupyingUnit != reinforcementTile?.Spawner)
+            {
+                Debug.LogWarning($"Map Painter: Cannot place a reinforcement marker at {coordinate}; '{occupyingUnit.name}' occupies the tile.");
+                return false;
+            }
+
+            if (GetDeploymentSlotAtCoordinate(context, coordinate) != null)
+            {
+                Debug.LogWarning($"Map Painter: Cannot place a reinforcement marker at {coordinate}; a deployment slot occupies the tile.");
+                return false;
+            }
+
+            if (reinforcementTilesParent == null)
+            {
+                return false;
+            }
 
             Unit linkedSpawner = null;
             if (placeReinforcementSpawner)
@@ -895,7 +924,6 @@ namespace Windy.Srpg.Game.Editor
                 }
             }
 
-            ReinforcementTile reinforcementTile = GetReinforcementTileAtCoordinate(context, coordinate);
             if (reinforcementTile != null && reinforcementTile.gameObject == cell.gameObject)
             {
                 Undo.DestroyObjectImmediate(reinforcementTile);

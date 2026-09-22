@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Windy.Srpg.Game.Units;
+using Windy.Srpg.Game.Campaign;
 
 namespace Windy.Srpg.Game.Inventory
 {
@@ -12,6 +13,12 @@ namespace Windy.Srpg.Game.Inventory
 
     public interface IUnitPassive
     {
+    }
+
+    public interface IPreBattleConsumableEffect
+    {
+        bool CanUsePreBattle(OwnedUnitSaveData target);
+        void UsePreBattle(OwnedUnitSaveData target);
     }
 
     public interface IWeaponHitEffect : IUnitPassive

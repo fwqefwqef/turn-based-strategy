@@ -147,6 +147,7 @@ namespace Windy.Srpg.Game.Catalogs
         public WeaponCatalogEntry[] Weapons = Array.Empty<WeaponCatalogEntry>();
         public AccessoryCatalogEntry[] Accessories = Array.Empty<AccessoryCatalogEntry>();
         public ConsumableCatalogEntry[] Consumables = Array.Empty<ConsumableCatalogEntry>();
+        public ValuableCatalogEntry[] Valuables = Array.Empty<ValuableCatalogEntry>();
 
         public IEnumerable<ItemData> ToRuntimeDefinitions()
         {
@@ -173,6 +174,14 @@ namespace Windy.Srpg.Game.Catalogs
                     yield return entry.ToRuntime();
                 }
             }
+
+            foreach (ValuableCatalogEntry entry in Valuables ?? Array.Empty<ValuableCatalogEntry>())
+            {
+                if (entry != null)
+                {
+                    yield return entry.ToRuntime();
+                }
+            }
         }
     }
 
@@ -185,6 +194,7 @@ namespace Windy.Srpg.Game.Catalogs
         public int Value = 100;
         public string WeaponType = nameof(Windy.Srpg.Game.Inventory.WeaponType.Sword);
         public string DamageType = nameof(Windy.Srpg.Game.Inventory.DamageType.Physical);
+        public bool HybridScaling;
         public int Might;
         public int MinRange = 1;
         public int MaxRange = 1;
@@ -197,6 +207,7 @@ namespace Windy.Srpg.Game.Catalogs
         public PrimaryStatModifiers StatModifiers;
         public string EffectId;
         public string[] GrantedSkillIds = Array.Empty<string>();
+        public string[] GrantedPassiveIds = Array.Empty<string>();
 
         public WeaponData ToRuntime()
         {
@@ -208,6 +219,7 @@ namespace Windy.Srpg.Game.Catalogs
                 Value = Value,
                 WeaponType = CatalogResourceLoader.ParseEnum(WeaponType, Windy.Srpg.Game.Inventory.WeaponType.Sword),
                 DamageType = CatalogResourceLoader.ParseEnum(DamageType, Windy.Srpg.Game.Inventory.DamageType.Physical),
+                HybridScaling = HybridScaling,
                 Might = Might,
                 MinRange = MinRange,
                 MaxRange = MaxRange,
@@ -219,7 +231,8 @@ namespace Windy.Srpg.Game.Catalogs
                 PreventsCounterattack = PreventsCounterattack,
                 StatModifiers = StatModifiers,
                 EffectId = CatalogResourceLoader.NormalizeOptionalString(EffectId),
-                GrantedSkillIds = CatalogResourceLoader.NormalizeStrings(GrantedSkillIds)
+                GrantedSkillIds = CatalogResourceLoader.NormalizeStrings(GrantedSkillIds),
+                GrantedPassiveIds = CatalogResourceLoader.NormalizeStrings(GrantedPassiveIds)
             };
         }
     }
@@ -235,6 +248,7 @@ namespace Windy.Srpg.Game.Catalogs
         public SecondaryStatModifiers SecondaryStatModifiers;
         public string EffectId;
         public string[] GrantedSkillIds = Array.Empty<string>();
+        public string[] GrantedPassiveIds = Array.Empty<string>();
 
         public AccessoryData ToRuntime()
         {
@@ -247,7 +261,8 @@ namespace Windy.Srpg.Game.Catalogs
                 StatModifiers = StatModifiers,
                 SecondaryStatModifiers = SecondaryStatModifiers,
                 EffectId = CatalogResourceLoader.NormalizeOptionalString(EffectId),
-                GrantedSkillIds = CatalogResourceLoader.NormalizeStrings(GrantedSkillIds)
+                GrantedSkillIds = CatalogResourceLoader.NormalizeStrings(GrantedSkillIds),
+                GrantedPassiveIds = CatalogResourceLoader.NormalizeStrings(GrantedPassiveIds)
             };
         }
     }
@@ -262,6 +277,7 @@ namespace Windy.Srpg.Game.Catalogs
         public int Charges = 3;
         public string EffectId;
         public string TargetType = nameof(ConsumableTargetType.Self);
+        public bool UsableInPreBattle;
 
         public ConsumableData ToRuntime()
         {
@@ -273,7 +289,28 @@ namespace Windy.Srpg.Game.Catalogs
                 Value = Value,
                 Charges = Charges,
                 EffectId = CatalogResourceLoader.NormalizeOptionalString(EffectId),
-                TargetType = CatalogResourceLoader.ParseEnum(TargetType, ConsumableTargetType.Self)
+                TargetType = CatalogResourceLoader.ParseEnum(TargetType, ConsumableTargetType.Self),
+                UsableInPreBattle = UsableInPreBattle
+            };
+        }
+    }
+
+    [Serializable]
+    public sealed class ValuableCatalogEntry
+    {
+        public string Id;
+        public string Name = "item_name";
+        public string Description = "item_desc";
+        public int Value = 100;
+
+        public ValuableData ToRuntime()
+        {
+            return new ValuableData
+            {
+                Id = Id,
+                Name = Name,
+                Description = Description,
+                Value = Value
             };
         }
     }
@@ -304,6 +341,7 @@ namespace Windy.Srpg.Game.Catalogs
         public string Category = nameof(SkillCategory.Misc);
         public string TargetingType = nameof(SkillTargetingType.None);
         public string RequiredWeaponType = nameof(CombatArtWeaponType.Any);
+        public string RequiredWeaponId;
         public bool EndsTurn = true;
         public bool OncePerTurn = true;
         public bool OncePerBattle;
@@ -324,6 +362,7 @@ namespace Windy.Srpg.Game.Catalogs
                 Category = CatalogResourceLoader.ParseEnum(Category, SkillCategory.Misc),
                 TargetingType = CatalogResourceLoader.ParseEnum(TargetingType, SkillTargetingType.None),
                 RequiredWeaponType = CatalogResourceLoader.ParseEnum(RequiredWeaponType, CombatArtWeaponType.Any),
+                RequiredWeaponId = CatalogResourceLoader.NormalizeOptionalString(RequiredWeaponId),
                 EndsTurn = EndsTurn,
                 OncePerTurn = OncePerTurn,
                 OncePerBattle = OncePerBattle,

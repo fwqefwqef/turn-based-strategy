@@ -46,6 +46,7 @@ namespace Windy.Srpg.Game.Editor
             DrawFloatArray("Cleared Chapters", ref save.ClearedChapterIds);
             DrawStringArray("Deployment Roster Unit IDs", ref save.DeploymentRosterUnitIds, null);
             DrawInventory("Storage Items", ref save.StorageItems);
+            DrawShopStock();
             DrawOwnedUnits();
             EditorGUILayout.EndScrollView();
             if (EditorGUI.EndChangeCheck())
@@ -83,6 +84,36 @@ namespace Windy.Srpg.Game.Editor
             EditorGUILayout.LabelField("Global Save Values", EditorStyles.boldLabel);
             save.Version = EditorGUILayout.IntField("Version", save.Version);
             save.Gold = EditorGUILayout.IntField("Gold", save.Gold);
+        }
+
+        private void DrawShopStock()
+        {
+            save.ShopStockItems ??= Array.Empty<ShopStockEntryData>();
+            EditorGUILayout.Space(8f);
+            EditorGUILayout.LabelField($"Shop Stock ({save.ShopStockItems.Length})", EditorStyles.boldLabel);
+            save.ShopStockInitialized = EditorGUILayout.Toggle("Stock Initialized", save.ShopStockInitialized);
+
+            int size = Mathf.Max(0, EditorGUILayout.IntField("Size", save.ShopStockItems.Length));
+            if (size != save.ShopStockItems.Length)
+            {
+                Array.Resize(ref save.ShopStockItems, size);
+            }
+
+            for (int i = 0; i < save.ShopStockItems.Length; i++)
+            {
+                save.ShopStockItems[i] ??= new ShopStockEntryData();
+                EditorGUILayout.BeginHorizontal();
+                int selectedItem = Array.IndexOf(itemIds, save.ShopStockItems[i].ItemId);
+                selectedItem = EditorGUILayout.Popup(selectedItem, itemIds);
+                if (selectedItem >= 0 && selectedItem < itemIds.Length)
+                {
+                    save.ShopStockItems[i].ItemId = itemIds[selectedItem];
+                }
+                save.ShopStockItems[i].Quantity = EditorGUILayout.IntField(save.ShopStockItems[i].Quantity, GUILayout.Width(70f));
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.HelpBox("Shop quantity -1 means unlimited stock.", MessageType.Info);
         }
 
         private void DrawOwnedUnits()
@@ -206,8 +237,8 @@ namespace Windy.Srpg.Game.Editor
             value.ManaPoints = EditorGUILayout.IntField("MP", value.ManaPoints);
             value.MovementPoints = EditorGUILayout.IntField("Movement", value.MovementPoints);
             value.Strength = EditorGUILayout.IntField("Strength", value.Strength);
-            value.Defense = EditorGUILayout.IntField("Defense", value.Defense);
             value.Magic = EditorGUILayout.IntField("Magic", value.Magic);
+            value.Defense = EditorGUILayout.IntField("Defense", value.Defense);
             value.Speed = EditorGUILayout.IntField("Speed", value.Speed);
             value.Luck = EditorGUILayout.IntField("Luck", value.Luck);
             EditorGUI.indentLevel--;
@@ -311,7 +342,7 @@ namespace Windy.Srpg.Game.Editor
         private void LoadSelectedSlot(bool createIfMissing)
         {
             save = CampaignSaveManager.Load(slot);
-            if (save == null && createIfMissing) save = new CampaignSaveData();
+            if (save == null && createIfMissing) save = CampaignSaveFactory.CreateNewSave();
             NormalizeArrays();
             expandedUnits.Clear();
             status = save == null ? "Save does not exist." : $"Loaded {slot} save.";
@@ -327,7 +358,7 @@ namespace Windy.Srpg.Game.Editor
         private void NewBlankSave()
         {
             if (!EditorUtility.DisplayDialog("New Blank Save", $"Replace and immediately save a blank {slot} save file?", "Create", "Cancel")) return;
-            save = new CampaignSaveData();
+            save = CampaignSaveFactory.CreateNewSave();
             expandedUnits.Clear();
             SaveSelectedSlot(autoSave: true);
         }
@@ -336,14 +367,14 @@ namespace Windy.Srpg.Game.Editor
         {
             if (!EditorUtility.DisplayDialog(
                     "Reset Save",
-                    $"Reset the {slot} save to its defaults? This clears owned units, deployment, storage, and chapter progress, and restores gold to 5000.",
+                    $"Reset the {slot} save to its defaults? This restores the starting party and 1000 gold, and clears deployment changes, storage, and chapter progress.",
                     "Reset",
                     "Cancel"))
             {
                 return;
             }
 
-            save = new CampaignSaveData();
+            save = CampaignSaveFactory.CreateNewSave();
             expandedUnits.Clear();
             SaveSelectedSlot();
             status = $"Reset the {slot} save to defaults.";
@@ -353,7 +384,7 @@ namespace Windy.Srpg.Game.Editor
         {
             if (!EditorUtility.DisplayDialog("Delete Save", $"Permanently delete the {slot} save file?", "Delete", "Cancel")) return;
             bool deleted = CampaignSaveManager.Delete(slot);
-            save = new CampaignSaveData();
+            save = CampaignSaveFactory.CreateNewSave();
             status = deleted ? $"Deleted {slot} save." : $"Could not delete {slot} save; see Console.";
         }
 
@@ -364,6 +395,7 @@ namespace Windy.Srpg.Game.Editor
             save.OwnedUnits ??= Array.Empty<OwnedUnitSaveData>();
             save.DeploymentRosterUnitIds ??= Array.Empty<string>();
             save.StorageItems ??= Array.Empty<SavedInventoryEntryData>();
+            save.ShopStockItems ??= Array.Empty<ShopStockEntryData>();
             foreach (OwnedUnitSaveData unit in save.OwnedUnits.Where(unit => unit != null))
             {
                 unit.WeaponProficiencyIds ??= Array.Empty<string>();

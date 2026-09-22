@@ -7,13 +7,21 @@ namespace Windy.Srpg.Game.Pathfinding
     {
         public Dictionary<TNode, IList<TNode>> FindAllPaths<TNode>(Dictionary<TNode, Dictionary<TNode, float>> edges, TNode originNode)
         {
+            return FindAllPaths(edges, originNode, float.PositiveInfinity);
+        }
+
+        public Dictionary<TNode, IList<TNode>> FindAllPaths<TNode>(
+            Dictionary<TNode, Dictionary<TNode, float>> edges,
+            TNode originNode,
+            float maxCost)
+        {
             var result = new Dictionary<TNode, IList<TNode>>();
             if (edges == null || originNode == null || !edges.ContainsKey(originNode))
             {
                 return result;
             }
 
-            ComputeShortestPaths(edges, originNode, out var cameFrom, out _);
+            ComputeShortestPaths(edges, originNode, maxCost, out var cameFrom, out _);
 
             foreach (var destination in cameFrom.Keys)
             {
@@ -35,7 +43,7 @@ namespace Windy.Srpg.Game.Pathfinding
                 return Array.Empty<TNode>();
             }
 
-            ComputeShortestPaths(edges, originNode, out var cameFrom, out _);
+            ComputeShortestPaths(edges, originNode, float.PositiveInfinity, out var cameFrom, out _);
             if (!cameFrom.ContainsKey(destinationNode))
             {
                 return Array.Empty<TNode>();
@@ -47,6 +55,7 @@ namespace Windy.Srpg.Game.Pathfinding
         private static void ComputeShortestPaths<TNode>(
             Dictionary<TNode, Dictionary<TNode, float>> edges,
             TNode originNode,
+            float maxCost,
             out Dictionary<TNode, TNode> cameFrom,
             out Dictionary<TNode, float> costSoFar)
         {
@@ -70,6 +79,11 @@ namespace Windy.Srpg.Game.Pathfinding
                 {
                     var neighbour = edge.Key;
                     var newCost = currentCost + edge.Value;
+                    if (newCost > maxCost)
+                    {
+                        continue;
+                    }
+
                     if (!costSoFar.TryGetValue(neighbour, out var knownCost) || newCost < knownCost)
                     {
                         costSoFar[neighbour] = newCost;

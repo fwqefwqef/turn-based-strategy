@@ -3,7 +3,8 @@
   "rootNamespace": "Windy.Srpg.Game.Editor",
   "references": [
     "com.windy.srpg.game",
-    "UnityEngine.UI"
+    "UnityEngine.UI",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [
     "Editor"

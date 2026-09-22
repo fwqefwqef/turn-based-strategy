@@ -10,11 +10,19 @@ namespace Windy.Srpg.Game.Pathfinding.Algorithms
     /// </summary>
     public sealed class DijkstraPathfinding
     {
-        private static readonly IPathfinder SharedPathfinder = new DijkstraPathfinder();
+        private static readonly DijkstraPathfinder SharedPathfinder = new DijkstraPathfinder();
 
         public Dictionary<Cell, IList<Cell>> FindAllPaths(
             Dictionary<Cell, Dictionary<Cell, float>> edges,
             Cell originNode)
+        {
+            return FindAllPaths(edges, originNode, float.PositiveInfinity);
+        }
+
+        public Dictionary<Cell, IList<Cell>> FindAllPaths(
+            Dictionary<Cell, Dictionary<Cell, float>> edges,
+            Cell originNode,
+            float maxCost)
         {
             Dictionary<Cell, IList<Cell>> result = new Dictionary<Cell, IList<Cell>>();
             if (edges == null || originNode == null)
@@ -22,7 +30,7 @@ namespace Windy.Srpg.Game.Pathfinding.Algorithms
                 return result;
             }
 
-            Dictionary<Cell, IList<Cell>> paths = SharedPathfinder.FindAllPaths(edges, originNode);
+            Dictionary<Cell, IList<Cell>> paths = SharedPathfinder.FindAllPaths(edges, originNode, maxCost);
             foreach (KeyValuePair<Cell, IList<Cell>> entry in paths)
             {
                 result[entry.Key] = ConvertToLegacyPath(entry.Value, originNode);

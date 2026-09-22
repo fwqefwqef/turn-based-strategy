@@ -1082,7 +1082,10 @@ namespace Windy.Srpg.Game.UI
             List<Unit> enemyUnits = cellGrid.GetAllUnits()
                 .Where(unit => unit != null && unit.PlayerNumber != 0 && unit.IsAliveForBattle)
                 .ToList();
-            Dictionary<Unit, HashSet<Cell>> threatenedCellsByUnit = EnemyRangeOverlayUtility.GetThreatenedCellsByUnit(enemyUnits, cellGrid);
+            IEnumerable<Unit> evaluatedEnemyUnits = collectiveEnemyRangeVisible
+                ? enemyUnits
+                : enemyUnits.Where(enemyRangeToggles.Contains);
+            Dictionary<Unit, HashSet<Cell>> threatenedCellsByUnit = EnemyRangeOverlayUtility.GetThreatenedCellsByUnit(evaluatedEnemyUnits, cellGrid);
 
             if (collectiveEnemyRangeVisible)
             {
@@ -1131,6 +1134,11 @@ namespace Windy.Srpg.Game.UI
                 enemyRangeToggles.ExceptWith(staleToggleUnits);
             }
 
+            Dictionary<Vector2Int, EnemyRangeOverlayKind> overlayByCoordinates = overlayByCell
+                .Where(pair => pair.Key != null)
+                .GroupBy(pair => pair.Key.Coordinates)
+                .ToDictionary(group => group.Key, group => group.Last().Value);
+
             foreach ((Cell cell, EnemyRangeOverlayKind kind) in overlayByCell)
             {
                 if (cell == null || kind == EnemyRangeOverlayKind.None)
@@ -1139,10 +1147,10 @@ namespace Windy.Srpg.Game.UI
                 }
 
                 Vector2Int coordinates = cell.Coordinates;
-                bool showTop = !HasMatchingEnemyRangeNeighbor(overlayByCell, coordinates + Vector2Int.up, kind);
-                bool showRight = !HasMatchingEnemyRangeNeighbor(overlayByCell, coordinates + Vector2Int.right, kind);
-                bool showBottom = !HasMatchingEnemyRangeNeighbor(overlayByCell, coordinates + Vector2Int.down, kind);
-                bool showLeft = !HasMatchingEnemyRangeNeighbor(overlayByCell, coordinates + Vector2Int.left, kind);
+                bool showTop = !HasMatchingEnemyRangeNeighbor(overlayByCoordinates, coordinates + Vector2Int.up, kind);
+                bool showRight = !HasMatchingEnemyRangeNeighbor(overlayByCoordinates, coordinates + Vector2Int.right, kind);
+                bool showBottom = !HasMatchingEnemyRangeNeighbor(overlayByCoordinates, coordinates + Vector2Int.down, kind);
+                bool showLeft = !HasMatchingEnemyRangeNeighbor(overlayByCoordinates, coordinates + Vector2Int.left, kind);
                 cell.ApplyEnemyRangeOverlay(kind, showTop, showRight, showBottom, showLeft);
                 activeEnemyRangeOverlayCells.Add(cell);
             }
@@ -1168,27 +1176,11 @@ namespace Windy.Srpg.Game.UI
             RefreshEnemyRangeUnitTints(Array.Empty<Unit>(), null);
         }
 
-        private static bool HasMatchingEnemyRangeNeighbor(IReadOnlyDictionary<Cell, EnemyRangeOverlayKind> overlayByCell, Vector2Int neighborCoordinates, EnemyRangeOverlayKind kind)
+        private static bool HasMatchingEnemyRangeNeighbor(IReadOnlyDictionary<Vector2Int, EnemyRangeOverlayKind> overlayByCoordinates, Vector2Int neighborCoordinates, EnemyRangeOverlayKind kind)
         {
-            if (overlayByCell == null)
-            {
-                return false;
-            }
-
-            foreach ((Cell neighborCell, EnemyRangeOverlayKind neighborKind) in overlayByCell)
-            {
-                if (neighborCell == null || neighborKind != kind)
-                {
-                    continue;
-                }
-
-                if (neighborCell.Coordinates == neighborCoordinates)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return overlayByCoordinates != null
+                && overlayByCoordinates.TryGetValue(neighborCoordinates, out EnemyRangeOverlayKind neighborKind)
+                && neighborKind == kind;
         }
 
         private void MarkEnemyRangeOverlaysDirty()
@@ -1487,6 +1479,12 @@ namespace Windy.Srpg.Game.UI
                     Cell pointedCell = TryGetBoardPlanePoint(ray, out Vector2 boardPoint)
                         ? FindCellContainingBoardPoint(boardPoint)
                         : null;
+                    if (IsVacatedPreviewOrigin(pointedCell))
+                    {
+                        cell = pointedCell;
+                        unit = null;
+                        return true;
+                    }
                     cell = pointedCell != null && hitUnit.OccupiesCell(pointedCell, anchorCell, cellGrid)
                         ? pointedCell
                         : anchorCell;
@@ -1634,6 +1632,15 @@ namespace Windy.Srpg.Game.UI
 
         private void ApplyHoverTarget(Cell cell, Unit unit, bool dispatchGameplayHover = true)
         {
+            if (IsVacatedPreviewOrigin(cell))
+            {
+                unit = null;
+                if (!IsAreaSkillTargetSelectionActive())
+                {
+                    cell = null;
+                }
+            }
+
             if (hoveredCell == cell && hoveredUnit == unit)
             {
                 if (cell != null)
@@ -1844,6 +1851,27 @@ namespace Windy.Srpg.Game.UI
                 unit != null
                 && unit.HasPendingMove
                 && unit.OccupiesCell(cell, unit.PreviewCell, grid));
+        }
+
+        private bool IsVacatedPreviewOrigin(Cell cell)
+        {
+            if (cell == null || cellGrid == null)
+            {
+                return false;
+            }
+
+            return cellGrid.GetAllUnits().Any(unit =>
+                unit != null
+                && unit.HasPendingMove
+                && unit.Cell != unit.PreviewCell
+                && unit.OccupiesCell(cell, unit.Cell, cellGrid)
+                && !unit.OccupiesCell(cell, unit.PreviewCell, cellGrid));
+        }
+
+        private bool IsAreaSkillTargetSelectionActive()
+        {
+            return cellGrid?.CurrentState is Windy.Srpg.Game.Grid.States.CellGridStateMovePendingConfirm pendingState
+                && pendingState.MoveAbility?.IsAreaSkillTargetSelectionActive == true;
         }
 
         private bool ShouldOpenTurnInfoForHoveredCell(Cell cell)

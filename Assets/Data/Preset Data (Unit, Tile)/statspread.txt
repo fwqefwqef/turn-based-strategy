@@ -1,0 +1,58 @@
+HP: 18
+MP: 9
+5+5+3+3+2
+5+4+3+3+3
+
+Protagonist
+HP 24
+MP 18
+Str 3
+Mag 3
+Def 3
+Spd 5
+Lck 4
+
+Thunder
+HP 26
+MP 15
+Str 5
+Mag 2
+Def 3
+Spd 3
+Lck 5
+
+Flame
+HP 27
+MP 18
+Str 4
+Mag 3
+Def 5
+Spd 3
+Lck 3
+
+Darkness
+HP 23
+MP 24
+Str 2
+Mag 5
+Def 3
+Spd 4
+Lck 3
+
+Shopkeep
+HP 24
+MP 30
+Str 3
+Mag 7
+Def 4
+Spd 5
+Lck 5
+
+Nurse
+HP 29
+MP 24
+Str 4
+Mag 6
+Def 5
+Spd 4
+Lck 4	

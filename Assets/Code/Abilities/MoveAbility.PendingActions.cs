@@ -184,11 +184,6 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             var affectedTargets = GetAreaSkillTargets(selectedTargetingSkill, selectedAreaSkillCenterCell, cellGrid);
-            if (affectedTargets.Count == 0 && !CreatesTerrain(selectedTargetingSkill.Data))
-            {
-                return;
-            }
-
             ShowAreaSkillConfirmPopup(cellGrid, selectedAreaSkillCenterCell, affectedTargets);
         }
 
@@ -349,8 +344,7 @@ namespace Windy.Srpg.Game.Abilities
 
         private void ShowAreaSkillConfirmPopup(CellGrid cellGrid, Cell centerCell, IReadOnlyList<Unit> affectedTargets)
         {
-            if (selectedTargetingSkill?.Data == null || centerCell == null || affectedTargets == null
-                || (affectedTargets.Count == 0 && !CreatesTerrain(selectedTargetingSkill.Data)))
+            if (selectedTargetingSkill?.Data == null || centerCell == null || affectedTargets == null)
             {
                 return;
             }
@@ -383,8 +377,7 @@ namespace Windy.Srpg.Game.Abilities
 
         private void ConfirmAreaSkill(CellGrid cellGrid)
         {
-            if (!awaitingAreaSkillConfirmation || selectedTargetingSkill?.Data == null || selectedAreaSkillCenterCell == null
-                || (pendingAreaSkillTargets.Count == 0 && !CreatesTerrain(selectedTargetingSkill.Data)))
+            if (!awaitingAreaSkillConfirmation || selectedTargetingSkill?.Data == null || selectedAreaSkillCenterCell == null)
             {
                 return;
             }
@@ -410,16 +403,24 @@ namespace Windy.Srpg.Game.Abilities
             ShowActionMenu(cellGrid);
         }
 
-        private void CancelPendingMoveAndRestoreSelection(CellGrid cellGrid, bool preservePendingOvercharge = false)
+        private void CancelPendingMoveAndRestoreSelection(CellGrid cellGrid)
         {
-            bool cancelMovementFirst = preservePendingOvercharge || UnitReference.ShouldCancelPendingMoveBeforeOvercharge;
-            if (!cancelMovementFirst && UnitReference.CancelPendingOvercharge())
+            bool movementRolledBack = false;
+            if (UnitReference.TryRollbackLatestPendingOperation(out PendingUnitOperation rolledBackOperation))
             {
-                ShowActionMenu(cellGrid);
-                return;
+                if (rolledBackOperation == PendingUnitOperation.Overcharge)
+                {
+                    ShowActionMenu(cellGrid);
+                    return;
+                }
+
+                movementRolledBack = rolledBackOperation == PendingUnitOperation.Movement;
             }
 
-            UnitReference.CancelPendingMove();
+            if (!movementRolledBack)
+            {
+                UnitReference.CancelPendingMove();
+            }
             if (GameplayCameraController.UnitAutoFocusEnabled)
             {
                 GameplayCameraController.SetFocusedCell(UnitReference.Cell);
@@ -446,10 +447,14 @@ namespace Windy.Srpg.Game.Abilities
             ClearSkillTargetingPreview();
             ClearTradeTargetingPreview();
 
-            cellGrid?.EnterSelectedState(UnitReference);
-
-            OnAbilitySelected(cellGrid);
-            Display(cellGrid);
+            if (UnitReference.IsPostActionMovementActive)
+            {
+                cellGrid?.EnterPostActionMovementState(UnitReference);
+            }
+            else
+            {
+                cellGrid?.EnterSelectedState(UnitReference);
+            }
         }
 
         private void ShowAttackPreviewCells(CellGrid cellGrid)
@@ -759,12 +764,7 @@ namespace Windy.Srpg.Game.Abilities
                 return HasAnyUsableLineAreaSkillProjection(skill, cellGrid);
             }
 
-            if (CreatesTerrain(skill.Data))
-            {
-                return GetLegalAreaSkillCenterCells(skill, cellGrid).Count > 0;
-            }
-
-            return GetLegalAreaSkillCenterCells(skill, cellGrid).Any(center => GetAreaSkillTargets(skill, center, cellGrid).Count > 0);
+            return GetLegalAreaSkillCenterCells(skill, cellGrid).Count > 0;
         }
 
         private bool HasAnyUsableLineAreaSkillProjection(Skill skill, CellGrid cellGrid)
@@ -782,10 +782,7 @@ namespace Windy.Srpg.Game.Abilities
                     continue;
                 }
 
-                if (CreatesTerrain(skill.Data) || GetAreaSkillTargets(skill, projection.Endpoint, cellGrid).Count > 0)
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
@@ -1398,7 +1395,7 @@ namespace Windy.Srpg.Game.Abilities
                 },
                 () =>
                 {
-                    CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
+                    CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.TradeCompleted);
                 });
             showingTradeMenu = true;
         }
@@ -1722,9 +1719,13 @@ namespace Windy.Srpg.Game.Abilities
                         string weaponSuffix = !string.IsNullOrWhiteSpace(backingWeaponEntry?.Weapon?.Name)
                             ? $" with {backingWeaponEntry.Weapon.Name}"
                             : string.Empty;
+                        // Clang!'s knockback uses the attacker's actual board cell.
+                        // Finalize its pending move before the strike resolves.
+                        if (skill.SkillId == "clang" && UnitReference.HasPendingMove)
+                            CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.ActionEffectStarting);
                         BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name}{weaponSuffix} on {DescribeActionUnit(target)}.");
                         effect?.Use(UnitReference, context);
-                        UnitReference.AttackHandler(target, attackProfile, targetedCell);
+                        UnitReference.AttackHandler(target, attackProfile, targetedCell, effect as IP_AttackHitEffect);
                         executed = true;
                         yield return new WaitUntil(() => UnitReference == null || !UnitReference.IsAttackSequenceRunning);
                     }
@@ -1752,7 +1753,7 @@ namespace Windy.Srpg.Game.Abilities
                         UnitReference.NotifySkillCommitted(skill);
                         if (UnitReference.HasPendingMove)
                         {
-                            CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
+                            CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.ActionEffectStarting);
                         }
 
                         BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name} on {DescribeActionUnit(target)}.");
@@ -1769,7 +1770,7 @@ namespace Windy.Srpg.Game.Abilities
 
                 if (executed)
                 {
-                    CommitPendingMoveAfterCombatPresentation(cellGrid);
+                    CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.CombatPresentationCompleted);
                 }
             }
             finally
@@ -1780,8 +1781,7 @@ namespace Windy.Srpg.Game.Abilities
 
         private IEnumerator ExecuteAreaSkillThenConfirmPendingMove(Skill skill, Cell centerCell, IReadOnlyList<Unit> affectedTargets, CellGrid cellGrid)
         {
-            if (skill?.Data == null || centerCell == null || affectedTargets == null
-                || (affectedTargets.Count == 0 && !CreatesTerrain(skill.Data)))
+            if (skill?.Data == null || centerCell == null || affectedTargets == null)
             {
                 yield break;
             }
@@ -1824,7 +1824,7 @@ namespace Windy.Srpg.Game.Abilities
                         UnitReference.NotifySkillCommitted(skill);
                         if (UnitReference.HasPendingMove)
                         {
-                            CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
+                            CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.ActionEffectStarting);
                         }
 
                         foreach (Cell affectedCell in affectedCells)
@@ -1854,7 +1854,7 @@ namespace Windy.Srpg.Game.Abilities
                             UnitReference.NotifySkillCommitted(skill);
                             if (UnitReference.HasPendingMove)
                             {
-                                CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
+                                CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.ActionEffectStarting);
                             }
 
                             BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name} on area at {centerCell.Coordinates} targeting {DescribeActionUnits(orderedTargets)}.");
@@ -1878,7 +1878,8 @@ namespace Windy.Srpg.Game.Abilities
                                         isMagicAttack: profile.IsMagic,
                                         isCounterAttack: false,
                                         simulateOnly: false,
-                                        applyWeaponEffects: profile.UsesWeaponEffects);
+                                        applyWeaponEffects: profile.UsesWeaponEffects,
+                                        isAreaSpell: true);
                                 },
                                 skill.Data,
                                 cellGrid);
@@ -1889,16 +1890,23 @@ namespace Windy.Srpg.Game.Abilities
                 }
                 else if (SkillEffectRegistry.TryCreate(skill.Data.EffectId, out ISkillEffect effect))
                 {
-                    bool canExecute = orderedTargets.Any(target => effect.CanUse(UnitReference, BuildAreaSkillContext(skill, centerCell, target, cellGrid, orderedTargets)));
+                    SkillContext emptyAreaContext = BuildAreaSkillContext(skill, centerCell, null, cellGrid, orderedTargets);
+                    bool canExecute = orderedTargets.Count == 0
+                        ? true
+                        : orderedTargets.Any(target => effect.CanUse(UnitReference, BuildAreaSkillContext(skill, centerCell, target, cellGrid, orderedTargets)));
                     if (canExecute && UnitReference.MarkSkillUsed(skill))
                     {
                         UnitReference.NotifySkillCommitted(skill);
                         if (UnitReference.HasPendingMove)
                         {
-                            CommitPendingMoveFromPendingAction(cellGrid, consumeAllRemainingMovement: false);
+                            CommitPendingAction(cellGrid, CellGrid.PendingActionCommitReason.ActionEffectStarting);
                         }
 
                         BattleLog.Log("Action", $"{DescribeActionUnit(UnitReference)} uses {skill.Data.Name} on area at {centerCell.Coordinates} targeting {DescribeActionUnits(orderedTargets)}.");
+                        if (orderedTargets.Count == 0 && effect.CanUse(UnitReference, emptyAreaContext))
+                        {
+                            effect.Use(UnitReference, emptyAreaContext);
+                        }
                         UnitReference.UseAreaSkill(
                             orderedTargets,
                             skill.Data.EndsTurn,
@@ -1964,11 +1972,13 @@ namespace Windy.Srpg.Game.Abilities
 
         private AttackPreviewPanelData BuildAttackerPreview(Unit defender, WeaponData weapon)
         {
-            int attackMultiplier = Mathf.Max(1, UnitReference.GetNumHitsForWeapon(weapon));
-            if (UnitReference.CanPursuitAttackAgainst(defender, weapon))
-            {
-                attackMultiplier *= 2;
-            }
+            ResolvedAttackProfile profile = UnitReference.BuildAttackProfileForWeapon(weapon);
+            CombatSequencePlan plan = CombatSequenceBuilder.Build(
+                UnitReference,
+                defender,
+                profile,
+                attackerPursuesOverride: UnitReference.CanPursuitAttackAgainst(defender, weapon));
+            int attackMultiplier = Mathf.Max(1, plan.GetTotalHitCount(UnitReference));
 
             int perHitDamage = CalculatePerHitDamage(UnitReference, defender, weapon);
             bool isFatal = CalculateProjectedDamage(UnitReference, defender, attackMultiplier, weapon) >= defender.HitPoints;
@@ -1988,8 +1998,14 @@ namespace Windy.Srpg.Game.Abilities
             bool incomingIsMagic = incomingWeapon != null
                 ? UnitReference.GetIsMagicForWeapon(incomingWeapon)
                 : UnitReference.IsMagic;
-            bool defenderCanCounter = defender.CanCounterAttackAgainst(UnitReference, incomingWeapon != null && incomingWeapon.PreventsCounterattack);
-            if (!defenderCanCounter)
+            ResolvedAttackProfile profile = UnitReference.BuildAttackProfileForWeapon(incomingWeapon);
+            CombatSequencePlan plan = CombatSequenceBuilder.Build(
+                UnitReference,
+                defender,
+                profile,
+                attackerPursuesOverride: UnitReference.CanPursuitAttackAgainst(defender, incomingWeapon));
+            int attackMultiplier = plan.GetTotalHitCount(defender);
+            if (attackMultiplier <= 0)
             {
                 return new AttackPreviewPanelData(
                     defender.unitName,
@@ -2000,7 +2016,6 @@ namespace Windy.Srpg.Game.Abilities
                     "-");
             }
 
-            int attackMultiplier = Mathf.Max(1, defender.NumHits);
             int perHitDamage = CalculatePerHitDamage(defender, UnitReference);
             bool isFatal = CalculateProjectedDamage(defender, UnitReference, attackMultiplier) >= UnitReference.HitPoints;
 
@@ -2077,6 +2092,8 @@ namespace Windy.Srpg.Game.Abilities
             {
                 return 0;
             }
+
+            if (attacker.AttacksCannotMiss) return 100;
 
             int accuracy = weapon != null ? attacker.GetAccuracyForWeapon(weapon) : attacker.Accuracy;
             return Mathf.Clamp(accuracy - defender.Evade, 0, 100);
@@ -2417,13 +2434,13 @@ namespace Windy.Srpg.Game.Abilities
             if (data.AreaProfile.Enabled)
             {
                 minRange = Mathf.Max(0, data.AreaProfile.MinRange);
-                maxRange = Mathf.Max(minRange, data.AreaProfile.MaxRange);
+                maxRange = Mathf.Max(minRange, data.AreaProfile.MaxRange + UnitReference.GetSpellMaxRangeModifier(data));
                 NormalizeResolvedSkillRange(ref minRange, ref maxRange);
                 return true;
             }
 
             minRange = Mathf.Max(0, data.AttackProfile.MinRange);
-            maxRange = Mathf.Max(minRange, data.AttackProfile.MaxRange);
+            maxRange = Mathf.Max(minRange, data.AttackProfile.MaxRange + UnitReference.GetSpellMaxRangeModifier(data));
             NormalizeResolvedSkillRange(ref minRange, ref maxRange);
             return true;
         }
@@ -2497,6 +2514,12 @@ namespace Windy.Srpg.Game.Abilities
         private static bool SkillMatchesWeapon(SkillData data, WeaponData weapon)
         {
             if (data == null || weapon == null)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(data.RequiredWeaponId)
+                && !string.Equals(data.RequiredWeaponId, weapon.Id, System.StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -2708,10 +2731,7 @@ namespace Windy.Srpg.Game.Abilities
                     results.Add(new AreaConfirmTargetPreviewData(
                         target.unitName,
                         target.HitPoints,
-                        projectedHp,
-                        CalculateHitChance(profile, target),
-                        CalculateCritChance(profile, target),
-                        showsCombatChances: true));
+                        projectedHp));
                 }
 
                 return results;
@@ -2731,7 +2751,12 @@ namespace Windy.Srpg.Game.Abilities
                 }
 
                 int projectedHp = target.HitPoints;
-                if (effect is IHealingSkillEffect healingEffect)
+                if (effect is IAreaHitPointChangeSkillEffect hitPointEffect)
+                {
+                    int delta = hitPointEffect.GetProjectedHitPointDelta(UnitReference, context);
+                    projectedHp = Mathf.Clamp(target.HitPoints + delta, 0, target.ComputedTotalHitPoints);
+                }
+                else if (effect is IHealingSkillEffect healingEffect)
                 {
                     int healingAmount = Mathf.Max(0, healingEffect.GetHealingAmount(UnitReference, context));
                     projectedHp = Mathf.Min(target.ComputedTotalHitPoints, target.HitPoints + healingAmount);
@@ -2773,11 +2798,8 @@ namespace Windy.Srpg.Game.Abilities
                 return new AttackPreviewPanelData(UnitReference.unitName, FormatHitPointsDisplay(UnitReference), "Def/Mag: -", "-", "-", "-");
             }
 
-            int attackMultiplier = Mathf.Max(1, profile.NumHits);
-            if (profile.CanPursuitAttack && target != null && UnitReference.Speed >= target.Speed + 5)
-            {
-                attackMultiplier *= 2;
-            }
+            CombatSequencePlan plan = CombatSequenceBuilder.Build(UnitReference, target, profile);
+            int attackMultiplier = Mathf.Max(1, plan.GetTotalHitCount(UnitReference));
 
             int perHitDamage = CalculatePerHitDamage(profile, target);
             bool isFatal = CalculateProjectedDamage(UnitReference, target, attackMultiplier, profile) >= target.HitPoints;
@@ -2821,7 +2843,13 @@ namespace Windy.Srpg.Game.Abilities
 
             bool defenderCanCounter = skill.Data.TargetingType == SkillTargetingType.EnemyUnit
                 && defender.CanCounterAttackAgainst(UnitReference, attackProfile.PreventsCounterattack);
-            if (!defenderCanCounter)
+            CombatSequencePlan plan = CombatSequenceBuilder.Build(
+                UnitReference,
+                defender,
+                attackProfile,
+                canCounterOverride: defenderCanCounter);
+            int attackMultiplier = plan.GetTotalHitCount(defender);
+            if (attackMultiplier <= 0)
             {
                 return new AttackPreviewPanelData(
                     defender.unitName,
@@ -2832,7 +2860,6 @@ namespace Windy.Srpg.Game.Abilities
                     "-");
             }
 
-            int attackMultiplier = Mathf.Max(1, defender.NumHits);
             int perHitDamage = CalculatePerHitDamage(defender, UnitReference);
             bool isFatal = CalculateProjectedDamage(defender, UnitReference, attackMultiplier) >= UnitReference.HitPoints;
             return new AttackPreviewPanelData(
@@ -2863,11 +2890,13 @@ namespace Windy.Srpg.Game.Abilities
 
                 profile = new ResolvedAttackProfile
                 {
-                    Damage = UnitReference.GetAttackForWeapon(weapon) + data.AttackProfile.Might,
+                    Damage = UnitReference.GetAttackForWeapon(weapon, data.AttackProfile.HybridScaling)
+                        + data.AttackProfile.Might,
                     UsesWeaponEffects = true,
                     Accuracy = UnitReference.GetAccuracyForWeapon(weapon) + data.AttackProfile.Accuracy,
                     Crit = UnitReference.GetCritForWeapon(weapon) + data.AttackProfile.Crit,
                     NumHits = Mathf.Max(1, data.AttackProfile.NumHits),
+                    PursuitSpeed = UnitReference.GetSpeedForWeapon(weapon),
                     IsMagic = data.AttackProfile.IsMagic || UnitReference.GetIsMagicForWeapon(weapon),
                     // Combat arts use the skill's hit count as the final hit count.
                     CanPursuitAttack = false,
@@ -2878,13 +2907,16 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             bool isMagic = data.AttackProfile.IsMagic;
-            int offensiveStat = isMagic ? UnitReference.Magic : UnitReference.Strength;
+            int offensiveStat = data.AttackProfile.HybridScaling
+                ? UnitReference.Strength + UnitReference.Magic
+                : (isMagic ? UnitReference.Magic : UnitReference.Strength);
             profile = new ResolvedAttackProfile
             {
                 Damage = offensiveStat + data.AttackProfile.Might,
                 Accuracy = UnitReference.Speed * Unit.AccuracyPerSpeedPoint + data.AttackProfile.Accuracy,
                 Crit = UnitReference.Luck * 5 + data.AttackProfile.Crit,
                 NumHits = Mathf.Max(1, data.AttackProfile.NumHits),
+                PursuitSpeed = UnitReference.Speed,
                 IsMagic = isMagic,
                 CanPursuitAttack = false,
                 PreventsCounterattack = data.AttackProfile.PreventsCounterattack,
@@ -3049,12 +3081,14 @@ namespace Windy.Srpg.Game.Abilities
             return Mathf.Max(1, profile.Damage * 2 - defenseStat);
         }
 
-        private static int CalculateHitChance(ResolvedAttackProfile profile, Unit defender)
+        private int CalculateHitChance(ResolvedAttackProfile profile, Unit defender)
         {
             if (defender == null)
             {
                 return 0;
             }
+
+            if (UnitReference?.AttacksCannotMiss == true) return 100;
 
             return Mathf.Clamp(profile.Accuracy - defender.Evade, 0, 100);
         }
@@ -3242,7 +3276,9 @@ namespace Windy.Srpg.Game.Abilities
         protected override bool CanPerformAbility(CellGrid cellGrid)
         {
             RefreshAvailableDestinationsIfNeeded(cellGrid);
-            return UnitReference.CanStartActionThisTurn && UnitReference.GetAvailableDestinations(ResolveCells(cellGrid)).Count > 0;
+            return UnitReference.CanStartActionThisTurn
+                && availableDestinations != null
+                && availableDestinations.Count > 0;
         }
 
         private void RefreshAvailableDestinationsIfNeeded(CellGrid cellGrid)
@@ -3261,7 +3297,6 @@ namespace Windy.Srpg.Game.Abilities
         private void RefreshAvailableDestinations(CellGrid cellGrid)
         {
             List<Cell> allCells = ResolveCells(cellGrid);
-            UnitReference.CachePaths(allCells);
             availableDestinations = UnitReference.GetAvailableDestinations(allCells);
             cachedOccupancyRevision = cellGrid != null ? cellGrid.OccupancyRevision : cachedOccupancyRevision;
         }

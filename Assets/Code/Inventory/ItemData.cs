@@ -7,7 +7,8 @@ namespace Windy.Srpg.Game.Inventory
     {
         Weapon,
         Accessory,
-        Consumable
+        Consumable,
+        Valuable
     }
 
     public enum DamageType
@@ -149,6 +150,8 @@ namespace Windy.Srpg.Game.Inventory
     {
         public WeaponType WeaponType = WeaponType.Sword;
         public DamageType DamageType = DamageType.Physical;
+        [Tooltip("When enabled, attack power uses both Strength and Magic. Damage mitigation still follows DamageType.")]
+        public bool HybridScaling;
         public int Might = 0;
         public int MinRange = 1;
         public int MaxRange = 1;
@@ -161,6 +164,7 @@ namespace Windy.Srpg.Game.Inventory
         public PrimaryStatModifiers StatModifiers;
         public string EffectId;
         public string[] GrantedSkillIds = Array.Empty<string>();
+        public string[] GrantedPassiveIds = Array.Empty<string>();
 
         public override ItemType ItemType => ItemType.Weapon;
     }
@@ -172,6 +176,7 @@ namespace Windy.Srpg.Game.Inventory
         public SecondaryStatModifiers SecondaryStatModifiers;
         public string EffectId;
         public string[] GrantedSkillIds = Array.Empty<string>();
+        public string[] GrantedPassiveIds = Array.Empty<string>();
 
         public override ItemType ItemType => ItemType.Accessory;
     }
@@ -182,8 +187,16 @@ namespace Windy.Srpg.Game.Inventory
         public int Charges = 3;
         public string EffectId;
         public ConsumableTargetType TargetType = ConsumableTargetType.Self;
+        [Tooltip("Allows this consumable to be used from pre-battle inventory management.")]
+        public bool UsableInPreBattle;
 
         public override ItemType ItemType => ItemType.Consumable;
+    }
+
+    [Serializable]
+    public sealed class ValuableData : ItemData
+    {
+        public override ItemType ItemType => ItemType.Valuable;
     }
 
     [Serializable]

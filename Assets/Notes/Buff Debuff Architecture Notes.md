@@ -92,7 +92,7 @@ Design rules:
 - Debuffs may be removable through cleansing effects if `Removable = true`.
 - Some debuffs should not be removable.
 - Black Fog debuff likely should cleanse itself when the unit leaves fog, but should not necessarily be removable by ordinary cleanse unless explicitly allowed.
-- Death's Door penalty likely should be non-removable unless design changes.
+- Death's Door has no stat-weakening penalty; its non-removable state buff caps movement at 1 until healed above 0 HP.
 
 ## DoT Timing
 

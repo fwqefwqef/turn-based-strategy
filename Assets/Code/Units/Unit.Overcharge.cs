@@ -16,6 +16,14 @@ namespace Windy.Srpg.Game.Units
         public const string ProtagonistUltimateSkillId = "mass_accelerate";
         public const string ThunderOverchargePassiveId = "wrath";
         public const string ThunderUltimateSkillId = "atrocity";
+        public const string FlameOverchargePassiveId = "joy_of_burning";
+        public const string FlameUltimateSkillId = "flame_last_stand";
+        public const string DarknessOverchargePassiveId = "soul_stealer";
+        public const string DarknessUltimateSkillId = "dark_sanctuary";
+        public const string ShopkeepOverchargePassiveId = "penetrate";
+        public const string ShopkeepUltimateSkillId = "shopkeep_disintegrate";
+        public const string NurseOverchargePassiveId = "apotheosis";
+        public const string NurseUltimateSkillId = "shining_pillar";
         private const int OverchargeDurationTurns = 3;
 
         private readonly struct OverchargeProfile
@@ -54,6 +62,14 @@ namespace Windy.Srpg.Game.Units
 
         private bool TryGetOverchargeProfile(out OverchargeProfile profile)
         {
+            // Overcharge profiles remain implemented, but presets must opt in explicitly.
+            // Existing character presets intentionally leave this disabled for now.
+            if (AssignedPreset == null || !AssignedPreset.EnableOvercharge)
+            {
+                profile = default;
+                return false;
+            }
+
             string identity = !string.IsNullOrWhiteSpace(AssignedPreset?.PresetId)
                 ? AssignedPreset.PresetId
                 : UnitId;
@@ -70,6 +86,26 @@ namespace Windy.Srpg.Game.Units
             if (PlayerNumber == 0 && string.Equals(identity, "thunder", StringComparison.OrdinalIgnoreCase))
             {
                 profile = new OverchargeProfile(ThunderOverchargePassiveId, ThunderUltimateSkillId, "Wrath");
+                return true;
+            }
+            if (PlayerNumber == 0 && string.Equals(identity, "flame", StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new OverchargeProfile(FlameOverchargePassiveId, FlameUltimateSkillId, "Joy of Burning");
+                return true;
+            }
+            if (PlayerNumber == 0 && string.Equals(identity, "darkness", StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new OverchargeProfile(DarknessOverchargePassiveId, DarknessUltimateSkillId, "Soul Stealer");
+                return true;
+            }
+            if (PlayerNumber == 0 && string.Equals(identity, "shopkeep", StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new OverchargeProfile(ShopkeepOverchargePassiveId, ShopkeepUltimateSkillId, "Penetrate");
+                return true;
+            }
+            if (PlayerNumber == 0 && string.Equals(identity, "nurse", StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new OverchargeProfile(NurseOverchargePassiveId, NurseUltimateSkillId, "Apotheosis");
                 return true;
             }
 
@@ -98,6 +134,7 @@ namespace Windy.Srpg.Game.Units
             activeOverchargeDisplayName = profile.DisplayName;
             overchargeGrantsPostActionMovement = profile.GrantsPostActionMovement;
             SkillList?.SetOverchargeGrantedSkill(profile.UltimateSkillId);
+            RecordPendingOperation(PendingUnitOperation.Overcharge);
             RefreshOverchargeVisual();
             BattleLog.Log("Action", $"{unitName} prepares Overcharge: {profile.DisplayName}.");
             RaiseBuffsChanged();
@@ -110,6 +147,7 @@ namespace Windy.Srpg.Game.Units
             string displayName = activeOverchargeDisplayName;
             EndOverchargeInternal(markSpent: false);
             overchargeState = OverchargeState.Ready;
+            RemovePendingOperation(PendingUnitOperation.Overcharge);
             RefreshOverchargeVisual();
             BattleLog.Log("Action", $"{unitName} cancels Overcharge: {displayName}.");
             RaiseBuffsChanged();
@@ -142,7 +180,7 @@ namespace Windy.Srpg.Game.Units
 
             postActionMovementActive = true;
             cachedPaths = null;
-            MovementPoints = 2f;
+            MovementPoints = 3f;
             SetTurnStateKind(UnitTurnStateKind.Friendly);
             return true;
         }
@@ -162,6 +200,7 @@ namespace Windy.Srpg.Game.Units
 
         private void EndOverchargeInternal(bool markSpent)
         {
+            RemovePendingOperation(PendingUnitOperation.Overcharge);
             SkillList?.SetOverchargeGrantedSkill(null);
             if (overchargePassive != null) PassiveList?.RemovePassive(overchargePassive);
             overchargePassive = null;

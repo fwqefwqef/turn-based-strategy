@@ -1282,7 +1282,7 @@ namespace Windy.Srpg.Game.UI
             return string.Join("\n", lines);
         }
 
-        private static string BuildSkillDetailBody(SkillData skillData)
+        internal static string BuildSkillDetailBody(SkillData skillData)
         {
             if (skillData == null)
             {

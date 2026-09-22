@@ -230,6 +230,16 @@ namespace Windy.Srpg.Game.Units
         Luck = 4
     }
 
+    public enum PermanentStatKind
+    {
+        Strength,
+        Magic,
+        Defense,
+        Speed,
+        Luck,
+        Movement
+    }
+
     public sealed class LevelUpGainStep
     {
         public int FromLevel { get; }

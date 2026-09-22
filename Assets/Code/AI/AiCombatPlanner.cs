@@ -198,11 +198,20 @@ namespace Windy.Srpg.Game.AI
                         continue;
                     }
 
-                    int hitMultiplier = Mathf.Max(1, actor.GetNumHitsForWeapon(weaponEntry.Weapon));
-                    if (actor.CanPursuitAttackAgainst(enemy, weaponEntry.Weapon))
-                    {
-                        hitMultiplier *= 2;
-                    }
+                    ResolvedAttackProfile attackProfile = actor.BuildAttackProfileForWeapon(weaponEntry.Weapon);
+                    bool canCounter = CanCounterattackFromPositions(
+                        enemy,
+                        actor,
+                        actingCell,
+                        weaponEntry.Weapon.PreventsCounterattack,
+                        grid);
+                    CombatSequencePlan sequencePlan = CombatSequenceBuilder.Build(
+                        actor,
+                        enemy,
+                        attackProfile,
+                        canCounterOverride: canCounter,
+                        attackerPursuesOverride: actor.CanPursuitAttackAgainst(enemy, weaponEntry.Weapon));
+                    int hitMultiplier = Mathf.Max(1, sequencePlan.GetTotalHitCount(actor));
 
                     int normalDamage = CalculatePerHitDamage(actor, enemy, weaponEntry.Weapon);
                     int critDamage = CalculatePerHitCritDamage(actor, enemy, weaponEntry.Weapon);
@@ -210,7 +219,7 @@ namespace Windy.Srpg.Game.AI
                     int critChance = CalculateCritChance(actor, enemy, weaponEntry.Weapon);
                     float expectedDamage = CalculateExpectedDamage(normalDamage, critDamage, hitMultiplier, hitChance, critChance);
                     bool projectsKill = normalDamage * hitMultiplier >= enemy.HitPoints;
-                    bool avoidsCounter = !CanCounterattackFromPositions(enemy, actor, actingCell, weaponEntry.Weapon.PreventsCounterattack, grid);
+                    bool avoidsCounter = !sequencePlan.HasCounterPhase;
 
                     options.Add(BuildPlan(
                         AiCombatActionKind.WeaponAttack,
@@ -360,14 +369,25 @@ namespace Windy.Srpg.Game.AI
                 return false;
             }
 
-            int hitMultiplier = Mathf.Max(1, profile.NumHits);
+            bool canCounter = CanCounterattackFromPositions(
+                target,
+                actor,
+                actingCell,
+                profile.PreventsCounterattack,
+                grid);
+            CombatSequencePlan sequencePlan = CombatSequenceBuilder.Build(
+                actor,
+                target,
+                profile,
+                canCounterOverride: canCounter);
+            int hitMultiplier = Mathf.Max(1, sequencePlan.GetTotalHitCount(actor));
             int normalDamage = CalculateProfilePerHitDamage(profile, target, ignoresDefense);
             int critDamage = CalculateProfilePerHitCritDamage(profile, target, ignoresDefense);
             int hitChance = CalculateProfileHitChance(profile, target);
             int critChance = CalculateProfileCritChance(profile, target);
             float expectedDamage = CalculateExpectedDamage(normalDamage, critDamage, hitMultiplier, hitChance, critChance);
             bool projectsKill = normalDamage * hitMultiplier >= target.HitPoints;
-            bool avoidsCounter = !CanCounterattackFromPositions(target, actor, actingCell, profile.PreventsCounterattack, grid);
+            bool avoidsCounter = !sequencePlan.HasCounterPhase;
 
             plan = BuildPlan(
                 AiCombatActionKind.Skill,
@@ -597,11 +617,13 @@ namespace Windy.Srpg.Game.AI
 
                     ResolvedAttackProfile candidateProfile = new ResolvedAttackProfile
                     {
-                        Damage = actor.GetAttackForWeapon(weaponEntry.Weapon) + data.AttackProfile.Might,
+                        Damage = actor.GetAttackForWeapon(weaponEntry.Weapon, data.AttackProfile.HybridScaling)
+                            + data.AttackProfile.Might,
                         UsesWeaponEffects = true,
                         Accuracy = actor.GetAccuracyForWeapon(weaponEntry.Weapon) + data.AttackProfile.Accuracy,
                         Crit = actor.GetCritForWeapon(weaponEntry.Weapon) + data.AttackProfile.Crit,
                         NumHits = Mathf.Max(1, data.AttackProfile.NumHits),
+                        PursuitSpeed = actor.GetSpeedForWeapon(weaponEntry.Weapon),
                         IsMagic = data.AttackProfile.IsMagic || actor.GetIsMagicForWeapon(weaponEntry.Weapon),
                         CanPursuitAttack = false,
                         PreventsCounterattack = data.AttackProfile.PreventsCounterattack,
@@ -639,13 +661,16 @@ namespace Windy.Srpg.Game.AI
             }
 
             bool isMagic = data.AttackProfile.IsMagic;
-            int offensiveStat = isMagic ? actor.Magic : actor.Strength;
+            int offensiveStat = data.AttackProfile.HybridScaling
+                ? actor.Strength + actor.Magic
+                : (isMagic ? actor.Magic : actor.Strength);
             profile = new ResolvedAttackProfile
             {
                 Damage = offensiveStat + data.AttackProfile.Might,
                 Accuracy = actor.Speed * Unit.AccuracyPerSpeedPoint + data.AttackProfile.Accuracy,
                 Crit = actor.Luck * 5 + data.AttackProfile.Crit,
                 NumHits = Mathf.Max(1, data.AttackProfile.NumHits),
+                PursuitSpeed = actor.Speed,
                 IsMagic = isMagic,
                 CanPursuitAttack = false,
                 PreventsCounterattack = data.AttackProfile.PreventsCounterattack,
@@ -1018,12 +1043,13 @@ namespace Windy.Srpg.Game.AI
             else if (data.AreaProfile.Enabled)
             {
                 minRange = Mathf.Max(0, data.AreaProfile.MinRange);
-                maxRange = Mathf.Max(minRange, ResolveAreaSkillMaxRange(data, actingCell, grid));
+                maxRange = Mathf.Max(minRange, ResolveAreaSkillMaxRange(data, actingCell, grid)
+                    + actor.GetSpellMaxRangeModifier(data));
             }
             else
             {
                 minRange = Mathf.Max(0, data.AttackProfile.MinRange);
-                maxRange = Mathf.Max(minRange, data.AttackProfile.MaxRange);
+                maxRange = Mathf.Max(minRange, data.AttackProfile.MaxRange + actor.GetSpellMaxRangeModifier(data));
             }
 
             if (SkillRangeUtility.IsInfiniteRange(maxRange))
@@ -1078,6 +1104,7 @@ namespace Windy.Srpg.Game.AI
 
         private static int CalculateHitChance(Unit attacker, Unit defender, WeaponData weapon)
         {
+            if (attacker.AttacksCannotMiss) return 100;
             return Mathf.Clamp(attacker.GetAccuracyForWeapon(weapon) - defender.Evade, 0, 100);
         }
 
@@ -1111,6 +1138,12 @@ namespace Windy.Srpg.Game.AI
         private static bool SkillMatchesWeapon(SkillData data, WeaponData weapon)
         {
             if (data == null || weapon == null)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(data.RequiredWeaponId)
+                && !string.Equals(data.RequiredWeaponId, weapon.Id, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

@@ -162,6 +162,41 @@ namespace Windy.Srpg.Game.Grid
             return GetNeighbours(candidates).ToList();
         }
 
+        /// <summary>
+        /// Resolves neighbours through the grid's coordinate index. Pathfinding calls this
+        /// once for every traversable cell, so scanning the complete board here makes graph
+        /// construction quadratic on larger maps.
+        /// </summary>
+        internal IEnumerable<Cell> GetNeighbours(CellGrid grid, IReadOnlyCollection<Cell> fallbackCandidates)
+        {
+            if (explicitNeighbours.Count > 0)
+            {
+                return explicitNeighbours.Where(neighbour => neighbour != null);
+            }
+
+            if (grid == null)
+            {
+                return GetNeighbours(fallbackCandidates);
+            }
+
+            Vector2Int origin = Coordinates;
+            List<Cell> neighbours = new List<Cell>(4);
+            AddIfPresent(origin + Vector2Int.up);
+            AddIfPresent(origin + Vector2Int.right);
+            AddIfPresent(origin + Vector2Int.down);
+            AddIfPresent(origin + Vector2Int.left);
+            return neighbours;
+
+            void AddIfPresent(Vector2Int coordinates)
+            {
+                Cell neighbour = grid.FindCellByCoordinates(coordinates);
+                if (neighbour != null)
+                {
+                    neighbours.Add(neighbour);
+                }
+            }
+        }
+
         public virtual int GetDistance(Cell other)
         {
             if (other == null)

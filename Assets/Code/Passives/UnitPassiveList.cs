@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Windy.Srpg.Game.Inventory;
+using Windy.Srpg.Game.Skills;
 using Windy.Srpg.Game.Units;
 using UnityEngine;
 
@@ -57,9 +58,19 @@ namespace Windy.Srpg.Game.Passives
     {
         private readonly Unit owner;
         private readonly List<Passive> entries = new List<Passive>();
+        private readonly Dictionary<string, Passive> equipmentGrantedEntries = new Dictionary<string, Passive>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<Passive> combinedEntries = new List<Passive>();
+        private bool combinedEntriesDirty = true;
 
         public IReadOnlyList<Passive> ClassEntries => entries;
-        public IReadOnlyList<Passive> Entries => entries;
+        public IReadOnlyList<Passive> Entries
+        {
+            get
+            {
+                RebuildCombinedEntriesIfNeeded();
+                return combinedEntries;
+            }
+        }
 
         public UnitPassiveList(Unit owner)
         {
@@ -75,6 +86,7 @@ namespace Windy.Srpg.Game.Passives
                 AddPassiveById(entry.PassiveId, notifyOwner: false);
             }
 
+            RefreshEquipmentGrantedPassives(notifyOwner: false);
             NotifyOwnerChanged();
         }
 
@@ -94,6 +106,9 @@ namespace Windy.Srpg.Game.Passives
 
             Passive passive = new Passive(data);
             entries.Add(passive);
+            combinedEntriesDirty = true;
+            if (equipmentGrantedEntries.Remove(data.Id, out Passive equipmentPassive))
+                equipmentPassive.EffectInstance?.OnRemove(owner, equipmentPassive);
             passive.EffectInstance?.OnApply(owner, passive);
 
             if (notifyOwner)
@@ -131,6 +146,7 @@ namespace Windy.Srpg.Game.Passives
             if (entries.Remove(passive))
             {
                 entries.Insert(0, passive);
+                combinedEntriesDirty = true;
             }
 
             if (notifyOwner)
@@ -149,6 +165,8 @@ namespace Windy.Srpg.Game.Passives
             }
 
             entry.EffectInstance?.OnRemove(owner, entry);
+            RefreshEquipmentGrantedPassives(notifyOwner: false);
+            combinedEntriesDirty = true;
             if (notifyOwner)
             {
                 NotifyOwnerChanged();
@@ -192,6 +210,10 @@ namespace Windy.Srpg.Game.Passives
                 }
 
                 modifiers += entry.Data.PrimaryStatModifiers;
+                if (entry.EffectInstance is IP_DynamicPrimaryStatModifier dynamicModifier)
+                {
+                    modifiers += dynamicModifier.GetPrimaryStatModifiers(owner);
+                }
             }
 
             return modifiers;
@@ -231,10 +253,74 @@ namespace Windy.Srpg.Game.Passives
             return modifier;
         }
 
+        public int GetSpellMaxRangeModifier(SkillData skill)
+        {
+            int modifier = 0;
+            foreach (Passive entry in Entries)
+            {
+                if (entry?.EffectInstance is IP_SpellMaxRangeModifier rangeModifier)
+                    modifier += rangeModifier.GetSpellMaxRangeModifier(owner, skill);
+            }
+            return modifier;
+        }
+
+        public void NotifyHealingPerformed(Unit target, int actualAmount)
+        {
+            if (actualAmount <= 0) return;
+            foreach (Passive entry in Entries.ToList())
+            {
+                if (entry?.EffectInstance is IP_HealingPerformed healingEffect)
+                    healingEffect.OnHealingPerformed(owner, target, actualAmount);
+            }
+        }
+
         public void Clear()
         {
             ClearInternal();
             NotifyOwnerChanged();
+        }
+
+        public void RefreshEquipmentGrantedPassives(bool notifyOwner = true)
+        {
+            string[] desiredIds = GetEquipmentGrantedPassiveIds()
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var desiredSet = new HashSet<string>(desiredIds, StringComparer.OrdinalIgnoreCase);
+            combinedEntriesDirty = true;
+
+            foreach (string id in equipmentGrantedEntries.Keys.ToList())
+            {
+                if (desiredSet.Contains(id) && !ContainsPassiveId(id)) continue;
+                Passive previous = equipmentGrantedEntries[id];
+                previous.EffectInstance?.OnRemove(owner, previous);
+                equipmentGrantedEntries.Remove(id);
+            }
+
+            foreach (string id in desiredIds)
+            {
+                if (ContainsPassiveId(id) || equipmentGrantedEntries.ContainsKey(id)) continue;
+                if (!PassiveRegistry.TryGet(id, out _))
+                {
+                    Debug.LogWarning($"UnitPassiveList: Equipment-granted passive id '{id}' is not registered.");
+                    continue;
+                }
+
+                var passive = new Passive(id);
+                equipmentGrantedEntries[id] = passive;
+                passive.EffectInstance?.OnApply(owner, passive);
+            }
+
+            if (notifyOwner) NotifyOwnerChanged();
+        }
+
+        private IEnumerable<string> GetEquipmentGrantedPassiveIds()
+        {
+            if (owner?.Inventory?.EquippedWeapon?.GrantedPassiveIds != null)
+                foreach (string id in owner.Inventory.EquippedWeapon.GrantedPassiveIds) yield return id;
+
+            if (owner?.Inventory?.EquippedAccessory?.GrantedPassiveIds != null)
+                foreach (string id in owner.Inventory.EquippedAccessory.GrantedPassiveIds) yield return id;
         }
 
         private bool ContainsPassiveId(string passiveId)
@@ -250,6 +336,19 @@ namespace Windy.Srpg.Game.Passives
             }
 
             entries.Clear();
+            foreach (Passive entry in equipmentGrantedEntries.Values)
+                entry?.EffectInstance?.OnRemove(owner, entry);
+            equipmentGrantedEntries.Clear();
+            combinedEntriesDirty = true;
+        }
+
+        private void RebuildCombinedEntriesIfNeeded()
+        {
+            if (!combinedEntriesDirty) return;
+            combinedEntries.Clear();
+            combinedEntries.AddRange(entries);
+            combinedEntries.AddRange(equipmentGrantedEntries.Values);
+            combinedEntriesDirty = false;
         }
 
         private void NotifyOwnerChanged()
