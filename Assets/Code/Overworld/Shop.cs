@@ -47,8 +47,14 @@ namespace Windy.Srpg.Game.Overworld
         [SerializeField]
         private ShopCatalogEntry[] builtInCatalog =
         {
-            new ShopCatalogEntry { itemId = "iron_sword", quantity = -1 },
-            new ShopCatalogEntry { itemId = "magic_sword", quantity = 1 },
+            new ShopCatalogEntry { itemId = "potion", quantity = -1 },
+            new ShopCatalogEntry { itemId = "knife", quantity = 1 },
+        };
+
+        private static readonly HashSet<string> RetiredCatalogItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "iron_sword",
+            "magic_sword"
         };
 
         private enum ShopState
@@ -118,6 +124,47 @@ namespace Windy.Srpg.Game.Overworld
             }
 
             workingSave.ShopStockItems = ShopStockUtility.CloneAndMerge(workingSave.ShopStockItems);
+            if (ReconcileBuiltInCatalog())
+            {
+                hasUnsavedChanges = true;
+            }
+        }
+
+        private bool ReconcileBuiltInCatalog()
+        {
+            ShopStockEntryData[] previousStock = ShopStockUtility.CloneAndMerge(workingSave.ShopStockItems);
+            workingSave.ShopStockItems = previousStock
+                .Where(entry => entry != null && !RetiredCatalogItemIds.Contains(entry.ItemId))
+                .ToArray();
+
+            foreach (ShopCatalogEntry catalogEntry in builtInCatalog ?? Array.Empty<ShopCatalogEntry>())
+            {
+                if (catalogEntry == null || string.IsNullOrWhiteSpace(catalogEntry.itemId))
+                {
+                    continue;
+                }
+
+                ShopStockEntryData existingEntry = workingSave.ShopStockItems.FirstOrDefault(entry =>
+                    entry != null && string.Equals(entry.ItemId, catalogEntry.itemId, StringComparison.OrdinalIgnoreCase));
+                if (existingEntry == null)
+                {
+                    ShopStockUtility.AddStock(workingSave, new[]
+                    {
+                        new ShopStockEntryData { ItemId = catalogEntry.itemId, Quantity = catalogEntry.quantity }
+                    });
+                }
+                else if (catalogEntry.quantity < 0 && existingEntry.Quantity >= 0)
+                {
+                    existingEntry.Quantity = -1;
+                }
+            }
+
+            ShopStockEntryData[] reconciledStock = ShopStockUtility.CloneAndMerge(workingSave.ShopStockItems);
+            workingSave.ShopStockItems = reconciledStock;
+            return previousStock.Length != reconciledStock.Length
+                || previousStock.Where((entry, index) => index >= reconciledStock.Length
+                    || !string.Equals(entry.ItemId, reconciledStock[index].ItemId, StringComparison.OrdinalIgnoreCase)
+                    || entry.Quantity != reconciledStock[index].Quantity).Any();
         }
 
         public void ReloadCampaignSave()

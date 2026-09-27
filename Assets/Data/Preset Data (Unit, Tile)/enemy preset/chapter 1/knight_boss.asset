@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aef1c4a136ce7214bbf559c9f68fe7d4, type: 3}
+  m_Name: knight_boss
+  m_EditorClassIdentifier: com.windy.srpg.game::Windy.Srpg.Game.Units.UnitPreset
+  PresetId: knight_boss
+  UnitName: Knight Boss
+  IsBoss: 1
+  UnitSprite: {fileID: 21300000, guid: f981ab15115ba1a438ef63a0afec9333, type: 3}
+  FaceSprite: {fileID: 0}
+  SpriteLayout:
+    TargetSize: {x: 1.2, y: 1.2}
+    OffsetX: 0
+    OffsetY: 0
+  IsMultiTile: 0
+  FootprintWidth: 1
+  FootprintHeight: 1
+  ActionAiMode: 0
+  MovementAiMode: 1
+  WaitGroupId: 0
+  EnableOvercharge: 0
+  BaseLevel: 5
+  WeaponProficiencies: -1
+  BaseStats:
+    HitPoints: 40
+    ManaPoints: 15
+    MovementPoints: 4
+    Strength: 10
+    Magic: 5
+    Defense: 10
+    Speed: 5
+    Luck: 5
+  GrowthRates:
+    Strength: 20
+    Magic: 20
+    Defense: 20
+    Speed: 20
+    Luck: 20
+  StartingInventory:
+  - ItemId: iron_claymore
+    InitialCharges: -1
+    IsDroppable: 0
+    ChargesInitialized: 1
+  StartingSkills: []
+  StartingClassPassives: []

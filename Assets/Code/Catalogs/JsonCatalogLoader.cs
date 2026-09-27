@@ -192,7 +192,7 @@ namespace Windy.Srpg.Game.Catalogs
         public string Name = "item_name";
         public string Description = "item_desc";
         public int Value = 100;
-        public string WeaponType = nameof(Windy.Srpg.Game.Inventory.WeaponType.Sword);
+        public string WeaponType = nameof(Windy.Srpg.Game.Inventory.WeaponType.Melee);
         public string DamageType = nameof(Windy.Srpg.Game.Inventory.DamageType.Physical);
         public bool HybridScaling;
         public int Might;
@@ -217,7 +217,7 @@ namespace Windy.Srpg.Game.Catalogs
                 Name = Name,
                 Description = Description,
                 Value = Value,
-                WeaponType = CatalogResourceLoader.ParseEnum(WeaponType, Windy.Srpg.Game.Inventory.WeaponType.Sword),
+                WeaponType = CatalogResourceLoader.ParseEnum(WeaponType, Windy.Srpg.Game.Inventory.WeaponType.Melee),
                 DamageType = CatalogResourceLoader.ParseEnum(DamageType, Windy.Srpg.Game.Inventory.DamageType.Physical),
                 HybridScaling = HybridScaling,
                 Might = Might,
@@ -343,7 +343,7 @@ namespace Windy.Srpg.Game.Catalogs
         public string RequiredWeaponType = nameof(CombatArtWeaponType.Any);
         public string RequiredWeaponId;
         public bool EndsTurn = true;
-        public bool OncePerTurn = true;
+        public bool OncePerTurn;
         public bool OncePerBattle;
         public bool SelfImmune;
         public int MpCost = 3;
@@ -351,6 +351,7 @@ namespace Windy.Srpg.Game.Catalogs
         public SkillAttackProfileCatalogEntry AttackProfile = new SkillAttackProfileCatalogEntry();
         public SkillAreaProfileCatalogEntry AreaProfile = new SkillAreaProfileCatalogEntry();
         public SkillTerrainProfileCatalogEntry TerrainProfile = new SkillTerrainProfileCatalogEntry();
+        public SkillHealProfileCatalogEntry HealProfile = new SkillHealProfileCatalogEntry();
 
         public SkillData ToRuntime()
         {
@@ -371,7 +372,32 @@ namespace Windy.Srpg.Game.Catalogs
                 EffectId = CatalogResourceLoader.NormalizeOptionalString(EffectId),
                 AttackProfile = (AttackProfile ?? new SkillAttackProfileCatalogEntry()).ToRuntime(),
                 AreaProfile = (AreaProfile ?? new SkillAreaProfileCatalogEntry()).ToRuntime(),
-                TerrainProfile = (TerrainProfile ?? new SkillTerrainProfileCatalogEntry()).ToRuntime()
+                TerrainProfile = (TerrainProfile ?? new SkillTerrainProfileCatalogEntry()).ToRuntime(),
+                HealProfile = (HealProfile ?? new SkillHealProfileCatalogEntry()).ToRuntime()
+            };
+        }
+    }
+
+    [Serializable]
+    public sealed class SkillHealProfileCatalogEntry
+    {
+        public bool Enabled;
+        public int Might;
+        public bool ScalesWithMagic;
+        public bool DoubleAtDeathsDoor;
+        public int MinRange;
+        public int MaxRange;
+
+        public SkillHealProfile ToRuntime()
+        {
+            return new SkillHealProfile
+            {
+                Enabled = Enabled,
+                Might = Might,
+                ScalesWithMagic = ScalesWithMagic,
+                DoubleAtDeathsDoor = DoubleAtDeathsDoor,
+                MinRange = MinRange,
+                MaxRange = MaxRange
             };
         }
     }

@@ -54,3 +54,4 @@ MonoBehaviour:
   - SkillId: clang
   StartingClassPassives:
   - PassiveId: indomitable
+  - PassiveId: joy_of_burning

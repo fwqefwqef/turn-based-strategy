@@ -27,16 +27,17 @@ MonoBehaviour:
   ActionAiMode: 0
   MovementAiMode: 0
   WaitGroupId: 0
-  BaseLevel: 1
+  EnableOvercharge: 0
+  BaseLevel: 4
   WeaponProficiencies: -1
   BaseStats:
-    HitPoints: 24
-    ManaPoints: 30
+    HitPoints: 26
+    ManaPoints: 33
     MovementPoints: 5
-    Strength: 3
+    Strength: 4
+    Magic: 8
     Defense: 4
-    Magic: 7
-    Speed: 5
+    Speed: 6
     Luck: 5
   GrowthRates:
     Strength: 15
@@ -51,6 +52,7 @@ MonoBehaviour:
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: ice_spikes
-  - SkillId: punish
+  - SkillId: return_to_hell
   StartingClassPassives:
   - PassiveId: sadist
+  - PassiveId: hegemony

@@ -27,17 +27,18 @@ MonoBehaviour:
   ActionAiMode: 0
   MovementAiMode: 0
   WaitGroupId: 0
-  BaseLevel: 1
+  EnableOvercharge: 0
+  BaseLevel: 4
   WeaponProficiencies: -1
   BaseStats:
-    HitPoints: 29
+    HitPoints: 28
     ManaPoints: 27
     MovementPoints: 5
-    Strength: 4
-    Defense: 5
+    Strength: 5
     Magic: 6
-    Speed: 4
-    Luck: 4
+    Defense: 5
+    Speed: 5
+    Luck: 5
   GrowthRates:
     Strength: 20
     Magic: 25
@@ -53,4 +54,5 @@ MonoBehaviour:
   - SkillId: devotion
   - SkillId: bash
   StartingClassPassives:
-  - PassiveId: compassion
+  - PassiveId: nurse_compassion
+  - PassiveId: flight

@@ -45,6 +45,12 @@ The `colossus` enemy preset is a ready-to-place 3x3 example. Death's Door, Black
 
 Death's Door preserves 0 or negative HP and caps movement at 1 until the unit is healed above 0 HP. It does not reduce primary stats or accumulate a lasting weakening penalty.
 
+### Skill authoring
+
+Skill target legality is data-driven. Set `TargetingType` in `Assets/Data/gdata.json` to `Self`, `EnemyUnit`, `AllyUnit`, `AnyUnit`, `Cell`, or `AreaCell`; area skills also use `SelfImmune`, `AreaProfile.AffectsAllies`, and `AreaProfile.AffectsEnemies`. `SkillTargetValidator` applies those rules consistently for player input, previews, execution, and AI.
+
+Custom effects inherit `SkillEffectBase` and normally only implement `Apply`. The base `Use` method validates the target automatically before calling `Apply`. Override `MeetsAdditionalUseConditions` only for rules that cannot be expressed by the catalog, such as requiring missing HP, a completed action, a removable debuff, sufficient sacrifice HP, or a valid displacement destination. Effects should not repeat ally/enemy/self/alive checks or call `CanUse` from `Apply`.
+
 ## Project Layout
 
 - `Assets/Code` — gameplay code in the `com.windy.srpg.game` assembly

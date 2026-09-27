@@ -12,7 +12,7 @@ namespace Windy.Srpg.Game.Campaign
 {
     public static class CampaignSaveFactory
     {
-        public const int CurrentSaveVersion = 12;
+        public const int CurrentSaveVersion = 13;
         public const int StartingGold = 1000;
 
         private static readonly string[] StartingUnitPresetIds =
@@ -301,8 +301,71 @@ namespace Windy.Srpg.Game.Campaign
             {
                 AddCharacterSkillsToLearnedLists(save);
             }
+            if (save.Version < 13)
+            {
+                ApplyPermanentPassiveAndShopkeepRework(save);
+            }
             save.Version = Mathf.Max(CurrentSaveVersion, save.Version);
             return save;
+        }
+
+        private static void ApplyPermanentPassiveAndShopkeepRework(CampaignSaveData save)
+        {
+            foreach (OwnedUnitSaveData unit in save.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (unit == null)
+                {
+                    continue;
+                }
+
+                string identity = (!string.IsNullOrWhiteSpace(unit.VisualId) ? unit.VisualId : unit.UnitId)
+                    ?.Trim().ToLowerInvariant();
+                switch (identity)
+                {
+                    case "protagonist":
+                        AddPassive(unit, "accelerated_movement");
+                        break;
+                    case "thunder":
+                        RemovePassive(unit, "wrath");
+                        AddPassive(unit, "crisis_might");
+                        break;
+                    case "flame":
+                        AddPassive(unit, "joy_of_burning");
+                        break;
+                    case "darkness":
+                        AddPassive(unit, "soul_stealer");
+                        break;
+                    case "shopkeep":
+                        unit.SkillIds = (unit.SkillIds ?? Array.Empty<string>())
+                            .Where(id => !string.Equals(id, "punish", StringComparison.OrdinalIgnoreCase))
+                            .Append("return_to_hell")
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToArray();
+                        AddPassive(unit, "sadist");
+                        AddPassive(unit, "hegemony");
+                        break;
+                    case "nurse":
+                        RemovePassive(unit, "compassion");
+                        AddPassive(unit, "nurse_compassion");
+                        AddPassive(unit, "flight");
+                        break;
+                }
+            }
+        }
+
+        private static void AddPassive(OwnedUnitSaveData unit, string passiveId)
+        {
+            unit.ClassPassiveIds = (unit.ClassPassiveIds ?? Array.Empty<string>())
+                .Append(passiveId)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static void RemovePassive(OwnedUnitSaveData unit, string passiveId)
+        {
+            unit.ClassPassiveIds = (unit.ClassPassiveIds ?? Array.Empty<string>())
+                .Where(id => !string.Equals(id, passiveId, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
         }
 
         private static void AddCharacterSkillsToLearnedLists(CampaignSaveData save)

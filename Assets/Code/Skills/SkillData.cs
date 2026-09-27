@@ -75,6 +75,17 @@ namespace Windy.Srpg.Game.Skills
     }
 
     [Serializable]
+    public struct SkillHealProfile
+    {
+        public bool Enabled;
+        public int Might;
+        public bool ScalesWithMagic;
+        public bool DoubleAtDeathsDoor;
+        public int MinRange;
+        public int MaxRange;
+    }
+
+    [Serializable]
     public class SkillData
     {
         public string Id;
@@ -89,20 +100,18 @@ namespace Windy.Srpg.Game.Skills
         public string RequiredWeaponId;
 
         public bool EndsTurn = true;
-        public bool OncePerTurn = true;
+        public bool OncePerTurn;
         [Tooltip("Limits this skill to one committed use by the unit for the entire battle.")]
         public bool OncePerBattle = false;
         public bool SelfImmune = false;
         public int MpCost = 3;
 
-        // Actions that leave the unit active must still have a per-turn ceiling.
-        // OncePerTurn remains useful for skills that may coexist with other ways
-        // of preserving or restoring a unit's action.
-        public bool HasOncePerTurnUsageLimit => OncePerTurn || !EndsTurn;
+        public bool HasOncePerTurnUsageLimit => OncePerTurn;
 
         public SkillAttackProfile AttackProfile;
         public SkillAreaProfile AreaProfile;
         public SkillTerrainProfile TerrainProfile;
+        public SkillHealProfile HealProfile;
 
         public string EffectId;
     }

@@ -8,7 +8,7 @@
         "Name": "Fire Bat",
         "Description": "A close-range bat that applies Burn on each successful hit.",
         "Value": 100,
-        "WeaponType": "Sword",
+        "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 5,
         "MinRange": 1,
@@ -46,7 +46,7 @@
         "Name": "Mace",
         "Description": "A sturdy 1-range mace.",
         "Value": 100,
-        "WeaponType": "Blunt",
+        "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 6,
         "MinRange": 1,
@@ -64,7 +64,7 @@
         "Name": "Toxic Sword",
         "Description": "Applies Toxic on each successful weapon hit.",
         "Value": 100,
-        "WeaponType": "Sword",
+        "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 5,
         "MinRange": 1,
@@ -83,7 +83,7 @@
         "Name": "Stun Sword",
         "Description": "Applies Stun on each successful weapon hit.",
         "Value": 100,
-        "WeaponType": "Sword",
+        "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 5,
         "MinRange": 1,
@@ -102,7 +102,7 @@
         "Name": "Weakening Sword",
         "Description": "Applies Weakening on each successful weapon hit.",
         "Value": 100,
-        "WeaponType": "Sword",
+        "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 5,
         "MinRange": 1,
@@ -121,7 +121,7 @@
         "Name": "Iron Sword",
         "Description": "A simple physical weapon.",
         "Value": 100,
-        "WeaponType": "Sword",
+        "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 5,
         "MinRange": 1,
@@ -135,11 +135,86 @@
         "GrantedSkillIds": []
       },
       {
+        "Id": "fire_staff",
+        "Name": "Fire Staff",
+        "Description": "A staff that shoots out fire.",
+        "Value": 100,
+        "WeaponType": "Magic",
+        "DamageType": "Magic",
+        "Might": 8,
+        "MinRange": 2,
+        "MaxRange": 2,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "claws",
+        "Name": "Claws",
+        "Description": "The claws of a bird.",
+        "Value": 100,
+        "WeaponType": "Melee",
+        "DamageType": "Physical",
+        "Might": 7,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 90,
+        "Crit": 10,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "iron_claymore",
+        "Name": "Iron Claymore",
+        "Description": "A heavy physical weapon. Lowers Speed by 2.",
+        "Value": 100,
+        "WeaponType": "Melee",
+        "DamageType": "Physical",
+        "Might": 12,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 90,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "StatModifiers": {
+          "Speed": -2
+        },
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "knife",
+        "Name": "Knife",
+        "Description": "A light melee weapon that strikes twice.",
+        "Value": 100,
+        "WeaponType": "Melee",
+        "DamageType": "Physical",
+        "Might": 1,
+        "MinRange": 1,
+        "MaxRange": 1,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 2,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
         "Id": "time_sword",
         "Name": "Time Sword",
         "Description": "A low-might, high-accuracy sword that grants Spd +3.",
         "Value": 100,
-        "WeaponType": "Sword",
+        "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 3,
         "MinRange": 1,
@@ -179,7 +254,7 @@
         "Name": "Thunder Lance",
         "Description": "A close-range lance with a high critical-hit rate.",
         "Value": 100,
-        "WeaponType": "Lance",
+        "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 10,
         "MinRange": 1,
@@ -197,11 +272,29 @@
         "Name": "Magic Sword",
         "Description": "A magical blade that attacks with magic.",
         "Value": 100,
-        "WeaponType": "Sword",
+        "WeaponType": "Melee",
         "DamageType": "Magic",
         "Might": 10,
         "MinRange": 1,
         "MaxRange": 1,
+        "Accuracy": 100,
+        "Crit": 0,
+        "NumHits": 1,
+        "CanPursuitAttack": true,
+        "CanCounterAttack": true,
+        "PreventsCounterattack": false,
+        "GrantedSkillIds": []
+      },
+      {
+        "Id": "iron_bow",
+        "Name": "Iron Bow",
+        "Description": "A bow that fires attacks at range.",
+        "Value": 100,
+        "WeaponType": "Ranged",
+        "DamageType": "Physical",
+        "Might": 5,
+        "MinRange": 2,
+        "MaxRange": 2,
         "Accuracy": 100,
         "Crit": 0,
         "NumHits": 1,
@@ -234,23 +327,13 @@
       {
         "Id": "shield",
         "Name": "Shield",
-        "Description": "Def +5. A sturdy shield that increases defense.",
+        "Description": "Def +3. A sturdy shield that increases defense.",
         "Value": 100,
         "StatModifiers": {
-          "Defense": 5
+          "Defense": 3
         },
         "GrantedSkillIds": [],
         "GrantedPassiveIds": []
-      },
-      {
-        "Id": "cloak",
-        "Name": "Cloak",
-        "Description": "Mag +5. A cloak that improves magic power and magic defense.",
-        "Value": 100,
-        "StatModifiers": {
-          "Magic": 5
-        },
-        "GrantedSkillIds": []
       }
     ],
     "CTRL_F_CONSUMABLES_SECTION": "CTRL+F: CONSUMABLES",
@@ -258,19 +341,19 @@
       {
         "Id": "potion",
         "Name": "Potion",
-        "Description": "Restores 10 HP.",
+        "Description": "Restores 20 HP.",
         "Value": 100,
         "Charges": 3,
-        "EffectId": "heal_10",
+        "EffectId": "heal_20",
         "TargetType": "Self"
       },
       {
         "Id": "super_potion",
         "Name": "Super Potion",
-        "Description": "Restores 20 HP.",
+        "Description": "Restores 50 HP.",
         "Value": 100,
         "Charges": 3,
-        "EffectId": "heal_20",
+        "EffectId": "heal_50",
         "TargetType": "Self"
       },
       {
@@ -376,7 +459,7 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -415,7 +498,7 @@
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "EffectId": "cleanse",
@@ -439,7 +522,7 @@
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "OncePerBattle": false,
         "SelfImmune": true,
         "MpCost": 3,
@@ -464,7 +547,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "EffectId": "slow",
@@ -488,7 +571,7 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "OncePerBattle": false,
         "SelfImmune": true,
         "MpCost": 12,
@@ -524,7 +607,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "OncePerBattle": false,
         "SelfImmune": false,
         "MpCost": 3,
@@ -534,8 +617,8 @@
           "Might": 15,
           "Accuracy": 80,
           "Crit": 30,
-          "MinRange": 2,
-          "MaxRange": 3,
+          "MinRange": 1,
+          "MaxRange": 2,
           "NumHits": 1,
           "PreventsCounterattack": false
         }
@@ -548,8 +631,8 @@
         "TargetingType": "Self",
         "RequiredWeaponType": "Any",
         "EndsTurn": false,
-        "OncePerTurn": true,
-        "MpCost": 3,
+        "OncePerTurn": false,
+        "MpCost": 1,
         "EffectId": "storm_surge",
         "AttackProfile": {
           "Enabled": false,
@@ -571,7 +654,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Melee",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "OncePerBattle": false,
         "SelfImmune": false,
         "MpCost": 6,
@@ -596,7 +679,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Melee",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -619,7 +702,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -642,7 +725,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Ranged",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -665,7 +748,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Melee",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -688,7 +771,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Melee",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -711,7 +794,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "EffectId": "ignore_def_mag",
@@ -735,7 +818,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Ranged",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -759,7 +842,7 @@
         "RequiredWeaponType": "Melee",
         "RequiredWeaponId": "nurse_mace",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "MpCost": 3,
         "EffectId": "bash_lifesteal",
         "AttackProfile": {
@@ -783,19 +866,16 @@
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "MpCost": 3,
-        "EffectId": "heal_mag_10",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "profile_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 10,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 1,
-          "MaxRange": 1,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 1
         }
       },
       {
@@ -806,19 +886,16 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "MpCost": 12,
         "EffectId": "shining_pillar",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
+        "HealProfile": {
+          "Enabled": true,
           "Might": 10,
-          "Accuracy": 100,
-          "Crit": 0,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 0,
-          "MaxRange": 8,
-          "NumHits": 1,
-          "PreventsCounterattack": true
+          "MaxRange": 8
         },
         "AreaProfile": {
           "Enabled": true,
@@ -841,7 +918,7 @@
         "RequiredWeaponType": "Magic",
         "RequiredWeaponId": "ice_whip",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "MpCost": 3,
         "EffectId": "punish",
         "AttackProfile": {
@@ -865,7 +942,7 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": true,
         "MpCost": 5,
         "EffectId": "ice_spikes",
@@ -895,6 +972,43 @@
         }
       },
       {
+        "Id": "return_to_hell",
+        "Name": "Return to Hell",
+        "Description": "Deal magic damage to enemies in a 1-tile radius. Damage is doubled against enemies at or below half HP.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": false,
+        "SelfImmune": true,
+        "MpCost": 5,
+        "EffectId": "return_to_hell",
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": true,
+          "HybridScaling": false,
+          "Might": 7,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": true
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "MinRange": 1,
+          "MaxRange": 3,
+          "Radius": 1,
+          "Might": 0,
+          "IsMagic": true,
+          "HybridScaling": false,
+          "AffectsAllies": false,
+          "AffectsEnemies": true
+        }
+      },
+      {
         "Id": "shopkeep_disintegrate",
         "Name": "Disintegrate",
         "Description": "Ultimate: Blast enemies in an infinitely long, 3-tile-wide line.",
@@ -902,7 +1016,7 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "MpCost": 12,
         "AttackProfile": {
           "Enabled": true,
@@ -937,9 +1051,9 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": true,
-        "MpCost": 3,
+        "MpCost": 9,
         "EffectId": "burn_area_targets",
         "AttackProfile": {
           "Enabled": true,
@@ -972,15 +1086,15 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Melee",
         "EndsTurn": true,
-        "OncePerTurn": true,
-        "MpCost": 3,
+        "OncePerTurn": false,
+        "MpCost": 1,
         "EffectId": "clang",
         "AttackProfile": {
           "Enabled": true,
           "IsMagic": false,
-          "Might": 0,
+          "Might": 3,
           "Accuracy": 0,
-          "Crit": 0,
+          "Crit": 10,
           "MinRange": 0,
           "MaxRange": 0,
           "NumHits": 1,
@@ -995,7 +1109,7 @@
         "TargetingType": "Self",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "OncePerBattle": false,
         "SelfImmune": false,
         "MpCost": 6,
@@ -1015,26 +1129,23 @@
       {
         "Id": "dark_heal",
         "Name": "Dark Heal",
-        "Description": "Heal an adjacent ally for Magic + 10 HP, doubled if the target is at Death's Door.",
+        "Description": "Heal an adjacent ally for Magic + 8 HP, doubled if the target is at Death's Door.",
         "Category": "Spell",
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "OncePerBattle": false,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "dark_heal",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "profile_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 8,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": true,
           "MinRange": 1,
-          "MaxRange": 1,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 1
         }
       },
       {
@@ -1045,15 +1156,15 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "OncePerBattle": false,
         "SelfImmune": false,
-        "MpCost": 3,
+        "MpCost": 9,
         "EffectId": "anathema",
         "AttackProfile": {
           "Enabled": true,
           "IsMagic": true,
-          "Might": 8,
+          "Might": 10,
           "Accuracy": 100,
           "Crit": 0,
           "MinRange": 2,
@@ -1070,7 +1181,7 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "MpCost": 12,
         "EffectId": "dark_sanctuary",
         "AttackProfile": {
@@ -1104,7 +1215,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -1127,7 +1238,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
         "AttackProfile": {
@@ -1150,20 +1261,17 @@
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "heal_mag_10",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "profile_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 10,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 1,
-          "MaxRange": 1,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 1
         }
       },
       {
@@ -1174,20 +1282,17 @@
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "heal_mag_25",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "profile_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 25,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 1,
-          "MaxRange": 1,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 1
         }
       },
       {
@@ -1198,20 +1303,17 @@
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "heal_mag_10",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "profile_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 10,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 1,
-          "MaxRange": 10,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 10
         }
       },
       {
@@ -1222,20 +1324,17 @@
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "heal_mag_25",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "profile_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 25,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 1,
-          "MaxRange": 11,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 11
         }
       },
       {
@@ -1246,20 +1345,17 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 9,
-        "EffectId": "heal_mag_10",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "profile_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 10,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 1,
-          "MaxRange": 5,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 5
         },
         "AreaProfile": {
           "Enabled": true,
@@ -1281,20 +1377,17 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": true,
         "MpCost": 9,
-        "EffectId": "sacrifice_heal_mag_25",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "sacrifice_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 25,
+          "ScalesWithMagic": true,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 1,
-          "MaxRange": 5,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 5
         },
         "AreaProfile": {
           "Enabled": true,
@@ -1316,7 +1409,7 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 9,
         "AttackProfile": {
@@ -1350,7 +1443,7 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 9,
         "AttackProfile": {
@@ -1384,7 +1477,7 @@
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": true,
         "MpCost": 9,
         "EffectId": "immolate",
@@ -1419,20 +1512,17 @@
         "TargetingType": "Self",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 3,
-        "EffectId": "regen_self_10",
-        "AttackProfile": {
-          "Enabled": false,
-          "IsMagic": true,
-          "Might": 0,
-          "Accuracy": 100,
-          "Crit": 0,
+        "EffectId": "profile_heal",
+        "HealProfile": {
+          "Enabled": true,
+          "Might": 10,
+          "ScalesWithMagic": false,
+          "DoubleAtDeathsDoor": false,
           "MinRange": 0,
-          "MaxRange": 0,
-          "NumHits": 1,
-          "PreventsCounterattack": false
+          "MaxRange": 0
         }
       },
       {
@@ -1443,7 +1533,7 @@
         "TargetingType": "EnemyUnit",
         "RequiredWeaponType": "Melee",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 0,
         "EffectId": "break_current_hp",
@@ -1467,7 +1557,7 @@
         "TargetingType": "AllyUnit",
         "RequiredWeaponType": "Any",
         "EndsTurn": true,
-        "OncePerTurn": true,
+        "OncePerTurn": false,
         "SelfImmune": false,
         "MpCost": 0,
         "EffectId": "shove",
@@ -1521,21 +1611,28 @@
       {
         "Id": "accelerated_movement",
         "Name": "Accelerated Movement",
-        "Description": "While Overcharged, move up to 3 additional tiles directly after taking an action.",
+        "Description": "Move up to 2 additional tiles directly after taking an action.",
         "Cost": 0,
         "EffectId": "accelerated_movement"
       },
       {
+        "Id": "crisis_might",
+        "Name": "Crisis Might",
+        "Description": "Gain Crit +1% for every missing point of HP.",
+        "Cost": 0,
+        "EffectId": "crisis_might"
+      },
+      {
         "Id": "indomitable",
         "Name": "Indomitable",
-        "Description": "Once per turn, endure an attack that would cause Death's Door at 1 HP instead. Does not activate while already at Death's Door.",
+        "Description": "When HP is above 1, upon taking an attack that would bring her to death’s door, endure it at 1HP. Activates once per turn.",
         "Cost": 0,
         "EffectId": "indomitable"
       },
       {
         "Id": "joy_of_burning",
         "Name": "Joy of Burning",
-        "Description": "While Overcharged, gain Str/Mag +2 for each burning enemy on the map.",
+        "Description": "Gain Str/Mag +1 for each burning enemy on the map.",
         "Cost": 0,
         "EffectId": "joy_of_burning"
       },
@@ -1549,9 +1646,11 @@
       {
         "Id": "soul_stealer",
         "Name": "Soul Stealer",
-        "Description": "While Overcharged, attacks cannot miss and steal MP equal to half the damage dealt (up to the target's current MP).",
+        "Description": "Hit +25.",
         "Cost": 0,
-        "EffectId": "soul_stealer"
+        "SecondaryStatModifiers": {
+          "Accuracy": 25
+        }
       },
       {
         "Id": "sadist",
@@ -1559,6 +1658,13 @@
         "Description": "Gain Might +1 for every enemy on the map below full HP.",
         "Cost": 0,
         "EffectId": "sadist"
+      },
+      {
+        "Id": "hegemony",
+        "Name": "Hegemony",
+        "Description": "On a successful basic attack, reduce the target's Movement to 0 for one turn.",
+        "Cost": 0,
+        "EffectId": "hegemony"
       },
       {
         "Id": "penetrate",
@@ -1580,6 +1686,13 @@
         "Description": "While Overcharged, increase the maximum range of Spell and Area Spell skills by 2.",
         "Cost": 0,
         "EffectId": "apotheosis"
+      },
+      {
+        "Id": "flight",
+        "Name": "Flight",
+        "Description": "Ignore terrain movement costs and traverse untraversable terrain.",
+        "Cost": 0,
+        "EffectId": "flight"
       },
       {
         "Id": "deep_breath",
@@ -1637,7 +1750,7 @@
       {
         "Id": "burn",
         "Name": "Burn",
-        "Description": "Takes 5 Pain damage per stack before each own turn for up to 2 ticks. Stacks up to 2 times.",
+        "Description": "Takes Pain damage per stack equal to floor((caster STR + MAG) / 2) before each own turn for up to 2 ticks. Stacks up to 2 times.",
         "Duration": 2,
         "Category": "Pain",
         "MaxStacks": 2,

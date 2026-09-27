@@ -54,3 +54,4 @@ MonoBehaviour:
   - SkillId: anathema
   StartingClassPassives:
   - PassiveId: cursed_existence
+  - PassiveId: soul_stealer

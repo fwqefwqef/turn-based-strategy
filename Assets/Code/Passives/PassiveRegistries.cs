@@ -29,6 +29,19 @@ namespace Windy.Srpg.Game.Passives
         float GetMovementPointModifier(Unit unit);
     }
 
+    public interface IP_PostActionMovement
+    {
+        float GetPostActionMovementPoints(Unit unit);
+    }
+
+    public interface IP_IgnoreTerrainMovementCost
+    {
+    }
+
+    public interface IP_TraverseUntraversableTerrain
+    {
+    }
+
     public interface IP_SpellMaxRangeModifier
     {
         int GetSpellMaxRangeModifier(Unit unit, SkillData skill);

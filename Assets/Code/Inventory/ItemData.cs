@@ -22,16 +22,11 @@ namespace Windy.Srpg.Game.Inventory
         Self
     }
 
-    [Flags]
     public enum WeaponType
     {
-        None = 0,
-        Sword = 1 << 0,
-        Lance = 1 << 1,
-        Ranged = 1 << 2,
-        Blunt = 1 << 3,
-        // Magic is intended for magical implements such as tomes and staves.
-        Magic = 1 << 4
+        Melee,
+        Ranged,
+        Magic
     }
 
     [Flags]
@@ -48,11 +43,12 @@ namespace Windy.Srpg.Game.Inventory
         public static WeaponProficiency ForWeapon(WeaponData weapon)
         {
             if (weapon == null) return WeaponProficiency.None;
-            if ((weapon.WeaponType & WeaponType.Magic) != 0)
-                return WeaponProficiency.Magic;
-            if ((weapon.WeaponType & WeaponType.Ranged) != 0)
-                return WeaponProficiency.Ranged;
-            return WeaponProficiency.Melee;
+            return weapon.WeaponType switch
+            {
+                WeaponType.Ranged => WeaponProficiency.Ranged,
+                WeaponType.Magic => WeaponProficiency.Magic,
+                _ => WeaponProficiency.Melee
+            };
         }
     }
 
@@ -148,7 +144,7 @@ namespace Windy.Srpg.Game.Inventory
     [Serializable]
     public class WeaponData : ItemData
     {
-        public WeaponType WeaponType = WeaponType.Sword;
+        public WeaponType WeaponType = WeaponType.Melee;
         public DamageType DamageType = DamageType.Physical;
         [Tooltip("When enabled, attack power uses both Strength and Magic. Damage mitigation still follows DamageType.")]
         public bool HybridScaling;

@@ -146,15 +146,17 @@ namespace Windy.Srpg.Game.Units
 
         internal bool CanPlaceFootprint(Cell anchorCell, bool hostileOnly, CellGrid grid = null)
         {
+            bool canTraverseUntraversableTerrain = PassiveList?.CanTraverseUntraversableTerrain == true;
             if (FootprintTileCount == 1)
             {
                 return anchorCell != null
-                    && anchorCell.IsTraversable
+                    && (anchorCell.IsTraversable || canTraverseUntraversableTerrain)
                     && !HasBlockingOccupant(anchorCell, hostileOnly, grid);
             }
 
             IReadOnlyList<Cell> footprint = GetFootprintCells(anchorCell, grid);
-            if (footprint.Count != FootprintTileCount || footprint.Any(cell => cell == null || !cell.IsTraversable))
+            if (footprint.Count != FootprintTileCount
+                || footprint.Any(cell => cell == null || (!cell.IsTraversable && !canTraverseUntraversableTerrain)))
             {
                 return false;
             }
@@ -169,6 +171,11 @@ namespace Windy.Srpg.Game.Units
 
         internal float GetFootprintMovementCost(Cell anchorCell, CellGrid grid)
         {
+            if (anchorCell != null && PassiveList?.IgnoresTerrainMovementCost == true)
+            {
+                return 1f;
+            }
+
             if (FootprintTileCount == 1)
             {
                 return anchorCell != null

@@ -22,6 +22,9 @@ namespace Windy.Srpg.Game.Buffs
         [NonSerialized]
         private IP_BuffEffect effectInstance;
 
+        [NonSerialized]
+        private Unit sourceUnit;
+
         [NonSerialized] private bool controlTurnStarted;
 
         public string BuffId => buffId;
@@ -34,6 +37,7 @@ namespace Windy.Srpg.Game.Buffs
         public string StackingId => Data?.StackingId ?? buffId;
         public bool IsInfinite => Data != null && Data.Duration == 0;
         public IP_BuffEffect EffectInstance => effectInstance;
+        public Unit SourceUnit => sourceUnit;
 
         public Buff()
         {
@@ -98,6 +102,14 @@ namespace Windy.Srpg.Game.Buffs
             return previousStacks != currentStacks;
         }
 
+        internal void SetSource(Unit source)
+        {
+            if (source != null)
+            {
+                sourceUnit = source;
+            }
+        }
+
         private void TryCreateEffectInstance()
         {
             if (Data == null)
@@ -122,7 +134,7 @@ namespace Windy.Srpg.Game.Buffs
             this.owner = owner;
         }
 
-        public Buff AddBuff(BuffData data)
+        public Buff AddBuff(BuffData data, Unit source = null)
         {
             if (data == null || string.IsNullOrWhiteSpace(data.Id))
             {
@@ -135,6 +147,7 @@ namespace Windy.Srpg.Game.Buffs
             Buff existingEntry = entries.FirstOrDefault(entry => HasSameStackingId(entry, data));
             if (existingEntry != null)
             {
+                existingEntry.SetSource(source);
                 bool stackChanged = existingEntry.ApplyAdditionalStack(data, out int previousStacks, out int currentStacks);
                 if (stackChanged && existingEntry.EffectInstance is IP_BuffStackChanged stackChangedEffect)
                 {
@@ -145,12 +158,13 @@ namespace Windy.Srpg.Game.Buffs
             }
 
             var entry = new Buff(data);
+            entry.SetSource(source);
             entries.Add(entry);
             entry.EffectInstance?.OnApply(owner, entry);
             return entry;
         }
 
-        public Buff AddBuffById(string buffId)
+        public Buff AddBuffById(string buffId, Unit source = null)
         {
             if (!BuffRegistry.TryGet(buffId, out var data))
             {
@@ -158,7 +172,7 @@ namespace Windy.Srpg.Game.Buffs
                 return null;
             }
 
-            return AddBuff(data);
+            return AddBuff(data, source);
         }
 
         public bool RemoveBuff(Buff entry)
@@ -212,7 +226,14 @@ namespace Windy.Srpg.Game.Buffs
 
         public int ConsumeTurnStartHealthDelta()
         {
+            return ConsumeTurnStartHealthDelta(out _);
+        }
+
+        public int ConsumeTurnStartHealthDelta(out Unit painSource)
+        {
             int totalDelta = 0;
+            int largestAttributedDamage = 0;
+            painSource = null;
             foreach (var entry in entries.ToList())
             {
                 if (owner == null || !owner.IsAliveForBattle) break;
@@ -223,7 +244,14 @@ namespace Windy.Srpg.Game.Buffs
 
                 if (entry.EffectInstance is IP_TurnStartHealthEffect healthEffect)
                 {
-                    totalDelta += owner.ResolveTurnStartHealthDelta(healthEffect.GetTurnStartHealthDelta(owner));
+                    int resolvedDelta = owner.ResolveTurnStartHealthDelta(healthEffect.GetTurnStartHealthDelta(owner));
+                    totalDelta += resolvedDelta;
+                    int attributedDamage = Mathf.Max(0, -resolvedDelta);
+                    if (entry.SourceUnit != null && attributedDamage >= largestAttributedDamage)
+                    {
+                        largestAttributedDamage = attributedDamage;
+                        painSource = entry.SourceUnit;
+                    }
                     entry.DecrementDuration();
                     if (entry.HasExpired()) RemoveBuff(entry);
                 }

@@ -54,3 +54,4 @@ MonoBehaviour:
   - SkillId: storm_surge
   StartingClassPassives:
   - PassiveId: vantage
+  - PassiveId: crisis_might

@@ -22,6 +22,7 @@ namespace Windy.Srpg.Game.Inventory
 
             ConsumableEffectRegistry.Register("heal_10", () => new HealConsumableEffect(10));
             ConsumableEffectRegistry.Register("heal_20", () => new HealConsumableEffect(20));
+            ConsumableEffectRegistry.Register("heal_50", () => new HealConsumableEffect(50));
             ConsumableEffectRegistry.Register("apply_invulnerable_buff", () => new ApplyBuffConsumableEffect("invulnerable"));
             ConsumableEffectRegistry.Register("increase_strength_2", () => new PermanentStatConsumableEffect(PermanentStatKind.Strength, 2));
             ConsumableEffectRegistry.Register("increase_magic_2", () => new PermanentStatConsumableEffect(PermanentStatKind.Magic, 2));
@@ -44,7 +45,7 @@ namespace Windy.Srpg.Game.Inventory
             public void OnWeaponHit(Unit attacker, Unit target)
             {
                 if (target != null && target.IsAliveForBattle)
-                    target.AddBuffById(buffId);
+                    target.AddBuffById(buffId, attacker);
             }
         }
 

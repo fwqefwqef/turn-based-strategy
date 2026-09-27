@@ -54,3 +54,4 @@ MonoBehaviour:
   - SkillId: slow
   StartingClassPassives:
   - PassiveId: untouchable
+  - PassiveId: accelerated_movement

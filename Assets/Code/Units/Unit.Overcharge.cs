@@ -172,7 +172,13 @@ namespace Windy.Srpg.Game.Units
 
         internal bool TryBeginPostActionMovement()
         {
-            if (!IsOverchargeActive || !overchargeGrantsPostActionMovement || postActionMovementActive
+            float movementPoints = PassiveList?.GetPostActionMovementPoints() ?? 0f;
+            if (IsOverchargeActive && overchargeGrantsPostActionMovement)
+            {
+                movementPoints = Math.Max(movementPoints, 3f);
+            }
+
+            if (movementPoints <= 0f || postActionMovementActive
                 || !IsAliveForBattle || IsActionBlocked || !IsFinishedForTurn)
             {
                 return false;
@@ -180,7 +186,7 @@ namespace Windy.Srpg.Game.Units
 
             postActionMovementActive = true;
             cachedPaths = null;
-            MovementPoints = 3f;
+            MovementPoints = movementPoints;
             SetTurnStateKind(UnitTurnStateKind.Friendly);
             return true;
         }

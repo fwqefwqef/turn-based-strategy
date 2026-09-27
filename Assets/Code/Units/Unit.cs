@@ -55,6 +55,8 @@ namespace Windy.Srpg.Game.Units
         public static event Action CombatCameraFocusReleased;
         public static event Action<Vector3> PreviewMoveCameraFollowRequested;
         public static event Action PreviewMoveCameraFollowReleased;
+        public static event Action<Vector3> EnemyMovementCameraFollowRequested;
+        public static event Action EnemyMovementCameraFollowReleased;
         internal bool hasInitializedTurnState;
         public UnitTurnStateKind CurrentTurnStateKind => currentTurnStateKind;
         public bool HasInitializedTurnState => hasInitializedTurnState;

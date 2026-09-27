@@ -44,6 +44,8 @@ namespace Windy.Srpg.Game.AI
 
             foreach (Unit unit in units)
             {
+                yield return WaitForPresentationCompletion();
+
                 if (unit == null || !unit.IsAliveForBattle || !unit.CanStartActionThisTurn) continue;
                 AiDecisionAction[] actions = unit.GetComponentsInChildren<AiDecisionAction>(true)
                     ?? Array.Empty<AiDecisionAction>();
@@ -81,7 +83,16 @@ namespace Windy.Srpg.Game.AI
                 }
             }
 
+            yield return WaitForPresentationCompletion();
             onTurnCompleted?.Invoke();
+        }
+
+        private static IEnumerator WaitForPresentationCompletion()
+        {
+            while (Unit.IsAnyCombatPresentationActive)
+            {
+                yield return null;
+            }
         }
     }
 

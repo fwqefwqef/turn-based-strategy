@@ -306,7 +306,7 @@ namespace Windy.Srpg.Game.UI
 
             if (string.IsNullOrWhiteSpace(label))
             {
-                label = Path.GetFileNameWithoutExtension(entry.ScenePath) ?? entry.ScenePath;
+                label = GameTextCatalog.Get("ui.overworld.unnamed_level", "Unnamed Level");
             }
 
             return isCleared ? $"\u2713 {label}" : label;
@@ -344,17 +344,17 @@ namespace Windy.Srpg.Game.UI
 
         private static LevelSceneEntry BuildLevelSceneEntryFromSceneAsset(string scenePath)
         {
-            string fallbackName = Path.GetFileNameWithoutExtension(scenePath) ?? scenePath;
             if (!File.Exists(scenePath))
             {
-                return new LevelSceneEntry(fallbackName, scenePath);
+                return null;
             }
 
             string sceneText = File.ReadAllText(scenePath);
             int chapterDataIndex = sceneText.IndexOf(ChapterDataTypeIdentifier, StringComparison.Ordinal);
             if (chapterDataIndex < 0)
             {
-                return new LevelSceneEntry(fallbackName, scenePath);
+                Debug.LogWarning($"OverworldMenuUI: Ignoring level scene '{scenePath}' because it has no Chapter Data. Configure it through the Chapter Manager.");
+                return null;
             }
 
             string chapterDataBlock = sceneText.Substring(chapterDataIndex);
@@ -365,7 +365,8 @@ namespace Windy.Srpg.Game.UI
 
             if (string.IsNullOrWhiteSpace(chapterName))
             {
-                chapterName = fallbackName;
+                Debug.LogWarning($"OverworldMenuUI: Ignoring level scene '{scenePath}' because its Chapter Data has no level name. Configure it through the Chapter Manager.");
+                return null;
             }
 
             return new LevelSceneEntry(chapterName, chapterId, scenePath, replayable, unlockRequiredChapterId);

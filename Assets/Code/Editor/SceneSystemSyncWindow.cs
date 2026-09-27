@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Windy.Srpg.Game.Chapters;
 using Windy.Srpg.Game.Grid;
 using Object = UnityEngine.Object;
 
@@ -18,7 +19,8 @@ namespace Windy.Srpg.Game.Editor
             "CellGrid\n" +
             "Units\n" +
             "Friendly Deployment Slots\n" +
-            "ReinforcementTiles";
+            "ReinforcementTiles\n" +
+            "Chapter Data";
 
         [SerializeField] private SceneAsset sourceScene;
         [SerializeField] private string preservedRootNames = DefaultPreservedRootNames;
@@ -86,8 +88,8 @@ namespace Windy.Srpg.Game.Editor
             EditorGUILayout.LabelField("Scene System Sync", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
                 "Copies reusable scene systems from a source scene into the active scene while preserving map roots. " +
-                "Default source is PaintedMap.unity. Default preserved roots are CellGrid, Units, Friendly Deployment Slots, and ReinforcementTiles. " +
-                "Chapter Data should stay on its own root object so it copies from the source scene.",
+                "Default source is PaintedMap.unity. Default preserved roots are CellGrid, Units, Friendly Deployment Slots, ReinforcementTiles, and Chapter Data. " +
+                "Chapter Data stays local to each level so its Chapter Manager name, progression settings, and rewards are not overwritten.",
                 MessageType.Info);
 
             sourceScene = (SceneAsset)EditorGUILayout.ObjectField("Source Scene", sourceScene, typeof(SceneAsset), false);
@@ -101,7 +103,7 @@ namespace Windy.Srpg.Game.Editor
 
             EditorGUILayout.HelpBox(
                 "Root component sync updates components on preserved roots, such as CellGrid settings, without replacing their children. " +
-                "MapPainterSceneContext is skipped so map bounds and map metadata stay local to the current scene.",
+                "MapPainterSceneContext and ChapterData are skipped so map bounds and chapter metadata stay local to the current scene.",
                 MessageType.None);
 
             removeExtraNonMapRootObjects = EditorGUILayout.Toggle(
@@ -645,7 +647,8 @@ namespace Windy.Srpg.Game.Editor
         {
             return component != null
                 && component is not Transform
-                && component is not MapPainterSceneContext;
+                && component is not MapPainterSceneContext
+                && component is not ChapterData;
         }
 
         private static void RemapObjectReferences(IEnumerable<Component> components, IReadOnlyDictionary<Object, Object> objectMap)

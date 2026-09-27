@@ -29,15 +29,17 @@ namespace Windy.Srpg.Game.Passives
             PassiveEffectRegistry.Register("fortress", () => new FortressEffect());
             PassiveEffectRegistry.Register("vantage", () => new VantageEffect());
             PassiveEffectRegistry.Register("wrath_missing_hp_crit", () => new WrathEffect());
+            PassiveEffectRegistry.Register("crisis_might", () => new CrisisMightEffect());
             PassiveEffectRegistry.Register("accelerated_movement", () => new AcceleratedMovementEffect());
             PassiveEffectRegistry.Register("indomitable", () => new IndomitableEffect());
             PassiveEffectRegistry.Register("joy_of_burning", () => new JoyOfBurningEffect());
             PassiveEffectRegistry.Register("cursed_existence", () => new CursedExistenceEffect());
-            PassiveEffectRegistry.Register("soul_stealer", () => new SoulStealerEffect());
             PassiveEffectRegistry.Register("sadist", () => new SadistEffect());
+            PassiveEffectRegistry.Register("hegemony", () => new HegemonyEffect());
             PassiveEffectRegistry.Register("penetrate", () => new PenetrateEffect());
             PassiveEffectRegistry.Register("nurse_compassion", () => new NurseCompassionEffect());
             PassiveEffectRegistry.Register("apotheosis", () => new ApotheosisEffect());
+            PassiveEffectRegistry.Register("flight", () => new FlightEffect());
             isRegistered = true;
         }
 
@@ -52,7 +54,7 @@ namespace Windy.Srpg.Game.Passives
 
             public int LimitAttackDamage(Unit defender, int damage, bool simulateOnly)
             {
-                if (usedThisTurn || defender == null || defender.HitPoints <= 0
+                if (usedThisTurn || defender == null || defender.HitPoints <= 1
                     || damage < defender.HitPoints || damage <= 0)
                     return damage;
 
@@ -67,21 +69,7 @@ namespace Windy.Srpg.Game.Passives
             {
                 if (isBasicAttack && attacker != null && defender != null
                     && attacker.PlayerNumber != defender.PlayerNumber && defender.IsAliveForBattle)
-                    defender.AddBuffById("curse");
-            }
-        }
-
-        private sealed class SoulStealerEffect : PassiveEffectBase, IP_AttackNeverMisses, IP_AttackHitEffect
-        {
-            public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
-            {
-                if (attacker == null || defender == null || attacker.PlayerNumber == defender.PlayerNumber
-                    || damageDealt <= 0) return;
-
-                int drained = Mathf.Min(defender.CurrentManaPoints, damageDealt / 2);
-                if (drained <= 0) return;
-                defender.SetCurrentManaPoints(defender.CurrentManaPoints - drained);
-                attacker.RestoreManaPoints(drained);
+                    defender.AddBuffById("curse", attacker);
             }
         }
 
@@ -89,7 +77,7 @@ namespace Windy.Srpg.Game.Passives
         {
             public PrimaryStatModifiers GetPrimaryStatModifiers(Unit unit)
             {
-                int bonus = 2 * (unit?.CountBurningEnemies() ?? 0);
+                int bonus = unit?.CountBurningEnemies() ?? 0;
                 return new PrimaryStatModifiers { Strength = bonus, Magic = bonus };
             }
         }
@@ -100,6 +88,18 @@ namespace Windy.Srpg.Game.Passives
             {
                 int bonus = unit?.CountDamagedEnemies() ?? 0;
                 return new PrimaryStatModifiers { Attack = bonus };
+            }
+        }
+
+        private sealed class HegemonyEffect : PassiveEffectBase, IP_AttackHitEffect
+        {
+            public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
+            {
+                if (isBasicAttack && attacker != null && defender != null
+                    && attacker.PlayerNumber != defender.PlayerNumber && defender.IsAliveForBattle)
+                {
+                    defender.AddBuffById("punished", attacker);
+                }
             }
         }
 
@@ -134,7 +134,12 @@ namespace Windy.Srpg.Game.Passives
             }
         }
 
-        private sealed class AcceleratedMovementEffect : PassiveEffectBase
+        private sealed class AcceleratedMovementEffect : PassiveEffectBase, IP_PostActionMovement
+        {
+            public float GetPostActionMovementPoints(Unit unit) => 2f;
+        }
+
+        private sealed class FlightEffect : PassiveEffectBase, IP_IgnoreTerrainMovementCost, IP_TraverseUntraversableTerrain
         {
         }
 
@@ -154,6 +159,21 @@ namespace Windy.Srpg.Game.Passives
                 int currentHitPoints = Mathf.Min(unit.HitPoints, unit.MaxHitPoints);
                 int missingHitPoints = Mathf.Max(0, unit.MaxHitPoints - currentHitPoints);
                 return new SecondaryStatModifiers { Crit = missingHitPoints * 2 };
+            }
+        }
+
+        private sealed class CrisisMightEffect : PassiveEffectBase, IP_DynamicSecondaryStatModifier
+        {
+            public SecondaryStatModifiers GetSecondaryStatModifiers(Unit unit)
+            {
+                if (unit == null)
+                {
+                    return default;
+                }
+
+                int currentHitPoints = Mathf.Min(unit.HitPoints, unit.MaxHitPoints);
+                int missingHitPoints = Mathf.Max(0, unit.MaxHitPoints - currentHitPoints);
+                return new SecondaryStatModifiers { Crit = missingHitPoints };
             }
         }
 

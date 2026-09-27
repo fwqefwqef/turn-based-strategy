@@ -2,6 +2,10 @@ namespace UnityEngine
 {
     public sealed class SerializeField : Attribute { }
     public sealed class TextAreaAttribute : Attribute { }
+    public sealed class TooltipAttribute : Attribute
+    {
+        public TooltipAttribute(string tooltip) { }
+    }
 
     public static class Mathf
     {

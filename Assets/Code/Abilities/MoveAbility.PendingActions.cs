@@ -1870,15 +1870,22 @@ namespace Windy.Srpg.Game.Abilities
                                         return;
                                     }
 
+                                    ResolvedAttackProfile targetProfile = profile;
+                                    if (effect is IAreaAttackTargetModifier targetModifier)
+                                    {
+                                        SkillContext targetContext = BuildAreaSkillContext(skill, centerCell, target, cellGrid, orderedTargets);
+                                        targetModifier.ModifyAttackProfileForTarget(UnitReference, targetContext, ref targetProfile);
+                                    }
+
                                     target.DefendHandler(
                                         UnitReference,
-                                        profile.Damage,
-                                        profile.Accuracy,
-                                        profile.Crit,
-                                        isMagicAttack: profile.IsMagic,
+                                        targetProfile.Damage,
+                                        targetProfile.Accuracy,
+                                        targetProfile.Crit,
+                                        isMagicAttack: targetProfile.IsMagic,
                                         isCounterAttack: false,
                                         simulateOnly: false,
-                                        applyWeaponEffects: profile.UsesWeaponEffects,
+                                        applyWeaponEffects: targetProfile.UsesWeaponEffects,
                                         isAreaSpell: true);
                                 },
                                 skill.Data,
@@ -2059,8 +2066,7 @@ namespace Windy.Srpg.Game.Abilities
 
             bool isMagicAttack = weapon != null ? attacker.GetIsMagicForWeapon(weapon) : attacker.IsMagic;
             int attackValue = weapon != null ? attacker.GetAttackForWeapon(weapon) : attacker.Attack;
-            int defenseStat = isMagicAttack ? defender.Magic : defender.Defense;
-            return Mathf.Max(1, attackValue - defenseStat);
+            return defender.CalculateSimulatedStrikeDamage(attacker, attackValue, isMagicAttack);
         }
 
         private static int CalculatePerHitCritDamage(Unit attacker, Unit defender, WeaponData weapon = null)
@@ -2072,8 +2078,7 @@ namespace Windy.Srpg.Game.Abilities
 
             bool isMagicAttack = weapon != null ? attacker.GetIsMagicForWeapon(weapon) : attacker.IsMagic;
             int attackValue = weapon != null ? attacker.GetAttackForWeapon(weapon) : attacker.Attack;
-            int defenseStat = isMagicAttack ? defender.Magic : defender.Defense;
-            return Mathf.Max(1, attackValue * 2 - defenseStat);
+            return defender.CalculateSimulatedStrikeDamage(attacker, attackValue, isMagicAttack, isCrit: true);
         }
 
         private static int CalculateProjectedDamage(Unit attacker, Unit defender, int multiplier, WeaponData weapon = null)
@@ -2439,6 +2444,14 @@ namespace Windy.Srpg.Game.Abilities
                 return true;
             }
 
+            if (data.HealProfile.Enabled)
+            {
+                minRange = Mathf.Max(0, data.HealProfile.MinRange);
+                maxRange = Mathf.Max(minRange, data.HealProfile.MaxRange + UnitReference.GetSpellMaxRangeModifier(data));
+                NormalizeResolvedSkillRange(ref minRange, ref maxRange);
+                return true;
+            }
+
             minRange = Mathf.Max(0, data.AttackProfile.MinRange);
             maxRange = Mathf.Max(minRange, data.AttackProfile.MaxRange + UnitReference.GetSpellMaxRangeModifier(data));
             NormalizeResolvedSkillRange(ref minRange, ref maxRange);
@@ -2718,7 +2731,7 @@ namespace Windy.Srpg.Game.Abilities
                 }
 
                 SkillContext castContext = BuildAreaSkillContext(skill, centerCell, orderedTargets.FirstOrDefault(), cellGrid, orderedTargets);
-                if (!TryPrepareAttackSkillEffect(skill, castContext, ref profile, out _))
+                if (!TryPrepareAttackSkillEffect(skill, castContext, ref profile, out ISkillEffect areaAttackEffect))
                 {
                     return results;
                 }
@@ -2726,7 +2739,14 @@ namespace Windy.Srpg.Game.Abilities
                 int hitMultiplier = Mathf.Max(1, profile.NumHits);
                 foreach (Unit target in orderedTargets)
                 {
-                    int damage = CalculateProjectedDamage(UnitReference, target, hitMultiplier, profile);
+                    ResolvedAttackProfile targetProfile = profile;
+                    if (areaAttackEffect is IAreaAttackTargetModifier targetModifier)
+                    {
+                        SkillContext targetContext = BuildAreaSkillContext(skill, centerCell, target, cellGrid, orderedTargets);
+                        targetModifier.ModifyAttackProfileForTarget(UnitReference, targetContext, ref targetProfile);
+                    }
+
+                    int damage = CalculateProjectedDamage(UnitReference, target, hitMultiplier, targetProfile);
                     int projectedHp = Mathf.Max(0, target.HitPoints - damage);
                     results.Add(new AreaConfirmTargetPreviewData(
                         target.unitName,
@@ -2801,7 +2821,7 @@ namespace Windy.Srpg.Game.Abilities
             CombatSequencePlan plan = CombatSequenceBuilder.Build(UnitReference, target, profile);
             int attackMultiplier = Mathf.Max(1, plan.GetTotalHitCount(UnitReference));
 
-            int perHitDamage = CalculatePerHitDamage(profile, target);
+            int perHitDamage = CalculatePerHitDamage(UnitReference, profile, target);
             bool isFatal = CalculateProjectedDamage(UnitReference, target, attackMultiplier, profile) >= target.HitPoints;
             return new AttackPreviewPanelData(
                 UnitReference.unitName,
@@ -2809,7 +2829,7 @@ namespace Windy.Srpg.Game.Abilities
                 BuildMitigationValue(UnitReference, target != null && target.HasUsableWeapon, target != null && target.IsMagic),
                 FormatDamageValue(perHitDamage, attackMultiplier, isFatal),
                 FormatPercentValue(CalculateHitChance(profile, target)),
-                FormatCritValue(profile, target, perHitDamage));
+                FormatCritValue(UnitReference, profile, target, perHitDamage));
         }
 
         private AttackPreviewPanelData BuildSkillDefenderPreview(Skill skill, Unit defender, CellGrid cellGrid)
@@ -3024,8 +3044,10 @@ namespace Windy.Srpg.Game.Abilities
                 return 0;
             }
 
-            int defenseStat = profile.IsMagic ? defender.Magic : defender.Defense;
-            return Mathf.Max(1, profile.Damage - defenseStat) * Mathf.Max(1, multiplier);
+            return defender.CalculateSimulatedStrikeDamage(
+                attacker,
+                profile.Damage,
+                profile.IsMagic) * Mathf.Max(1, multiplier);
         }
 
         private static string DescribeActionUnit(Unit unit)
@@ -3059,26 +3081,27 @@ namespace Windy.Srpg.Game.Abilities
                 .Distinct());
         }
 
-        private static int CalculatePerHitDamage(ResolvedAttackProfile profile, Unit defender)
+        private static int CalculatePerHitDamage(Unit attacker, ResolvedAttackProfile profile, Unit defender)
         {
             if (defender == null)
             {
                 return 0;
             }
 
-            int defenseStat = profile.IsMagic ? defender.Magic : defender.Defense;
-            return Mathf.Max(1, profile.Damage - defenseStat);
+            return defender.CalculateSimulatedStrikeDamage(
+                attacker,
+                profile.Damage,
+                profile.IsMagic);
         }
 
-        private static int CalculatePerHitCritDamage(ResolvedAttackProfile profile, Unit defender)
+        private static int CalculatePerHitCritDamage(Unit attacker, ResolvedAttackProfile profile, Unit defender)
         {
             if (defender == null)
             {
                 return 0;
             }
 
-            int defenseStat = profile.IsMagic ? defender.Magic : defender.Defense;
-            return Mathf.Max(1, profile.Damage * 2 - defenseStat);
+            return defender.CalculateSimulatedStrikeDamage(attacker, profile.Damage, profile.IsMagic, isCrit: true);
         }
 
         private int CalculateHitChance(ResolvedAttackProfile profile, Unit defender)
@@ -3103,7 +3126,7 @@ namespace Windy.Srpg.Game.Abilities
             return Mathf.Clamp(profile.Crit - defender.CritAvoid, 0, 100);
         }
 
-        private static string FormatCritValue(ResolvedAttackProfile profile, Unit defender, int normalDamage)
+        private static string FormatCritValue(Unit attacker, ResolvedAttackProfile profile, Unit defender, int normalDamage)
         {
             if (defender == null)
             {
@@ -3111,7 +3134,7 @@ namespace Windy.Srpg.Game.Abilities
             }
 
             int critChance = CalculateCritChance(profile, defender);
-            int critDamage = CalculatePerHitCritDamage(profile, defender);
+            int critDamage = CalculatePerHitCritDamage(attacker, profile, defender);
             return $"{FormatPercentValue(critChance)} ({normalDamage} -> {critDamage})";
         }
 

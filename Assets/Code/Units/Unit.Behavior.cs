@@ -348,10 +348,10 @@ namespace Windy.Srpg.Game.Units
             }
             RefreshOverchargeVisual();
         }
-        public RuntimeBuff AddBuff(BuffData data)
+        public RuntimeBuff AddBuff(BuffData data, Unit source = null)
         {
             EnsureBuffList();
-            var entry = BuffList.AddBuff(data);
+            var entry = BuffList.AddBuff(data, source);
             if (entry != null)
             {
                 RefreshHealthState();
@@ -370,10 +370,10 @@ namespace Windy.Srpg.Game.Units
             BuffData instance = BuffRegistry.CreateRuntimeInstance(template, durationOverride, idSuffix);
             return AddBuff(instance);
         }
-        public RuntimeBuff AddBuffById(string buffId)
+        public RuntimeBuff AddBuffById(string buffId, Unit source = null)
         {
             EnsureBuffList();
-            var entry = BuffList.AddBuffById(buffId);
+            var entry = BuffList.AddBuffById(buffId, source);
             if (entry != null)
             {
                 RefreshHealthState();
@@ -493,7 +493,7 @@ namespace Windy.Srpg.Game.Units
             }
         }
 
-        public void ApplyPainDamage(int amount)
+        public void ApplyPainDamage(int amount, Unit source = null)
         {
             if (!IsAliveForBattle || amount <= 0) return;
             if (BuffList?.HasBuff("flame_last_stand") == true && HitPoints > 0)
@@ -503,16 +503,42 @@ namespace Windy.Srpg.Game.Units
             }
             int previous = HitPoints;
             HitPoints -= amount;
-            RaiseHealthChanged(previous, HitPoints, null);
+            RaiseHealthChanged(previous, HitPoints, source);
             if (HitPoints <= 0)
             {
-                if (!TryEnterDeathsDoor(null, amount))
+                if (!TryEnterDeathsDoor(source, amount))
                 {
+                    ExperienceAwardResult painKillExperience = source != null && source.PlayerNumber != PlayerNumber
+                        ? source.BuildCombatExperienceAward(this, isLethal: true)
+                        : null;
                     ClearDeathsDoorOnDefeat();
-                    DestroyedInCombat?.Invoke(this, new UnitDestroyedEventArgs(null, this, amount));
-                    CombatDestroyed?.Invoke(this, new AttackEventArgs(null, this, amount));
+                    DestroyedInCombat?.Invoke(this, new UnitDestroyedEventArgs(source, this, amount));
+                    CombatDestroyed?.Invoke(this, new AttackEventArgs(source, this, amount));
                     OnDestroyed();
+                    if (painKillExperience != null)
+                    {
+                        source.StartCoroutine(source.PlayPainKillExperience(painKillExperience));
+                    }
                 }
+            }
+        }
+
+        private IEnumerator PlayPainKillExperience(ExperienceAwardResult award)
+        {
+            if (award == null)
+            {
+                yield break;
+            }
+
+            BeginCombatPresentation();
+            try
+            {
+                yield return StartCoroutine(WaitForCombatHudToClose());
+                yield return StartCoroutine(PlayExperienceAwardSequence(this, award));
+            }
+            finally
+            {
+                EndCombatPresentation();
             }
         }
 
@@ -531,10 +557,14 @@ namespace Windy.Srpg.Game.Units
                 yield return GameplayCameraController.WaitForFocusSettled();
                 hud?.ShowTurnStartHealthPhase(this);
                 yield return new WaitForSecondsRealtime(0.3f);
-                int netChange = (BuffList?.ConsumeTurnStartHealthDelta() ?? 0)
+                Unit painSource = null;
+                int buffHealthChange = BuffList != null
+                    ? BuffList.ConsumeTurnStartHealthDelta(out painSource)
+                    : 0;
+                int netChange = buffHealthChange
                     + ConsumePassiveTurnStartHealthDelta();
                 if (netChange > 0) RestoreHitPoints(netChange, this);
-                else if (netChange < 0) ApplyPainDamage(-netChange);
+                else if (netChange < 0) ApplyPainDamage(-netChange, painSource);
                 RefreshHealthState();
                 RaiseBuffsChanged();
                 yield return new WaitForSecondsRealtime(0.65f);
@@ -1992,6 +2022,65 @@ namespace Windy.Srpg.Game.Units
 
             return damageTaken;
         }
+
+        internal int CalculateSimulatedStrikeDamage(
+            Unit aggressor,
+            int attackDamage,
+            bool isMagicAttack,
+            bool isCrit = false,
+            bool isCounterAttack = false,
+            bool isAreaSpell = false)
+        {
+            if (aggressor == null)
+            {
+                return 0;
+            }
+
+            var context = new DamageChangeContext
+            {
+                Attacker = aggressor,
+                Defender = this,
+                IsHit = true,
+                IsCrit = isCrit && !isAreaSpell,
+                IsMagicAttack = isMagicAttack,
+                IsCounterAttack = isCounterAttack,
+                IsAreaSpell = isAreaSpell,
+                IsSimulated = true,
+                Phase = DamageChangePhase.Damage
+            };
+
+            int defenseStat = isMagicAttack ? Magic : Defense;
+            int rawDamage = context.IsCrit
+                ? attackDamage * 2 - defenseStat
+                : attackDamage - defenseStat;
+            int damageTaken = Mathf.Max(1, rawDamage);
+
+            damageTaken = ApplyDamageChangeModifiers(aggressor, context, damageTaken);
+            damageTaken = ApplyDamageTakenModifiers(this, context, damageTaken);
+            damageTaken = ApplyDamageMultipliers(aggressor, context, damageTaken);
+            damageTaken = ApplyTakeDamageMultipliers(this, context, damageTaken);
+            damageTaken = Mathf.Max(0, damageTaken);
+
+            if (damageTaken > 0 && BuffList != null)
+            {
+                foreach (var effect in BuffList.GetActiveEffects())
+                {
+                    if (effect is IP_AttackSurvivalGuard guard)
+                        damageTaken = Mathf.Clamp(guard.LimitAttackDamage(this, damageTaken, simulateOnly: true), 0, damageTaken);
+                }
+            }
+            if (damageTaken > 0 && PassiveList != null)
+            {
+                foreach (var effect in PassiveList.GetActiveEffects())
+                {
+                    if (effect is IP_AttackSurvivalGuard guard)
+                        damageTaken = Mathf.Clamp(guard.LimitAttackDamage(this, damageTaken, simulateOnly: true), 0, damageTaken);
+                }
+            }
+
+            return damageTaken;
+        }
+
         protected virtual int Defend(Unit aggressor, int damage)
         {
             return Mathf.Clamp(damage - Defense, 1, damage);
@@ -2006,7 +2095,11 @@ namespace Windy.Srpg.Game.Units
             int previousMaxManaPoints = Mathf.Max(0, ComputedTotalManaPoints);
             int currentMaxManaPoints = MaxManaPoints;
 
-            if (currentMaxHitPoints < previousMaxHitPoints && previousHitPoints == previousMaxHitPoints)
+            if (currentMaxHitPoints > previousMaxHitPoints)
+            {
+                HitPoints += currentMaxHitPoints - previousMaxHitPoints;
+            }
+            else if (currentMaxHitPoints < previousMaxHitPoints && previousHitPoints == previousMaxHitPoints)
             {
                 HitPoints = currentMaxHitPoints;
             }
@@ -2014,7 +2107,11 @@ namespace Windy.Srpg.Game.Units
             HitPoints = Mathf.Min(HitPoints, currentMaxHitPoints);
             ClearDeathsDoorIfHealedAboveZero();
 
-            if (currentMaxManaPoints < previousMaxManaPoints && previousManaPoints == previousMaxManaPoints)
+            if (currentMaxManaPoints > previousMaxManaPoints)
+            {
+                CurrentManaPoints += currentMaxManaPoints - previousMaxManaPoints;
+            }
+            else if (currentMaxManaPoints < previousMaxManaPoints && previousManaPoints == previousMaxManaPoints)
             {
                 CurrentManaPoints = currentMaxManaPoints;
             }
@@ -2882,7 +2979,17 @@ namespace Windy.Srpg.Game.Units
 
             if (MovementAnimationSpeed > 0)
             {
+                bool followEnemyMovement = PlayerNumber != 0;
+                if (followEnemyMovement)
+                {
+                    EnemyMovementCameraFollowRequested?.Invoke(GetVisualFootprintWorldCenter());
+                    yield return GameplayCameraController.WaitForFocusSettled();
+                }
                 yield return StartCoroutine(AnimateMovementPath(path));
+                if (followEnemyMovement)
+                {
+                    EnemyMovementCameraFollowReleased?.Invoke();
+                }
             }
             else
             {
@@ -3069,6 +3176,10 @@ namespace Windy.Srpg.Game.Units
                 while ((transform.localPosition - destinationPos).sqrMagnitude > 0.0001f)
                 {
                     transform.localPosition = Vector3.MoveTowards(transform.localPosition, destinationPos, Time.deltaTime * MovementAnimationSpeed);
+                    if (PlayerNumber != 0)
+                    {
+                        EnemyMovementCameraFollowRequested?.Invoke(GetVisualFootprintWorldCenter());
+                    }
                     yield return null;
                 }
 

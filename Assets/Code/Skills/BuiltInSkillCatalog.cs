@@ -21,10 +21,7 @@ namespace Windy.Srpg.Game.Skills
             SkillCatalogResource catalog = CatalogResourceLoader.LoadSkillCatalog();
             SkillRegistry.RegisterRange(catalog.ToRuntimeDefinitions());
 
-            SkillEffectRegistry.Register("regen_self_10", () => new RestoreHitPointsSkillEffect(10));
-            SkillEffectRegistry.Register("heal_mag_10", () => new MagicScalingHealSkillEffect(10));
-            SkillEffectRegistry.Register("heal_mag_25", () => new MagicScalingHealSkillEffect(25));
-            SkillEffectRegistry.Register("sacrifice_heal_mag_25", () => new SacrificeHealSkillEffect(25));
+            SkillEffectRegistry.Register("sacrifice_heal", () => new SacrificeHealSkillEffect());
             SkillEffectRegistry.Register("immolate", () => new ImmolateSkillEffect());
             SkillEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMagSkillEffect());
             SkillEffectRegistry.Register("shove", () => new ShoveSkillEffect());
@@ -33,7 +30,7 @@ namespace Windy.Srpg.Game.Skills
             SkillEffectRegistry.Register("refresh_action", () => new RefreshActionSkillEffect());
             SkillEffectRegistry.Register("burn_area_targets", () => new BurnAreaTargetsSkillEffect());
             SkillEffectRegistry.Register("flame_last_stand", () => new InsurmountableSkillEffect());
-            SkillEffectRegistry.Register("dark_heal", () => new DarkHealSkillEffect());
+            SkillEffectRegistry.Register("profile_heal", () => new ProfileHealSkillEffect());
             SkillEffectRegistry.Register("anathema", () => new AnathemaSkillEffect());
             SkillEffectRegistry.Register("slow", () => new SlowSkillEffect());
             SkillEffectRegistry.Register("storm_surge", () => new StormSurgeSkillEffect());
@@ -41,49 +38,78 @@ namespace Windy.Srpg.Game.Skills
             SkillEffectRegistry.Register("dark_sanctuary", () => new DarkSanctuarySkillEffect());
             SkillEffectRegistry.Register("punish", () => new PunishSkillEffect());
             SkillEffectRegistry.Register("ice_spikes", () => new IceSpikesSkillEffect());
+            SkillEffectRegistry.Register("return_to_hell", () => new ReturnToHellSkillEffect());
             SkillEffectRegistry.Register("bash_lifesteal", () => new BashLifeStealEffect());
             SkillEffectRegistry.Register("shining_pillar", () => new ShiningPillarEffect());
 
             isRegistered = true;
         }
 
-        private sealed class PunishSkillEffect : ISkillEffect, IP_AttackHitEffect
+        private static int GetProfileHealingAmount(Unit user, SkillContext context)
         {
-            public bool CanUse(Unit user, SkillContext context) => user != null
-                && context?.PrimaryTargetUnit != null
-                && context.PrimaryTargetUnit.PlayerNumber != user.PlayerNumber;
+            if (user == null || context?.PrimaryTargetUnit == null || context.Skill == null)
+            {
+                return 0;
+            }
 
-            public void Use(Unit user, SkillContext context) { }
+            SkillHealProfile profile = context.Skill.HealProfile;
+            if (!profile.Enabled)
+            {
+                return 0;
+            }
+
+            int amount = profile.Might + (profile.ScalesWithMagic ? user.Magic : 0);
+            amount = Mathf.Max(0, amount);
+            return profile.DoubleAtDeathsDoor && context.PrimaryTargetUnit.HitPoints <= 0
+                ? amount * 2
+                : amount;
+        }
+
+        private sealed class PunishSkillEffect : SkillEffectBase, IP_AttackHitEffect
+        {
+            protected override void Apply(Unit user, SkillContext context) { }
 
             public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
             {
                 if (attacker != null && defender != null && attacker.PlayerNumber != defender.PlayerNumber)
-                    defender.AddBuffById("punished");
+                    defender.AddBuffById("punished", attacker);
             }
         }
 
-        private sealed class IceSpikesSkillEffect : ISkillEffect
+        private sealed class IceSpikesSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context) => user != null && context?.AreaTargets != null;
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context) =>
+                context?.AreaTargets != null;
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (!CanUse(user, context)) return;
                 foreach (Unit target in context.AreaTargets.Distinct())
                 {
                     if (target != null && target.IsAliveForBattle && target.PlayerNumber != user.PlayerNumber)
-                        target.AddBuffById("ice_spikes_slow");
+                        target.AddBuffById("ice_spikes_slow", user);
                 }
             }
         }
 
-        private sealed class BashLifeStealEffect : ISkillEffect, IP_AttackHitEffect
+        private sealed class ReturnToHellSkillEffect : SkillEffectBase, IAreaAttackTargetModifier
         {
-            public bool CanUse(Unit user, SkillContext context) => user != null
-                && context?.PrimaryTargetUnit != null
-                && context.PrimaryTargetUnit.PlayerNumber != user.PlayerNumber;
+            protected override void Apply(Unit user, SkillContext context) { }
 
-            public void Use(Unit user, SkillContext context) { }
+            public void ModifyAttackProfileForTarget(Unit user, SkillContext context, ref ResolvedAttackProfile profile)
+            {
+                Unit target = context?.PrimaryTargetUnit;
+                if (target != null && target.HitPoints * 2 <= target.ComputedTotalHitPoints)
+                {
+                    int defense = profile.IsMagic ? target.Magic : target.Defense;
+                    int normalDamage = Mathf.Max(1, profile.Damage - defense);
+                    profile.Damage = defense + normalDamage * 2;
+                }
+            }
+        }
+
+        private sealed class BashLifeStealEffect : SkillEffectBase, IP_AttackHitEffect
+        {
+            protected override void Apply(Unit user, SkillContext context) { }
 
             public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
             {
@@ -92,29 +118,22 @@ namespace Windy.Srpg.Game.Skills
             }
         }
 
-        private sealed class ShiningPillarEffect : IAreaHitPointChangeSkillEffect
+        private sealed class ShiningPillarEffect : SkillEffectBase, IAreaHitPointChangeSkillEffect
         {
-            public bool CanUse(Unit user, SkillContext context)
-            {
-                Unit target = context?.PrimaryTargetUnit;
-                return user != null && target != null && target.IsAliveForBattle;
-            }
-
             public int GetProjectedHitPointDelta(Unit user, SkillContext context)
             {
                 if (!CanUse(user, context)) return 0;
                 Unit target = context.PrimaryTargetUnit;
-                int power = GetPower(user);
+                int power = GetProfileHealingAmount(user, context);
                 return target.PlayerNumber == user.PlayerNumber
                     ? Mathf.Min(power, Mathf.Max(0, target.ComputedTotalHitPoints - target.HitPoints))
                     : -Mathf.Min(target.HitPoints, Mathf.Max(1, power - target.Magic));
             }
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (!CanUse(user, context)) return;
                 Unit target = context.PrimaryTargetUnit;
-                int power = GetPower(user);
+                int power = GetProfileHealingAmount(user, context);
                 if (target.PlayerNumber == user.PlayerNumber)
                 {
                     target.RestoreHitPoints(power, user);
@@ -133,64 +152,44 @@ namespace Windy.Srpg.Game.Skills
                     isAreaSpell: true);
             }
 
-            private static int GetPower(Unit user) => user == null ? 0 : Mathf.Max(0, user.Magic + 10);
         }
 
-        private sealed class RefreshActionSkillEffect : ISkillEffect
+        private sealed class RefreshActionSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context)
             {
                 Unit target = context?.PrimaryTargetUnit;
-                return user != null
-                    && target != null
-                    && target != user
-                    && target.PlayerNumber == user.PlayerNumber
-                    && target.IsAliveForBattle
-                    && target.IsFinishedForTurn
+                return target != null && target.IsFinishedForTurn
                     && !target.IsActionBlocked;
             }
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (CanUse(user, context))
-                {
-                    context.PrimaryTargetUnit.RefreshAction();
-                }
+                context.PrimaryTargetUnit.RefreshAction();
             }
         }
 
-        private sealed class BurnAreaTargetsSkillEffect : ISkillEffect
+        private sealed class BurnAreaTargetsSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
-            {
-                return user != null && context?.AreaTargets != null;
-            }
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context) =>
+                context?.AreaTargets != null;
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (!CanUse(user, context)) return;
                 var seen = new System.Collections.Generic.HashSet<Unit>();
                 foreach (Unit target in context.AreaTargets)
                 {
                     if (target != null && target.PlayerNumber != user.PlayerNumber
                         && target.IsAliveForBattle && seen.Add(target))
-                        target.AddBuffById("burn");
+                        target.AddBuffById("burn", user);
                 }
             }
         }
 
-        private sealed class InsurmountableSkillEffect : ISkillEffect
+        private sealed class InsurmountableSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                return user != null && user.IsAliveForBattle
-                    && context?.PrimaryTargetUnit == user;
-            }
-
-            public void Use(Unit user, SkillContext context)
-            {
-                if (!CanUse(user, context)) return;
-
                 if (user.HitPoints <= 0)
                     user.RestoreHitPoints(1 - user.HitPoints, user);
 
@@ -198,87 +197,64 @@ namespace Windy.Srpg.Game.Skills
             }
         }
 
-        private sealed class DarkHealSkillEffect : IHealingSkillEffect
+        private sealed class ProfileHealSkillEffect : SkillEffectBase, IHealingSkillEffect
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context)
             {
                 Unit target = context?.PrimaryTargetUnit;
-                return user != null && target != null && target.IsAliveForBattle
-                    && target.PlayerNumber == user.PlayerNumber
-                    && target.HitPoints < target.ComputedTotalHitPoints;
+                return context?.Skill?.HealProfile.Enabled == true
+                    && target != null && target.HitPoints < target.ComputedTotalHitPoints;
             }
 
             public int GetHealingAmount(Unit user, SkillContext context)
             {
                 if (!CanUse(user, context)) return 0;
-                int amount = Mathf.Max(0, user.Magic + 10);
-                return context.PrimaryTargetUnit.HitPoints <= 0 ? amount * 2 : amount;
+                if (context.Skill == null) return 0;
+                return GetProfileHealingAmount(user, context);
             }
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
                 int amount = GetHealingAmount(user, context);
                 if (amount > 0) context.PrimaryTargetUnit.RestoreHitPoints(amount, user);
             }
         }
 
-        private sealed class AnathemaSkillEffect : ISkillEffect
+        private sealed class AnathemaSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                Unit target = context?.PrimaryTargetUnit;
-                return user != null && target != null && target.IsAliveForBattle
-                    && target.PlayerNumber != user.PlayerNumber;
-            }
-
-            public void Use(Unit user, SkillContext context)
-            {
-                if (!CanUse(user, context)) return;
-                for (int i = 0; i < 2; i++) context.PrimaryTargetUnit.AddBuffById("curse");
+                for (int i = 0; i < 2; i++) context.PrimaryTargetUnit.AddBuffById("curse", user);
             }
         }
 
-        private sealed class SlowSkillEffect : ISkillEffect
+        private sealed class SlowSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                Unit target = context?.PrimaryTargetUnit;
-                return user != null && target != null && target.IsAliveForBattle
-                    && target.PlayerNumber != user.PlayerNumber;
-            }
-
-            public void Use(Unit user, SkillContext context)
-            {
-                if (CanUse(user, context)) context.PrimaryTargetUnit.AddBuffById("slow");
+                context.PrimaryTargetUnit.AddBuffById("slow", user);
             }
         }
 
-        private sealed class StormSurgeSkillEffect : ISkillEffect
+        private sealed class StormSurgeSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context) =>
-                user != null && user.IsAliveForBattle && context?.PrimaryTargetUnit == user;
-
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (CanUse(user, context)) user.AddBuffById("storm_surge");
+                user.AddBuffById("storm_surge");
             }
         }
 
-        private sealed class ClangSkillEffect : ISkillEffect, IP_CancelCounterattackOnHit
+        private sealed class ClangSkillEffect : SkillEffectBase, IP_CancelCounterattackOnHit
         {
             private Grid.CellGrid grid;
             public bool HitLanded { get; private set; }
 
-            public bool CanUse(Unit user, SkillContext context)
-            {
-                Unit target = context?.PrimaryTargetUnit;
-                return user != null && target != null && target.IsAliveForBattle
-                    && target.PlayerNumber != user.PlayerNumber && context.CellGrid != null;
-            }
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context) =>
+                context?.CellGrid != null;
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (CanUse(user, context)) grid = context.CellGrid;
+                grid = context.CellGrid;
             }
 
             public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
@@ -289,156 +265,56 @@ namespace Windy.Srpg.Game.Skills
             }
         }
 
-        private sealed class DarkSanctuarySkillEffect : ISkillEffect
+        private sealed class DarkSanctuarySkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                Unit target = context?.PrimaryTargetUnit;
-                return user != null && target != null && target.IsAliveForBattle
-                    && target.PlayerNumber == user.PlayerNumber;
-            }
-
-            public void Use(Unit user, SkillContext context)
-            {
-                if (CanUse(user, context)) context.PrimaryTargetUnit.AddBuffById("dark_sanctuary");
+                context.PrimaryTargetUnit.AddBuffById("dark_sanctuary");
             }
         }
 
-        private sealed class CleanseSkillEffect : ISkillEffect
+        private sealed class CleanseSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context)
             {
                 Unit target = context?.PrimaryTargetUnit;
-                return user != null && target != null && target.IsAliveForBattle
-                    && target.PlayerNumber == user.PlayerNumber && target.HasRemovableDebuffs;
+                return target != null && target.HasRemovableDebuffs;
             }
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (CanUse(user, context)) context.PrimaryTargetUnit.RemoveRemovableDebuffs();
+                context.PrimaryTargetUnit.RemoveRemovableDebuffs();
             }
         }
 
-        private sealed class BreakCurrentHitPointsEffect : IAttackSkillEffect
+        private sealed class BreakCurrentHitPointsEffect : SkillEffectBase, IAttackSkillEffect
         {
-            public bool CanUse(Unit user, SkillContext context)
-            {
-                return user != null && context?.PrimaryTargetUnit != null
-                    && context.PrimaryTargetUnit.PlayerNumber != user.PlayerNumber;
-            }
-
             public void ModifyAttackProfile(Unit user, SkillContext context, ref ResolvedAttackProfile profile)
             {
                 if (user != null) profile.Damage += Mathf.Max(0, user.HitPoints);
             }
 
-            public void Use(Unit user, SkillContext context) { }
+            protected override void Apply(Unit user, SkillContext context) { }
         }
 
-        private sealed class RestoreHitPointsSkillEffect : ISkillEffect
+        private sealed class SacrificeHealSkillEffect : SkillEffectBase, IHealingSkillEffect
         {
-            private readonly int amount;
-
-            public RestoreHitPointsSkillEffect(int amount)
-            {
-                this.amount = amount;
-            }
-
-            public bool CanUse(Unit user, SkillContext context)
-            {
-                var target = context?.PrimaryTargetUnit;
-                return user != null
-                    && target != null
-                    && target.IsAliveForBattle
-                    && target.HitPoints < target.ComputedTotalHitPoints;
-            }
-
-            public void Use(Unit user, SkillContext context)
-            {
-                context?.PrimaryTargetUnit?.RestoreHitPoints(amount, user);
-            }
-        }
-
-        private sealed class MagicScalingHealSkillEffect : IHealingSkillEffect
-        {
-            private readonly int baseAmount;
-
-            public MagicScalingHealSkillEffect(int baseAmount)
-            {
-                this.baseAmount = baseAmount;
-            }
-
-            public bool CanUse(Unit user, SkillContext context)
-            {
-                var target = context?.PrimaryTargetUnit;
-                return user != null
-                    && target != null
-                    && target.PlayerNumber == user.PlayerNumber
-                    && target.IsAliveForBattle
-                    && target.HitPoints < target.ComputedTotalHitPoints;
-            }
-
-            public int GetHealingAmount(Unit user, SkillContext context)
-            {
-                if (user == null || context?.PrimaryTargetUnit == null)
-                {
-                    return 0;
-                }
-
-                return Mathf.Max(0, user.Magic + baseAmount);
-            }
-
-            public void Use(Unit user, SkillContext context)
-            {
-                int healingAmount = GetHealingAmount(user, context);
-                if (healingAmount <= 0)
-                {
-                    return;
-                }
-
-                context?.PrimaryTargetUnit?.RestoreHitPoints(healingAmount, user);
-            }
-        }
-
-        private sealed class SacrificeHealSkillEffect : IHealingSkillEffect
-        {
-            private readonly int baseAmount;
             private bool appliedSelfCost;
 
-            public SacrificeHealSkillEffect(int baseAmount)
-            {
-                this.baseAmount = baseAmount;
-            }
-
-            public bool CanUse(Unit user, SkillContext context)
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context)
             {
                 var target = context?.PrimaryTargetUnit;
-                return user != null
-                    && user.HitPoints > 1
-                    && target != null
-                    && target != user
-                    && target.PlayerNumber == user.PlayerNumber
-                    && target.IsAliveForBattle
-                    && target.HitPoints < target.ComputedTotalHitPoints;
+                return user.HitPoints > 1
+                    && target != null && target.HitPoints < target.ComputedTotalHitPoints;
             }
 
             public int GetHealingAmount(Unit user, SkillContext context)
             {
-                if (user == null || context?.PrimaryTargetUnit == null)
-                {
-                    return 0;
-                }
-
-                return Mathf.Max(0, user.Magic + baseAmount);
+                return GetProfileHealingAmount(user, context);
             }
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (user == null || context?.PrimaryTargetUnit == null)
-                {
-                    return;
-                }
-
                 if (!appliedSelfCost)
                 {
                     appliedSelfCost = true;
@@ -455,27 +331,19 @@ namespace Windy.Srpg.Game.Skills
             }
         }
 
-        private sealed class IgnoreDefMagSkillEffect : ISkillEffect
+        private sealed class IgnoreDefMagSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                return user != null
-                    && context?.PrimaryTargetUnit != null
-                    && context.PrimaryTargetUnit.PlayerNumber != user.PlayerNumber
-                    && context.PrimaryTargetUnit.IsAliveForBattle;
-            }
-
-            public void Use(Unit user, SkillContext context)
-            {
-                user?.BuffAdd("luna");
+                user.BuffAdd("luna");
             }
         }
 
-        private sealed class ImmolateSkillEffect : IAttackSkillEffect
+        private sealed class ImmolateSkillEffect : SkillEffectBase, IAttackSkillEffect
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context)
             {
-                return user != null && user.HitPoints > GetHealthCost(user);
+                return user.HitPoints > GetHealthCost(user);
             }
 
             public void ModifyAttackProfile(Unit user, SkillContext context, ref ResolvedAttackProfile profile)
@@ -488,13 +356,8 @@ namespace Windy.Srpg.Game.Skills
                 profile.Damage += GetHealthCost(user) * 2;
             }
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (user == null)
-                {
-                    return;
-                }
-
                 int healthCost = GetHealthCost(user);
                 if (healthCost <= 0)
                 {
@@ -510,9 +373,9 @@ namespace Windy.Srpg.Game.Skills
             }
         }
 
-        private sealed class ShoveSkillEffect : ISkillEffect
+        private sealed class ShoveSkillEffect : SkillEffectBase
         {
-            public bool CanUse(Unit user, SkillContext context)
+            protected override bool MeetsAdditionalUseConditions(Unit user, SkillContext context)
             {
                 if (user == null || context?.PrimaryTargetUnit == null || context.CellGrid == null)
                 {
@@ -532,13 +395,8 @@ namespace Windy.Srpg.Game.Skills
                     moveUserWithTarget: false);
             }
 
-            public void Use(Unit user, SkillContext context)
+            protected override void Apply(Unit user, SkillContext context)
             {
-                if (user == null || context?.PrimaryTargetUnit == null || context.CellGrid == null)
-                {
-                    return;
-                }
-
                 user.DisplaceTarget(
                     context.PrimaryTargetUnit,
                     context.CellGrid,
@@ -549,4 +407,3 @@ namespace Windy.Srpg.Game.Skills
         }
     }
 }
-

@@ -253,6 +253,26 @@ namespace Windy.Srpg.Game.Passives
             return modifier;
         }
 
+        public float GetPostActionMovementPoints()
+        {
+            float movementPoints = 0f;
+            foreach (Passive entry in Entries)
+            {
+                if (entry?.EffectInstance is IP_PostActionMovement postActionMovement)
+                {
+                    movementPoints = Mathf.Max(movementPoints, postActionMovement.GetPostActionMovementPoints(owner));
+                }
+            }
+
+            return movementPoints;
+        }
+
+        public bool IgnoresTerrainMovementCost => Entries.Any(entry =>
+            entry?.EffectInstance is IP_IgnoreTerrainMovementCost);
+
+        public bool CanTraverseUntraversableTerrain => Entries.Any(entry =>
+            entry?.EffectInstance is IP_TraverseUntraversableTerrain);
+
         public int GetSpellMaxRangeModifier(SkillData skill)
         {
             int modifier = 0;

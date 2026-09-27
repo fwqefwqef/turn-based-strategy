@@ -126,7 +126,14 @@ namespace Windy.Srpg.Game.Buffs
 
         private sealed class BurnBuffEffect : BuffEffectBase, IP_TurnStartHealthEffect
         {
-            public int GetTurnStartHealthDelta(Unit unit) => -5 * Mathf.Max(1, Entry?.Stacks ?? 1);
+            public int GetTurnStartHealthDelta(Unit unit)
+            {
+                Unit caster = Entry?.SourceUnit;
+                int damagePerStack = caster != null
+                ? Mathf.Max(0, (caster.Strength + caster.Magic) / 2)
+                    : 5;
+                return -damagePerStack * Mathf.Max(1, Entry?.Stacks ?? 1);
+            }
         }
 
         private sealed class StunBuffEffect : BuffEffectBase, IP_ActionBlocker { }

@@ -1325,6 +1325,12 @@ namespace Windy.Srpg.Game.UI
                 return GameTextCatalog.Format("ui.inspect.skill_line.area", "Mt: {0} | Range: {1} | Radius: {2}", skillData.AreaProfile.Might, FormatPreviewRange(skillData.AreaProfile.MinRange, skillData.AreaProfile.MaxRange), skillData.AreaProfile.Radius);
             }
 
+            if (skillData.HealProfile.Enabled)
+            {
+                string scaling = skillData.HealProfile.ScalesWithMagic ? "Magic + " : string.Empty;
+                return GameTextCatalog.Format("ui.inspect.skill_line.heal", "Heal: {0}{1} HP | Range: {2}", scaling, skillData.HealProfile.Might, FormatPreviewRange(skillData.HealProfile.MinRange, skillData.HealProfile.MaxRange));
+            }
+
             if (skillData.AttackProfile.Enabled)
             {
                 if (skillData.Category != SkillCategory.CombatArt)

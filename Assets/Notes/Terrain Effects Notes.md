@@ -28,7 +28,7 @@ The preset assets are under `Assets/Data/Preset Data (Unit, Tile)/Tiles` and app
 
 `SkillTerrainProfile` allows an area skill to create terrain on affected cells even when the area contains no units. `Ignite Ground` is the initial example and is included in Pip's development loadout.
 
-Burning Terrain lasts two full round transitions. Reapplication refreshes its remaining duration. Units standing on it receive both the `burning_terrain` occupancy buff and a separate one-stack, removable Burn debuff that deals 5 Pain damage for up to two incoming-turn Pain ticks. Leaving the terrain removes `burning_terrain` immediately but does not remove Burn.
+Burning Terrain lasts two full round transitions. Reapplication refreshes its remaining duration. Units standing on it receive both the `burning_terrain` occupancy buff and a separate one-stack, removable Burn debuff that lasts for up to two incoming-turn Pain ticks. Caster-owned Burn deals `floor((caster STR + caster MAG) / 2)` Pain damage per stack; environmental Burn without a unit caster retains the 5-damage-per-stack fallback. Leaving the terrain removes `burning_terrain` immediately but does not remove Burn.
 
 ## Hover strip
 

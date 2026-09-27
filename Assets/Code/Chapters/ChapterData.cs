@@ -118,7 +118,9 @@ namespace Windy.Srpg.Game.Chapters
     [AddComponentMenu("TBS/Chapter/Chapter Data")]
     public sealed class ChapterData : MonoBehaviour
     {
-        [SerializeField] private string chapterName = "Chapter";
+        [Header("Overworld")]
+        [SerializeField, Tooltip("Level name displayed by the Overworld UI. Edit this through the Chapter Manager.")]
+        private string chapterName = "Chapter";
         [SerializeField] private float chapterId = 1f;
         [SerializeField] private bool replayable = true;
         [SerializeField] private float unlockRequiredChapterId;

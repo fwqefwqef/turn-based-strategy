@@ -4008,9 +4008,9 @@ MonoBehaviour:
   CancelButton: {fileID: 2042935921}
   SaveButton: {fileID: 1347166272}
   builtInCatalog:
-  - itemId: iron_sword
+  - itemId: potion
     quantity: -1
-  - itemId: magic_sword
+  - itemId: knife
     quantity: 1
 --- !u!1 &1591588037
 GameObject:

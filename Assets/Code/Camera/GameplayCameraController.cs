@@ -163,6 +163,10 @@ namespace Windy.Srpg.Game.CameraControl
             LevelUpUI.VisibilityChanged += OnLevelUpUiVisibilityChanged;
             Unit.CombatCameraFocusRequested += OnCombatCameraFocusRequested;
             Unit.CombatCameraFocusReleased += OnCombatCameraFocusReleased;
+            Unit.PreviewMoveCameraFollowRequested += OnMovementCameraFollowRequested;
+            Unit.PreviewMoveCameraFollowReleased += OnMovementCameraFollowReleased;
+            Unit.EnemyMovementCameraFollowRequested += OnEnemyMovementCameraFollowRequested;
+            Unit.EnemyMovementCameraFollowReleased += OnEnemyMovementCameraFollowReleased;
 
             if (cellGrid != null)
             {
@@ -188,6 +192,10 @@ namespace Windy.Srpg.Game.CameraControl
             LevelUpUI.VisibilityChanged -= OnLevelUpUiVisibilityChanged;
             Unit.CombatCameraFocusRequested -= OnCombatCameraFocusRequested;
             Unit.CombatCameraFocusReleased -= OnCombatCameraFocusReleased;
+            Unit.PreviewMoveCameraFollowRequested -= OnMovementCameraFollowRequested;
+            Unit.PreviewMoveCameraFollowReleased -= OnMovementCameraFollowReleased;
+            Unit.EnemyMovementCameraFollowRequested -= OnEnemyMovementCameraFollowRequested;
+            Unit.EnemyMovementCameraFollowReleased -= OnEnemyMovementCameraFollowReleased;
 
             if (cellGrid != null)
             {
@@ -861,6 +869,35 @@ namespace Windy.Srpg.Game.CameraControl
         private void OnCombatCameraFocusReleased()
         {
             combatFocusActive = false;
+        }
+
+        private void OnMovementCameraFollowRequested(Vector3 worldPosition)
+        {
+            if (!autoFocusEnabled)
+            {
+                return;
+            }
+
+            presentationFocusActive = true;
+            SetFocusTarget(worldPosition, allowRetargetLeeway: false);
+        }
+
+        private void OnMovementCameraFollowReleased()
+        {
+            presentationFocusActive = false;
+        }
+
+        private void OnEnemyMovementCameraFollowRequested(Vector3 worldPosition)
+        {
+            // Enemy movement is battle presentation, so it remains visible even when
+            // optional selection/inspection autofocus is disabled in the scene.
+            presentationFocusActive = true;
+            SetFocusTarget(worldPosition, allowRetargetLeeway: false);
+        }
+
+        private void OnEnemyMovementCameraFollowReleased()
+        {
+            presentationFocusActive = false;
         }
 
         private IEnumerator WaitForFocusSettledRoutine(float timeoutSeconds)

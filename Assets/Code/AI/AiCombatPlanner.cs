@@ -60,9 +60,22 @@ namespace Windy.Srpg.Game.AI
         public static bool HasAnyOffensivePlanFromReachableCells(Unit actor, Player player, CellGrid grid, out Cell bestThreatCell)
         {
             bestThreatCell = actor?.Cell;
-            if (actor == null || player == null || grid == null)
+            IReadOnlyList<Cell> threatCells = GetOffensiveThreatCellsFromReachableCells(actor, player, grid);
+            if (threatCells.Count == 0)
             {
                 return false;
+            }
+
+            bestThreatCell = threatCells[0];
+            return true;
+        }
+
+        public static IReadOnlyList<Cell> GetOffensiveThreatCellsFromReachableCells(Unit actor, Player player, CellGrid grid)
+        {
+            var threatCells = new List<Cell>();
+            if (actor == null || player == null || grid == null)
+            {
+                return threatCells;
             }
 
             List<Cell> allCells = grid.GetAllCells();
@@ -79,11 +92,57 @@ namespace Windy.Srpg.Game.AI
                     continue;
                 }
 
-                bestThreatCell = candidateCell;
-                return true;
+                threatCells.Add(candidateCell);
             }
 
-            return false;
+            return threatCells;
+        }
+
+        /// <summary>
+        /// Returns the destination this unit's normal damage movement evaluator will prefer when
+        /// at least one offensive action is available. Keeping WaitGroup activation tied to the
+        /// concrete destination prevents two units from waking when their practical plan is to
+        /// compete for the same attack position.
+        /// </summary>
+        public static bool TryGetPreferredOffensiveThreatCell(
+            Unit actor,
+            Player player,
+            CellGrid grid,
+            out Cell preferredCell)
+        {
+            preferredCell = actor?.Cell;
+            if (actor == null || player == null || grid == null)
+            {
+                return false;
+            }
+
+            List<Cell> allCells = grid.GetAllCells();
+            HashSet<Cell> reachableCells = actor.GetAvailableDestinations(allCells) ?? new HashSet<Cell>();
+            if (actor.Cell != null)
+            {
+                reachableCells.Add(actor.Cell);
+            }
+
+            float bestScore = float.NegativeInfinity;
+            bool foundPlan = false;
+            foreach (Cell candidateCell in allCells.Where(cell => cell != null && reachableCells.Contains(cell)))
+            {
+                if (!TryFindBestOffensivePlan(actor, player, grid, candidateCell, out AiCombatPlan plan))
+                {
+                    continue;
+                }
+
+                if (foundPlan && plan.Score <= bestScore + ScoreTieTolerance)
+                {
+                    continue;
+                }
+
+                foundPlan = true;
+                bestScore = plan.Score;
+                preferredCell = candidateCell;
+            }
+
+            return foundPlan;
         }
 
         public static bool TryFindBestPlan(Unit actor, Player player, CellGrid grid, Cell actingCell, UnitActionAiMode actionMode, out AiCombatPlan plan, bool breakTiesRandomly = false)
@@ -1045,6 +1104,11 @@ namespace Windy.Srpg.Game.AI
                 minRange = Mathf.Max(0, data.AreaProfile.MinRange);
                 maxRange = Mathf.Max(minRange, ResolveAreaSkillMaxRange(data, actingCell, grid)
                     + actor.GetSpellMaxRangeModifier(data));
+            }
+            else if (data.HealProfile.Enabled)
+            {
+                minRange = Mathf.Max(0, data.HealProfile.MinRange);
+                maxRange = Mathf.Max(minRange, data.HealProfile.MaxRange + actor.GetSpellMaxRangeModifier(data));
             }
             else
             {

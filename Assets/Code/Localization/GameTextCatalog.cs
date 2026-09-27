@@ -13,6 +13,7 @@ namespace Windy.Srpg.Game.Localization
         private const string CsvFileName = "game_text.csv";
         private static readonly string[] CsvSearchDirectories =
         {
+            Path.Combine(Application.dataPath, "Data"),
             Path.Combine(Application.dataPath, "Game", "Data"),
             Application.streamingAssetsPath,
             Path.Combine(Application.dataPath, "StreamingAssets")

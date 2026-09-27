@@ -22,6 +22,86 @@ namespace Windy.Srpg.Game.Skills
         void Use(Unit user, SkillContext context);
     }
 
+    public abstract class SkillEffectBase : ISkillEffect
+    {
+        public bool CanUse(Unit user, SkillContext context)
+        {
+            return SkillTargetValidator.CanUse(user, context)
+                && MeetsAdditionalUseConditions(user, context);
+        }
+
+        protected virtual bool MeetsAdditionalUseConditions(Unit user, SkillContext context) => true;
+
+        public void Use(Unit user, SkillContext context)
+        {
+            if (CanUse(user, context))
+            {
+                Apply(user, context);
+            }
+        }
+
+        protected abstract void Apply(Unit user, SkillContext context);
+
+    }
+
+    public static class SkillTargetValidator
+    {
+        public static bool CanUse(Unit user, SkillContext context)
+        {
+            SkillData data = context?.Skill;
+            if (user == null || !user.IsAliveForBattle || data == null)
+            {
+                return false;
+            }
+
+            Unit target = context.PrimaryTargetUnit;
+            switch (data.TargetingType)
+            {
+                case SkillTargetingType.None:
+                    return true;
+                case SkillTargetingType.Self:
+                    return target == user;
+                case SkillTargetingType.EnemyUnit:
+                    return IsLivingTarget(target) && target.PlayerNumber != user.PlayerNumber;
+                case SkillTargetingType.AllyUnit:
+                    return IsLivingTarget(target) && target != user && target.PlayerNumber == user.PlayerNumber;
+                case SkillTargetingType.AnyUnit:
+                    return IsLivingTarget(target) && target != user;
+                case SkillTargetingType.Cell:
+                    return context.TargetCell != null;
+                case SkillTargetingType.AreaCell:
+                    return CanTargetArea(user, target, context);
+                default:
+                    return false;
+            }
+        }
+
+        private static bool CanTargetArea(Unit user, Unit target, SkillContext context)
+        {
+            if (context.TargetCell == null)
+            {
+                return false;
+            }
+
+            if (target == null)
+            {
+                return true;
+            }
+
+            if (!IsLivingTarget(target) || (context.Skill.SelfImmune && target == user))
+            {
+                return false;
+            }
+
+            bool isAlly = target.PlayerNumber == user.PlayerNumber;
+            return isAlly
+                ? context.Skill.AreaProfile.AffectsAllies
+                : context.Skill.AreaProfile.AffectsEnemies;
+        }
+
+        private static bool IsLivingTarget(Unit target) => target != null && target.IsAliveForBattle;
+    }
+
     public interface IHealingSkillEffect : ISkillEffect
     {
         int GetHealingAmount(Unit user, SkillContext context);
@@ -35,6 +115,11 @@ namespace Windy.Srpg.Game.Skills
     public interface IAreaHitPointChangeSkillEffect : ISkillEffect
     {
         int GetProjectedHitPointDelta(Unit user, SkillContext context);
+    }
+
+    public interface IAreaAttackTargetModifier : ISkillEffect
+    {
+        void ModifyAttackProfileForTarget(Unit user, SkillContext context, ref ResolvedAttackProfile profile);
     }
 
     public static class SkillRegistry
