@@ -4,7 +4,7 @@ using Windy.Srpg.Game.Inventory;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 
-BuiltInBuffCatalog.EnsureRegistered();
+BuffEffects.EnsureRegistered();
 BuiltInItemCatalog.EnsureRegistered();
 int checks = 0;
 void Check(bool condition, string message)

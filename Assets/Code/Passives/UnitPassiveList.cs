@@ -275,6 +275,8 @@ namespace Windy.Srpg.Game.Passives
 
         public int GetSpellMaxRangeModifier(SkillData skill)
         {
+            if (skill == null) return 0;
+
             int modifier = 0;
             foreach (Passive entry in Entries)
             {
@@ -286,7 +288,7 @@ namespace Windy.Srpg.Game.Passives
 
         public void NotifyHealingPerformed(Unit target, int actualAmount)
         {
-            if (actualAmount <= 0) return;
+            if (target == null || target.PlayerNumber != owner.PlayerNumber || actualAmount <= 0) return;
             foreach (Passive entry in Entries.ToList())
             {
                 if (entry?.EffectInstance is IP_HealingPerformed healingEffect)

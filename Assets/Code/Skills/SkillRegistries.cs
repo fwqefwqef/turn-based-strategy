@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 
@@ -24,24 +25,103 @@ namespace Windy.Srpg.Game.Skills
 
     public abstract class SkillEffectBase : ISkillEffect
     {
+        protected Unit User { get; private set; }
+        protected SkillContext Context { get; private set; }
+        protected Unit Target => Context.PrimaryTargetUnit;
+        protected CellGrid Grid => Context.CellGrid;
+
+        protected IEnumerable<Unit> AreaTargets => Context.AreaTargets ?? Array.Empty<Unit>();
+        protected IEnumerable<Unit> EnemyAreaTargets => AreaTargets
+            .Where(target => target != null && target.IsAliveForBattle && target.PlayerNumber != User.PlayerNumber)
+            .Distinct();
+        protected virtual bool RequiresGrid => false;
+        protected virtual bool RequiresTarget => false;
+
         public bool CanUse(Unit user, SkillContext context)
         {
-            return SkillTargetValidator.CanUse(user, context)
-                && MeetsAdditionalUseConditions(user, context);
+            if (!SkillTargetValidator.CanUse(user, context))
+            {
+                return false;
+            }
+
+            Bind(user, context);
+            return (!RequiresGrid || Grid != null)
+                && (!RequiresTarget || Target != null)
+                && MeetsAdditionalUseConditions();
         }
 
-        protected virtual bool MeetsAdditionalUseConditions(Unit user, SkillContext context) => true;
+        protected virtual bool MeetsAdditionalUseConditions() => true;
 
-        public void Use(Unit user, SkillContext context)
+        void ISkillEffect.Use(Unit user, SkillContext context)
         {
             if (CanUse(user, context))
             {
-                Apply(user, context);
+                Use();
             }
         }
 
-        protected abstract void Apply(Unit user, SkillContext context);
+        protected abstract void Use();
 
+        protected void ApplyStatusToTarget(string statusId, int stacks = 1)
+        {
+            for (int i = 0; i < stacks; i++)
+            {
+                Target.AddBuffById(statusId, User);
+            }
+        }
+
+        protected void ApplyStatusToSelf(string statusId, int stacks = 1)
+        {
+            for (int i = 0; i < stacks; i++)
+            {
+                User.AddBuffById(statusId, User);
+            }
+        }
+
+        protected void ApplyStatusToEnemies(string statusId, int stacks = 1)
+        {
+            foreach (Unit target in EnemyAreaTargets)
+            {
+                for (int i = 0; i < stacks; i++)
+                {
+                    target.AddBuffById(statusId, User);
+                }
+            }
+        }
+
+        private void Bind(Unit user, SkillContext context)
+        {
+            User = user;
+            Context = context;
+        }
+
+    }
+
+    public abstract class AttackHitSkillEffectBase : SkillEffectBase, IP_AttackHitEffect
+    {
+        protected Unit Attacker { get; private set; }
+        protected Unit Defender { get; private set; }
+        protected int DamageDealt { get; private set; }
+        protected bool IsBasicAttack { get; private set; }
+
+        void IP_AttackHitEffect.OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
+        {
+            Attacker = attacker;
+            Defender = defender;
+            DamageDealt = damageDealt;
+            IsBasicAttack = isBasicAttack;
+            OnAttackHit();
+        }
+
+        protected abstract void OnAttackHit();
+
+        protected void ApplyStatusToDefender(string statusId, int stacks = 1)
+        {
+            for (int i = 0; i < stacks; i++)
+            {
+                Defender.AddBuffById(statusId, Attacker);
+            }
+        }
     }
 
     public static class SkillTargetValidator

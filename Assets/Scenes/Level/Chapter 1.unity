@@ -2776,9 +2776,6 @@ MonoBehaviour:
     AdditionalPassives: []
   unitId: default_unit
   visualId: default_unit
-  startingInventory: []
-  startingSkills: []
-  startingClassPassives: []
   weaponProficiencies: 0
   actionAiMode: 0
   movementAiMode: 0

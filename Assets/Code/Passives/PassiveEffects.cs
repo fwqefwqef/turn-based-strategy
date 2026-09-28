@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Windy.Srpg.Game.Passives
 {
-    public static class BuiltInPassiveCatalog
+    public static class PassiveEffects
     {
         private static bool isRegistered;
 
@@ -47,15 +47,14 @@ namespace Windy.Srpg.Game.Passives
         {
             private bool usedThisTurn;
 
-            public override void OnTurnStart(Unit unit, Passive entry)
+            protected override void OnTurnStart()
             {
                 usedThisTurn = false;
             }
 
             public int LimitAttackDamage(Unit defender, int damage, bool simulateOnly)
             {
-                if (usedThisTurn || defender == null || defender.HitPoints <= 1
-                    || damage < defender.HitPoints || damage <= 0)
+                if (usedThisTurn || defender.HitPoints <= 1 || damage < defender.HitPoints)
                     return damage;
 
                 if (!simulateOnly) usedThisTurn = true;
@@ -67,8 +66,7 @@ namespace Windy.Srpg.Game.Passives
         {
             public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
             {
-                if (isBasicAttack && attacker != null && defender != null
-                    && attacker.PlayerNumber != defender.PlayerNumber && defender.IsAliveForBattle)
+                if (isBasicAttack)
                     defender.AddBuffById("curse", attacker);
             }
         }
@@ -77,7 +75,7 @@ namespace Windy.Srpg.Game.Passives
         {
             public PrimaryStatModifiers GetPrimaryStatModifiers(Unit unit)
             {
-                int bonus = unit?.CountBurningEnemies() ?? 0;
+                int bonus = Owner.CountBurningEnemies();
                 return new PrimaryStatModifiers { Strength = bonus, Magic = bonus };
             }
         }
@@ -86,7 +84,7 @@ namespace Windy.Srpg.Game.Passives
         {
             public PrimaryStatModifiers GetPrimaryStatModifiers(Unit unit)
             {
-                int bonus = unit?.CountDamagedEnemies() ?? 0;
+                int bonus = Owner.CountDamagedEnemies();
                 return new PrimaryStatModifiers { Attack = bonus };
             }
         }
@@ -95,8 +93,7 @@ namespace Windy.Srpg.Game.Passives
         {
             public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
             {
-                if (isBasicAttack && attacker != null && defender != null
-                    && attacker.PlayerNumber != defender.PlayerNumber && defender.IsAliveForBattle)
+                if (isBasicAttack)
                 {
                     defender.AddBuffById("punished", attacker);
                 }
@@ -107,8 +104,7 @@ namespace Windy.Srpg.Game.Passives
         {
             public void DamageChange(DamageChangeContext context)
             {
-                if (context != null && context.Phase == DamageChangePhase.Damage && context.IsHit
-                    && context.IsMagicAttack && context.Defender != null)
+                if (context.Phase == DamageChangePhase.Damage && context.IsHit && context.IsMagicAttack)
                     context.Damage += Mathf.FloorToInt(context.Defender.Magic * 0.5f);
             }
         }
@@ -117,9 +113,8 @@ namespace Windy.Srpg.Game.Passives
         {
             public void OnHealingPerformed(Unit healer, Unit target, int actualAmount)
             {
-                if (healer == null || target == null || target == healer
-                    || target.PlayerNumber != healer.PlayerNumber || actualAmount <= 0) return;
-                healer.RestoreHitPoints(actualAmount / 2, healer);
+                if (target == Owner) return;
+                Owner.RestoreHitPoints(actualAmount / 2, Owner);
             }
         }
 
@@ -127,8 +122,7 @@ namespace Windy.Srpg.Game.Passives
         {
             public int GetSpellMaxRangeModifier(Unit unit, SkillData skill)
             {
-                return skill != null
-                    && (skill.Category == SkillCategory.Spell || skill.Category == SkillCategory.AreaSpell)
+                return skill.Category == SkillCategory.Spell || skill.Category == SkillCategory.AreaSpell
                     ? 2
                     : 0;
             }
@@ -151,13 +145,8 @@ namespace Windy.Srpg.Game.Passives
         {
             public SecondaryStatModifiers GetSecondaryStatModifiers(Unit unit)
             {
-                if (unit == null)
-                {
-                    return default;
-                }
-
-                int currentHitPoints = Mathf.Min(unit.HitPoints, unit.MaxHitPoints);
-                int missingHitPoints = Mathf.Max(0, unit.MaxHitPoints - currentHitPoints);
+                int currentHitPoints = Mathf.Min(Owner.HitPoints, Owner.MaxHitPoints);
+                int missingHitPoints = Mathf.Max(0, Owner.MaxHitPoints - currentHitPoints);
                 return new SecondaryStatModifiers { Crit = missingHitPoints * 2 };
             }
         }
@@ -166,13 +155,8 @@ namespace Windy.Srpg.Game.Passives
         {
             public SecondaryStatModifiers GetSecondaryStatModifiers(Unit unit)
             {
-                if (unit == null)
-                {
-                    return default;
-                }
-
-                int currentHitPoints = Mathf.Min(unit.HitPoints, unit.MaxHitPoints);
-                int missingHitPoints = Mathf.Max(0, unit.MaxHitPoints - currentHitPoints);
+                int currentHitPoints = Mathf.Min(Owner.HitPoints, Owner.MaxHitPoints);
+                int missingHitPoints = Mathf.Max(0, Owner.MaxHitPoints - currentHitPoints);
                 return new SecondaryStatModifiers { Crit = missingHitPoints };
             }
         }
@@ -181,7 +165,7 @@ namespace Windy.Srpg.Game.Passives
         {
             public void TakeDamageChange(DamageChangeContext context)
             {
-                if (context != null && context.Phase == DamageChangePhase.Damage && context.Damage > 0)
+                if (context.Phase == DamageChangePhase.Damage && context.Damage > 0)
                 {
                     context.Damage = Mathf.Max(0, context.Damage - 5);
                 }
@@ -194,7 +178,7 @@ namespace Windy.Srpg.Game.Passives
 
             public int GetTurnStartHealthDelta(Unit unit)
             {
-                return unit == null ? 0 : Mathf.CeilToInt(unit.MaxHitPoints * 0.2f);
+                return Mathf.CeilToInt(Owner.MaxHitPoints * 0.2f);
             }
         }
 
@@ -207,9 +191,9 @@ namespace Windy.Srpg.Game.Passives
                 this.amount = amount;
             }
 
-            public override void OnTurnStart(Unit unit, Passive entry)
+            protected override void OnTurnStart()
             {
-                unit?.RestoreHitPoints(amount, unit);
+                Owner.RestoreHitPoints(amount, Owner);
             }
         }
 
@@ -224,11 +208,6 @@ namespace Windy.Srpg.Game.Passives
 
             public void ModifyExperienceGain(ExperienceGainContext context)
             {
-                if (context == null || context.Recipient != Owner || context.Amount <= 0)
-                {
-                    return;
-                }
-
                 context.Amount = Mathf.FloorToInt(context.Amount * multiplier);
             }
         }
@@ -237,11 +216,6 @@ namespace Windy.Srpg.Game.Passives
         {
             public void PreventExperienceGain(ExperienceGainContext context)
             {
-                if (context == null)
-                {
-                    return;
-                }
-
                 context.Prevented = true;
                 context.Amount = 0;
             }
@@ -258,11 +232,6 @@ namespace Windy.Srpg.Game.Passives
 
             public void ModifyExperienceGain(ExperienceGainContext context)
             {
-                if (context == null || context.Recipient != Owner || context.Amount <= 0)
-                {
-                    return;
-                }
-
                 context.Amount = amount;
             }
         }

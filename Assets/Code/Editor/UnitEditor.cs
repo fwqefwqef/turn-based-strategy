@@ -19,8 +19,7 @@ namespace Windy.Srpg.Game.Editor
             "unitName", "baseHitPoints", "baseManaPoints", "baseStrength", "baseMagic",
             "baseDefense", "baseSpeed", "baseLuck", "level", "experience", "movementPointsStorage",
             "weaponProficiencies", "actionAiMode", "movementAiMode", "waitGroupId",
-            "growthStrength", "growthMagic", "growthDefense", "growthSpeed", "growthLuck",
-            "startingInventory", "startingSkills", "startingClassPassives"
+            "growthStrength", "growthMagic", "growthDefense", "growthSpeed", "growthLuck"
         };
         private static readonly HashSet<string> HiddenFields = new HashSet<string>
         {

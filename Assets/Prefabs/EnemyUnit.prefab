@@ -175,9 +175,6 @@ MonoBehaviour:
     ExtraEquipPassives: []
   unitId: enemy
   visualId: 
-  startingInventory: []
-  startingSkills: []
-  startingClassPassives: []
   startingEquipPassives: []
   weaponProficiencies: -1
   baseStrength: 7

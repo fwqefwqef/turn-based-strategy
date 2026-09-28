@@ -2006,7 +2006,7 @@ namespace Windy.Srpg.Game.Units
                         hitEffect.OnWeaponHit(aggressor, this);
                     }
 
-                    if (damageContext.IsHit && aggressor.PassiveList != null)
+                    if (damageContext.IsHit && IsAliveForBattle && aggressor.PassiveList != null)
                     {
                         foreach (var effect in aggressor.PassiveList.GetActiveEffects())
                         {

@@ -19,9 +19,6 @@ namespace Windy.Srpg.Game.Editor
         private static readonly HashSet<string> HiddenUnitFields = new HashSet<string>
         {
             "preset",
-            "startingInventory",
-            "startingSkills",
-            "startingClassPassives",
             "Obstructable",
             "participatesInDeploymentRoster",
             "MovementAnimationSpeed"

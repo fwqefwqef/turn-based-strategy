@@ -1,4 +1,4 @@
-﻿# Turn Based Strategy — Architecture Summary
+# Turn Based Strategy — Architecture Summary
 
 Last updated: 2026-09-10
 
@@ -364,7 +364,7 @@ Reactive mode does **not** call `Act()`. Active execution wraps `Act()` in `Abil
 | `UnitBuffList`                       | Active buff collection; turn start/end hooks.              |
 | `BuffRegistry`, `BuffEffectRegistry` | ID → definition / effect factory.                          |
 | `BuffEffectBase`, `IP_BuffEffect`    | Buff effect plugin contract.                               |
-| `BuiltInBuffCatalog`                 | Registers built-in buff effects at startup.                |
+| `BuffEffects`                        | Registers catalog buffs and runtime effect implementations. |
 
 
 ### Camera (`Windy.Srpg.Game.CameraControl`)
@@ -462,7 +462,7 @@ All types live in `JsonCatalogLoader.cs`.
 | `Passive`, `UnitPassiveList`               | Runtime passive instances; unique vs equip lists. |
 | `PassiveRegistry`, `PassiveEffectRegistry` | Passive lookup and effect factory.                |
 | `PassiveEffectBase`, `IP_PassiveEffect`    | Passive effect plugin contract.                   |
-| `BuiltInPassiveCatalog`                    | Registers built-in passive effects.               |
+| `PassiveEffects`                    | Registers catalog passives and runtime effects.   |
 | `StartingPassiveEntry`, `PassiveListKind`  | Preset/save passive list types.                   |
 
 
@@ -504,7 +504,7 @@ All types live in `JsonCatalogLoader.cs`.
 | `UnitSkillList`                                                             | Unit's known skills and per-turn usage tracking.                     |
 | `SkillRegistry`, `SkillEffectRegistry`                                      | Skill lookup and effect factory.                                     |
 | `SkillContext`, `ISkillEffect`, `IHealingSkillEffect`, `IAttackSkillEffect` | Skill execution context and effect contracts (`SkillRegistries.cs`). |
-| `BuiltInSkillCatalog`                                                       | Registers built-in skill effects.                                    |
+| `SkillEffects`                                                              | Registers catalog skills and their runtime effect implementations.   |
 
 
 ### UI (`Windy.Srpg.Game.UI` + global namespace)

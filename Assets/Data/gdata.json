@@ -1750,10 +1750,10 @@
       {
         "Id": "burn",
         "Name": "Burn",
-        "Description": "Takes Pain damage per stack equal to floor((caster STR + MAG) / 2) before each own turn for up to 2 ticks. Stacks up to 2 times.",
+        "Description": "Takes Pain damage equal to floor((caster STR + MAG) / 2) before each own turn for up to 2 ticks. Cannot stack.",
         "Duration": 2,
         "Category": "Pain",
-        "MaxStacks": 2,
+        "MaxStacks": 1,
         "Removable": true,
         "EffectId": "burn"
       },

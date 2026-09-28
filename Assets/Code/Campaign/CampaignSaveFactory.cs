@@ -228,8 +228,8 @@ namespace Windy.Srpg.Game.Campaign
             }
 
             BuiltInItemCatalog.EnsureRegistered();
-            BuiltInSkillCatalog.EnsureRegistered();
-            BuiltInPassiveCatalog.EnsureRegistered();
+            SkillEffects.EnsureRegistered();
+            PassiveEffects.EnsureRegistered();
 
             string identity = string.IsNullOrWhiteSpace(preset.PresetId)
                 ? Guid.NewGuid().ToString("N")
@@ -521,7 +521,7 @@ namespace Windy.Srpg.Game.Campaign
             }
 
             BuiltInItemCatalog.EnsureRegistered();
-            BuiltInPassiveCatalog.EnsureRegistered();
+            PassiveEffects.EnsureRegistered();
 
             foreach (OwnedUnitSaveData unit in save.OwnedUnits)
             {

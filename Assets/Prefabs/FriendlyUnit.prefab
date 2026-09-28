@@ -143,7 +143,6 @@ MonoBehaviour:
   baseHitPoints: 10
   unitName: Deployment Slot
   preset: {fileID: 11400000, guid: 64c016ab5fef4546a6db0a1e83032c01, type: 2}
-  startingInventory: []
   useLegacyWeaponDefaultsWhenInventoryHasNoWeapon: 1
   legacyMinAttackRange: 1
   legacyMaxAttackRange: 1

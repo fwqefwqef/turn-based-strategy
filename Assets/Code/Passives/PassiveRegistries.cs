@@ -57,23 +57,44 @@ namespace Windy.Srpg.Game.Passives
         protected Unit Owner { get; private set; }
         protected Passive Entry { get; private set; }
 
-        public virtual void OnApply(Unit unit, Passive entry)
+        void IP_PassiveEffect.OnApply(Unit unit, Passive entry)
         {
+            if (unit == null || entry == null)
+            {
+                return;
+            }
+
             Owner = unit;
             Entry = entry;
+            OnApply();
         }
 
-        public virtual void OnRemove(Unit unit, Passive entry)
+        void IP_PassiveEffect.OnRemove(Unit unit, Passive entry)
         {
-            if (ReferenceEquals(Owner, unit) && ReferenceEquals(Entry, entry))
+            if (!ReferenceEquals(Owner, unit) || !ReferenceEquals(Entry, entry))
             {
-                Owner = null;
-                Entry = null;
+                return;
             }
+
+            OnRemove();
+            Owner = null;
+            Entry = null;
         }
 
-        public virtual void OnTurnStart(Unit unit, Passive entry) { }
-        public virtual void OnTurnEnd(Unit unit, Passive entry) { }
+        void IP_PassiveEffect.OnTurnStart(Unit unit, Passive entry)
+        {
+            if (ReferenceEquals(Owner, unit) && ReferenceEquals(Entry, entry)) OnTurnStart();
+        }
+
+        void IP_PassiveEffect.OnTurnEnd(Unit unit, Passive entry)
+        {
+            if (ReferenceEquals(Owner, unit) && ReferenceEquals(Entry, entry)) OnTurnEnd();
+        }
+
+        protected virtual void OnApply() { }
+        protected virtual void OnRemove() { }
+        protected virtual void OnTurnStart() { }
+        protected virtual void OnTurnEnd() { }
     }
 
     public static class PassiveRegistry

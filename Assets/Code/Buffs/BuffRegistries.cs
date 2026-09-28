@@ -30,29 +30,81 @@ namespace Windy.Srpg.Game.Buffs
     {
         protected Unit Owner { get; private set; }
         protected Buff Entry { get; private set; }
+        protected Unit Source => Entry.SourceUnit;
+        protected int Stacks => Entry.Stacks;
+        protected DamageChangeContext DamageContext { get; private set; }
 
-        public virtual void OnApply(Unit unit, Buff entry)
+        void IP_BuffEffect.OnApply(Unit unit, Buff entry)
         {
+            if (unit == null || entry == null)
+            {
+                return;
+            }
+
             Owner = unit;
             Entry = entry;
+            OnApply();
         }
 
-        public virtual void OnRemove(Unit unit, Buff entry)
+        void IP_BuffEffect.OnRemove(Unit unit, Buff entry)
         {
-            if (ReferenceEquals(Owner, unit) && ReferenceEquals(Entry, entry))
+            if (!ReferenceEquals(Owner, unit) || !ReferenceEquals(Entry, entry))
             {
-                Owner = null;
-                Entry = null;
+                return;
+            }
+
+            OnRemove();
+            Owner = null;
+            Entry = null;
+        }
+
+        void IP_BuffEffect.OnTurnStart(Unit unit, Buff entry)
+        {
+            if (ReferenceEquals(Owner, unit) && ReferenceEquals(Entry, entry)) OnTurnStart();
+        }
+
+        void IP_BuffEffect.OnTurnEnd(Unit unit, Buff entry)
+        {
+            if (ReferenceEquals(Owner, unit) && ReferenceEquals(Entry, entry)) OnTurnEnd();
+        }
+
+        protected virtual void OnApply() { }
+        protected virtual void OnRemove() { }
+        protected virtual void OnTurnStart() { }
+        protected virtual void OnTurnEnd() { }
+
+        protected bool SelfRemove() => Owner != null && Entry != null && Owner.RemoveBuff(Entry);
+
+        protected int GetSourceStrengthMagicAverageOr(int fallback) => Source == null
+            ? fallback
+            : Math.Max(0, (Source.Strength + Source.Magic) / 2);
+
+        protected TResult ResolveForOwner<TResult>(Unit unit, TResult fallback, Func<TResult> resolve) =>
+            IsBound && ReferenceEquals(Owner, unit) ? resolve() : fallback;
+
+        protected TResult ResolveForOwner<TResult>(Unit unit, Buff entry, TResult fallback, Func<TResult> resolve) =>
+            IsBound && ReferenceEquals(Owner, unit) && ReferenceEquals(Entry, entry) ? resolve() : fallback;
+
+        protected void UseDamageContext(DamageChangeContext context, Action resolve)
+        {
+            if (!IsBound || context == null)
+            {
+                return;
+            }
+
+            DamageContext = context;
+            resolve();
+        }
+
+        protected void RemoveSelfAfterCombat(CombatSequenceContext context)
+        {
+            if (IsBound && context != null)
+            {
+                SelfRemove();
             }
         }
 
-        public virtual void OnTurnStart(Unit unit, Buff entry) { }
-        public virtual void OnTurnEnd(Unit unit, Buff entry) { }
-
-        protected bool SelfRemove()
-        {
-            return Owner != null && Entry != null && Owner.RemoveBuff(Entry);
-        }
+        private bool IsBound => Owner != null && Entry != null;
     }
 
     public static class BuffRegistry

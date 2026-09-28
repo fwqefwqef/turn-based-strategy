@@ -114,12 +114,6 @@ namespace Windy.Srpg.Game.Units
         [SerializeField] internal string unitId = string.Empty;
         [SerializeField] internal string visualId = string.Empty;
         [SerializeField]
-        internal List<StartingInventoryItem> startingInventory = new List<StartingInventoryItem>();
-        [SerializeField]
-        internal List<StartingSkillEntry> startingSkills = new List<StartingSkillEntry>();
-        [SerializeField]
-        internal List<StartingPassiveEntry> startingClassPassives = new List<StartingPassiveEntry>();
-        [SerializeField]
         internal WeaponProficiency weaponProficiencies = WeaponProficiency.Melee | WeaponProficiency.Ranged | WeaponProficiency.Magic;
         [SerializeField]
         internal UnitActionAiMode actionAiMode = UnitActionAiMode.Attack;
@@ -330,7 +324,7 @@ namespace Windy.Srpg.Game.Units
 
         private void EnsureBuffList()
         {
-            BuiltInBuffCatalog.EnsureRegistered();
+            BuffEffects.EnsureRegistered();
             if (BuffList == null)
             {
                 BuffList = new UnitBuffList(this);
@@ -339,7 +333,7 @@ namespace Windy.Srpg.Game.Units
 
         private void EnsurePassiveList()
         {
-            BuiltInPassiveCatalog.EnsureRegistered();
+            PassiveEffects.EnsureRegistered();
             if (PassiveList == null)
             {
                 PassiveList = new UnitPassiveList(this);
@@ -353,7 +347,7 @@ namespace Windy.Srpg.Game.Units
 
         private void EnsureSkillList()
         {
-            BuiltInSkillCatalog.EnsureRegistered();
+            SkillEffects.EnsureRegistered();
             if (SkillList == null)
             {
                 SkillList = new UnitSkillList(this);
@@ -367,11 +361,6 @@ namespace Windy.Srpg.Game.Units
                 return resolvedStartingInventory;
             }
 
-            if (startingInventory != null && startingInventory.Count > 0)
-            {
-                return startingInventory;
-            }
-
             return Array.Empty<StartingInventoryItem>();
         }
 
@@ -382,11 +371,6 @@ namespace Windy.Srpg.Game.Units
                 return resolvedStartingSkills;
             }
 
-            if (startingSkills != null && startingSkills.Count > 0)
-            {
-                return startingSkills;
-            }
-
             return Array.Empty<StartingSkillEntry>();
         }
 
@@ -395,11 +379,6 @@ namespace Windy.Srpg.Game.Units
             if (useResolvedPresetLoadout)
             {
                 return resolvedStartingClassPassives;
-            }
-
-            if (startingClassPassives != null && startingClassPassives.Count > 0)
-            {
-                return startingClassPassives;
             }
 
             return Array.Empty<StartingPassiveEntry>();
