@@ -97,33 +97,6 @@ namespace Windy.Srpg.Game.Skills
 
     }
 
-    public abstract class AttackHitSkillEffectBase : SkillEffectBase, IP_AttackHitEffect
-    {
-        protected Unit Attacker { get; private set; }
-        protected Unit Defender { get; private set; }
-        protected int DamageDealt { get; private set; }
-        protected bool IsBasicAttack { get; private set; }
-
-        void IP_AttackHitEffect.OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
-        {
-            Attacker = attacker;
-            Defender = defender;
-            DamageDealt = damageDealt;
-            IsBasicAttack = isBasicAttack;
-            OnAttackHit();
-        }
-
-        protected abstract void OnAttackHit();
-
-        protected void ApplyStatusToDefender(string statusId, int stacks = 1)
-        {
-            for (int i = 0; i < stacks; i++)
-            {
-                Defender.AddBuffById(statusId, Attacker);
-            }
-        }
-    }
-
     public static class SkillTargetValidator
     {
         public static bool CanUse(Unit user, SkillContext context)

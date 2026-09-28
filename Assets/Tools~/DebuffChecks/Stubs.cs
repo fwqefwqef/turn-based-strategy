@@ -63,7 +63,7 @@ namespace Windy.Srpg.Game.Units
     }
     public class CombatSequenceContext { }
     public interface IP_TakeDamageChange { void TakeDamageChange(DamageChangeContext context); }
-    public interface IP_TurnStartHealthEffect { int GetTurnStartHealthDelta(Unit unit); }
+    public interface IP_TurnStartHealthEffect { int GetTurnStartHealthDelta(); }
     public interface IP_DamageChange { void DamageChange(DamageChangeContext context); }
     public interface IP_AfterCombat_Attacker { void AfterCombatSequenceAsAttacker(CombatSequenceContext context); }
 }

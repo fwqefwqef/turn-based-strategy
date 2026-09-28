@@ -19,7 +19,7 @@ namespace Windy.Srpg.Game.Buffs
             BuffRegistry.RegisterRange(catalog.ToRuntimeDefinitions());
 
             BuffEffectRegistry.Register("damage_to_one", () => new DamageToOneBuffEffect());
-            BuffEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMag());
+            BuffEffectRegistry.Register("ignore_def_mag", () => new IgnoreDefMagEffect());
             BuffEffectRegistry.Register("toxic", () => new ToxicBuffEffect());
             BuffEffectRegistry.Register("burn", () => new BurnBuffEffect());
             BuffEffectRegistry.Register("stun", () => new StunBuffEffect());
@@ -36,33 +36,32 @@ namespace Windy.Srpg.Game.Buffs
 
         private sealed class InsurmountableEffect : BuffEffectBase, IP_AttackSurvivalGuard
         {
-            public int LimitAttackDamage(Unit defender, int damage, bool simulateOnly) =>
-                ResolveForOwner(defender, damage, () => Owner.HitPoints <= 0
+            public int LimitAttackDamage(int damage, bool simulateOnly)
+            {
+                return Owner.HitPoints <= 0
                     ? damage
-                    : Mathf.Min(damage, Mathf.Max(0, Owner.HitPoints - 1)));
+                    : Mathf.Min(damage, Mathf.Max(0, Owner.HitPoints - 1));
+            }
         }
 
         private sealed class StormSurgeEffect : BuffEffectBase, IP_DamageChange, IP_AfterCombat_Attacker, IP_AfterCombat_Defender
         {
-            public void DamageChange(DamageChangeContext context) => UseDamageContext(context, ApplyDamageChange);
-            public void AfterCombatSequenceAsAttacker(CombatSequenceContext context) => RemoveSelfAfterCombat(context);
-            public void AfterCombatSequenceAsDefender(CombatSequenceContext context) => RemoveSelfAfterCombat(context);
+            public void AfterCombatSequenceAsAttacker(CombatSequenceContext context) => SelfRemove();
+            public void AfterCombatSequenceAsDefender(CombatSequenceContext context) => SelfRemove();
 
-            private void ApplyDamageChange()
+            public void DamageChange(DamageChangeContext context)
             {
-                if (DamageContext.Phase == DamageChangePhase.Damage && DamageContext.IsHit)
-                    DamageContext.Damage += 10;
+                if (context.Phase == DamageChangePhase.Damage && context.IsHit)
+                    context.Damage += 10;
             }
         }
 
         private sealed class DarkSanctuaryEffect : BuffEffectBase, IP_TakeDamageMultiplier
         {
-            public void TakeDamageMultiplier(DamageChangeContext context) => UseDamageContext(context, ApplyDamageMultiplier);
-
-            private void ApplyDamageMultiplier()
+            public void TakeDamageMultiplier(DamageChangeContext context)
             {
-                if (DamageContext.Phase == DamageChangePhase.Damage && DamageContext.IsAreaSpell)
-                    DamageContext.Damage = Mathf.CeilToInt(DamageContext.Damage * 0.5f);
+                if (context.Phase == DamageChangePhase.Damage && context.IsAreaSpell)
+                    context.Damage = Mathf.CeilToInt(context.Damage * 0.5f);
             }
         }
 
@@ -76,9 +75,8 @@ namespace Windy.Srpg.Game.Buffs
                     Mathf.Max(0f, normalMovement - 4f - spentMovement));
             }
 
-            public float GetMovementPointCap(Unit unit, Buff entry, float currentCap) =>
-                ResolveForOwner(unit, entry, currentCap,
-                    () => Mathf.Min(currentCap, Mathf.Max(0f, GetNormalMovement() - 4f)));
+            public float GetMovementPointCap(float currentCap) =>
+                Mathf.Min(currentCap, Mathf.Max(0f, GetNormalMovement() - 4f));
 
             private float GetNormalMovement() =>
                 Owner.customTotalMovementPoints + Owner.PassiveList.GetMovementPointModifier();
@@ -86,8 +84,7 @@ namespace Windy.Srpg.Game.Buffs
 
         private sealed class MovementCapZeroEffect : BuffEffectBase, IP_MovementPointCap
         {
-            public float GetMovementPointCap(Unit unit, Buff entry, float currentCap) =>
-                ResolveForOwner(unit, entry, currentCap, () => 0f);
+            public float GetMovementPointCap(float currentCap) => 0f;
         }
 
         private sealed class MovementPenaltyEffect : BuffEffectBase, IP_MovementPointCap
@@ -104,9 +101,8 @@ namespace Windy.Srpg.Game.Buffs
                     Mathf.Max(0f, normalMovement - penalty - spentMovement));
             }
 
-            public float GetMovementPointCap(Unit unit, Buff entry, float currentCap) =>
-                ResolveForOwner(unit, entry, currentCap,
-                    () => Mathf.Min(currentCap, Mathf.Max(0f, GetNormalMovement() - penalty)));
+            public float GetMovementPointCap(float currentCap) =>
+                Mathf.Min(currentCap, Mathf.Max(0f, GetNormalMovement() - penalty));
 
             private float GetNormalMovement() =>
                 Owner.customTotalMovementPoints + Owner.PassiveList.GetMovementPointModifier();
@@ -114,24 +110,25 @@ namespace Windy.Srpg.Game.Buffs
 
         private sealed class ToxicBuffEffect : BuffEffectBase, IP_TurnStartHealthEffect
         {
-            public int GetTurnStartHealthDelta(Unit unit) =>
-                ResolveForOwner(unit, 0, () => -5 * Stacks);
+            public int GetTurnStartHealthDelta() => -5 * Stacks;
         }
 
         private sealed class BurnBuffEffect : BuffEffectBase, IP_TurnStartHealthEffect
         {
-            public int GetTurnStartHealthDelta(Unit unit) =>
-                ResolveForOwner(unit, 0, () => -GetSourceStrengthMagicAverageOr(5) * Stacks);
+            public int GetTurnStartHealthDelta()
+            {
+                int damagePerStack = Source == null
+                    ? 5
+                    : Mathf.Max(0, (Source.Strength + Source.Magic) / 2);
+                return -damagePerStack * Stacks;
+            }
         }
 
         private sealed class StunBuffEffect : BuffEffectBase, IP_ActionBlocker { }
 
         private sealed class BlackFogBuffEffect : BuffEffectBase, IP_TurnStartHealthEffect
         {
-            public int GetTurnStartHealthDelta(Unit unit) =>
-                ResolveForOwner(unit, 0, GetBlackFogDamage);
-
-            private int GetBlackFogDamage()
+            public int GetTurnStartHealthDelta()
             {
                 if (!Owner.TryGetBlackFogDepth(out int depth))
                 {
@@ -153,48 +150,43 @@ namespace Windy.Srpg.Game.Buffs
                 this.cap = cap;
             }
 
-            public float GetMovementPointCap(Unit unit, Buff entry, float currentCap) =>
-                ResolveForOwner(unit, entry, currentCap, () => cap);
+            public float GetMovementPointCap(float currentCap) => cap;
         }
 
         private sealed class DamageToOneBuffEffect : BuffEffectBase, IP_TakeDamageChange
         {
-            public void TakeDamageChange(DamageChangeContext context) => UseDamageContext(context, ApplyDamageChange);
-
-            private void ApplyDamageChange()
+            public void TakeDamageChange(DamageChangeContext context)
             {
-                if (DamageContext.Phase != DamageChangePhase.Damage)
+                if (context.Phase != DamageChangePhase.Damage)
                 {
                     return;
                 }
 
-                DamageContext.Damage = DamageContext.Damage <= 0 ? 0 : 1;
+                context.Damage = context.Damage <= 0 ? 0 : 1;
             }
         }
 
-        private sealed class IgnoreDefMag : BuffEffectBase, IP_DamageChange, IP_AfterCombat_Attacker
+        private sealed class IgnoreDefMagEffect : BuffEffectBase, IP_DamageChange, IP_AfterCombat_Attacker
         {
-            public void DamageChange(DamageChangeContext context) => UseDamageContext(context, ApplyDamageChange);
-            public void AfterCombatSequenceAsAttacker(CombatSequenceContext context) => RemoveSelfAfterCombat(context);
+            public void AfterCombatSequenceAsAttacker(CombatSequenceContext context) => SelfRemove();
 
-            private void ApplyDamageChange()
+            public void DamageChange(DamageChangeContext context)
             {
-                if (DamageContext.Phase != DamageChangePhase.Damage || !DamageContext.IsHit)
+                if (context.Phase != DamageChangePhase.Damage || !context.IsHit)
                 {
                     return;
                 }
 
-                if (DamageContext.IsMagicAttack)
+                if (context.IsMagicAttack)
                 {
-                    DamageContext.Damage += DamageContext.Defender.Magic;
+                    context.Damage += context.Defender.Magic;
                 }
                 else
                 {
-                    DamageContext.Damage += DamageContext.Defender.Defense;
+                    context.Damage += context.Defender.Defense;
                 }
             }
 
         }
     }
 }
-

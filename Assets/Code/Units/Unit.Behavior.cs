@@ -1953,7 +1953,7 @@ namespace Windy.Srpg.Game.Units
                             foreach (var effect in BuffList.GetActiveEffects())
                             {
                                 if (effect is IP_AttackSurvivalGuard guard)
-                                    damageTaken = Mathf.Clamp(guard.LimitAttackDamage(this, damageTaken, simulateOnly), 0, damageTaken);
+                                    damageTaken = Mathf.Clamp(guard.LimitAttackDamage(damageTaken, simulateOnly), 0, damageTaken);
                             }
                         }
                         if (PassiveList != null)
@@ -1961,7 +1961,7 @@ namespace Windy.Srpg.Game.Units
                             foreach (var effect in PassiveList.GetActiveEffects())
                             {
                                 if (effect is IP_AttackSurvivalGuard guard)
-                                    damageTaken = Mathf.Clamp(guard.LimitAttackDamage(this, damageTaken, simulateOnly), 0, damageTaken);
+                                    damageTaken = Mathf.Clamp(guard.LimitAttackDamage(damageTaken, simulateOnly), 0, damageTaken);
                             }
                         }
                     }
@@ -2066,7 +2066,7 @@ namespace Windy.Srpg.Game.Units
                 foreach (var effect in BuffList.GetActiveEffects())
                 {
                     if (effect is IP_AttackSurvivalGuard guard)
-                        damageTaken = Mathf.Clamp(guard.LimitAttackDamage(this, damageTaken, simulateOnly: true), 0, damageTaken);
+                        damageTaken = Mathf.Clamp(guard.LimitAttackDamage(damageTaken, simulateOnly: true), 0, damageTaken);
                 }
             }
             if (damageTaken > 0 && PassiveList != null)
@@ -2074,7 +2074,7 @@ namespace Windy.Srpg.Game.Units
                 foreach (var effect in PassiveList.GetActiveEffects())
                 {
                     if (effect is IP_AttackSurvivalGuard guard)
-                        damageTaken = Mathf.Clamp(guard.LimitAttackDamage(this, damageTaken, simulateOnly: true), 0, damageTaken);
+                        damageTaken = Mathf.Clamp(guard.LimitAttackDamage(damageTaken, simulateOnly: true), 0, damageTaken);
                 }
             }
 

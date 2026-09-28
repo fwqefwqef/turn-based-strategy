@@ -52,13 +52,13 @@ namespace Windy.Srpg.Game.Passives
                 usedThisTurn = false;
             }
 
-            public int LimitAttackDamage(Unit defender, int damage, bool simulateOnly)
+            public int LimitAttackDamage(int damage, bool simulateOnly)
             {
-                if (usedThisTurn || defender.HitPoints <= 1 || damage < defender.HitPoints)
+                if (usedThisTurn || Owner.HitPoints <= 1 || damage < Owner.HitPoints)
                     return damage;
 
                 if (!simulateOnly) usedThisTurn = true;
-                return Mathf.Max(0, defender.HitPoints - 1);
+                return Mathf.Max(0, Owner.HitPoints - 1);
             }
         }
 
@@ -176,7 +176,7 @@ namespace Windy.Srpg.Game.Passives
                 return damage <= 0 ? 0 : Mathf.Max(0, damage - 5);
             }
 
-            public int GetTurnStartHealthDelta(Unit unit)
+            public int GetTurnStartHealthDelta()
             {
                 return Mathf.CeilToInt(Owner.MaxHitPoints * 0.2f);
             }

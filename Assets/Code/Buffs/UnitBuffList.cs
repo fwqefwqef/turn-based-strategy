@@ -244,7 +244,7 @@ namespace Windy.Srpg.Game.Buffs
 
                 if (entry.EffectInstance is IP_TurnStartHealthEffect healthEffect)
                 {
-                    int resolvedDelta = owner.ResolveTurnStartHealthDelta(healthEffect.GetTurnStartHealthDelta(owner));
+                    int resolvedDelta = owner.ResolveTurnStartHealthDelta(healthEffect.GetTurnStartHealthDelta());
                     totalDelta += resolvedDelta;
                     int attributedDamage = Mathf.Max(0, -resolvedDelta);
                     if (entry.SourceUnit != null && attributedDamage >= largestAttributedDamage)
@@ -285,7 +285,7 @@ namespace Windy.Srpg.Game.Buffs
                 {
                     cappedMovementPoints = Math.Min(
                         cappedMovementPoints,
-                        movementCap.GetMovementPointCap(owner, entry, cappedMovementPoints));
+                        movementCap.GetMovementPointCap(cappedMovementPoints));
                 }
             }
 

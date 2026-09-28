@@ -52,11 +52,14 @@ namespace Windy.Srpg.Game.Skills
                 : amount;
         }
 
-        private sealed class PunishSkillEffect : AttackHitSkillEffectBase
+        private sealed class PunishSkillEffect : SkillEffectBase, IP_AttackHitEffect
         {
             protected override void Use() { }
 
-            protected override void OnAttackHit() => ApplyStatusToDefender("punished");
+            public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
+            {
+                defender.AddBuffById("punished", attacker);
+            }
         }
 
         private sealed class IceSpikesSkillEffect : SkillEffectBase
@@ -80,14 +83,14 @@ namespace Windy.Srpg.Game.Skills
             }
         }
 
-        private sealed class BashLifeStealEffect : AttackHitSkillEffectBase
+        private sealed class BashLifeStealEffect : SkillEffectBase, IP_AttackHitEffect
         {
             protected override void Use() { }
 
-            protected override void OnAttackHit()
+            public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
             {
-                if (DamageDealt > 0)
-                    Attacker.RestoreHitPoints(DamageDealt / 2, Attacker);
+                if (damageDealt > 0)
+                    attacker.RestoreHitPoints(damageDealt / 2, attacker);
             }
         }
 
@@ -183,7 +186,7 @@ namespace Windy.Srpg.Game.Skills
             protected override void Use() => ApplyStatusToSelf("storm_surge");
         }
 
-        private sealed class ClangSkillEffect : AttackHitSkillEffectBase, IP_CancelCounterattackOnHit
+        private sealed class ClangSkillEffect : SkillEffectBase, IP_CancelCounterattackOnHit
         {
             private Grid.CellGrid grid;
             public bool HitLanded { get; private set; }
@@ -191,11 +194,11 @@ namespace Windy.Srpg.Game.Skills
 
             protected override void Use() => grid = Grid;
 
-            protected override void OnAttackHit()
+            public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
             {
                 HitLanded = true;
-                if (Defender.IsAliveForBattle)
-                    Attacker.DisplaceTarget(Defender, grid, distance: 2, push: true);
+                if (defender.IsAliveForBattle)
+                    attacker.DisplaceTarget(defender, grid, distance: 2, push: true);
             }
         }
 

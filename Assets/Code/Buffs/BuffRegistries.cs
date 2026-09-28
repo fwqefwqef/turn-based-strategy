@@ -23,7 +23,7 @@ namespace Windy.Srpg.Game.Buffs
     // Implemented by effects that cap the owner's available movement points.
     public interface IP_MovementPointCap
     {
-        float GetMovementPointCap(Unit unit, Buff entry, float currentCap);
+        float GetMovementPointCap(float currentCap);
     }
 
     public abstract class BuffEffectBase : IP_BuffEffect
@@ -32,7 +32,6 @@ namespace Windy.Srpg.Game.Buffs
         protected Buff Entry { get; private set; }
         protected Unit Source => Entry.SourceUnit;
         protected int Stacks => Entry.Stacks;
-        protected DamageChangeContext DamageContext { get; private set; }
 
         void IP_BuffEffect.OnApply(Unit unit, Buff entry)
         {
@@ -74,37 +73,6 @@ namespace Windy.Srpg.Game.Buffs
         protected virtual void OnTurnEnd() { }
 
         protected bool SelfRemove() => Owner != null && Entry != null && Owner.RemoveBuff(Entry);
-
-        protected int GetSourceStrengthMagicAverageOr(int fallback) => Source == null
-            ? fallback
-            : Math.Max(0, (Source.Strength + Source.Magic) / 2);
-
-        protected TResult ResolveForOwner<TResult>(Unit unit, TResult fallback, Func<TResult> resolve) =>
-            IsBound && ReferenceEquals(Owner, unit) ? resolve() : fallback;
-
-        protected TResult ResolveForOwner<TResult>(Unit unit, Buff entry, TResult fallback, Func<TResult> resolve) =>
-            IsBound && ReferenceEquals(Owner, unit) && ReferenceEquals(Entry, entry) ? resolve() : fallback;
-
-        protected void UseDamageContext(DamageChangeContext context, Action resolve)
-        {
-            if (!IsBound || context == null)
-            {
-                return;
-            }
-
-            DamageContext = context;
-            resolve();
-        }
-
-        protected void RemoveSelfAfterCombat(CombatSequenceContext context)
-        {
-            if (IsBound && context != null)
-            {
-                SelfRemove();
-            }
-        }
-
-        private bool IsBound => Owner != null && Entry != null;
     }
 
     public static class BuffRegistry

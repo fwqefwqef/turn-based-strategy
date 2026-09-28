@@ -191,7 +191,7 @@ namespace Windy.Srpg.Game.Units
     // bypassed by a later multiplier. Simulations must not consume limited uses.
     public interface IP_AttackSurvivalGuard
     {
-        int LimitAttackDamage(Unit defender, int damage, bool simulateOnly);
+        int LimitAttackDamage(int damage, bool simulateOnly);
     }
 
     public interface IP_PainDamageChange
@@ -205,7 +205,7 @@ namespace Windy.Srpg.Game.Units
     /// </summary>
     public interface IP_TurnStartHealthEffect
     {
-        int GetTurnStartHealthDelta(Unit unit);
+        int GetTurnStartHealthDelta();
     }
 
     public interface IP_DamageMultiplier

@@ -259,7 +259,7 @@ namespace Windy.Srpg.Game.Units
             {
                 if (effect is IP_TurnStartHealthEffect healthEffect)
                 {
-                    totalDelta += ResolveTurnStartHealthDelta(healthEffect.GetTurnStartHealthDelta(this));
+                    totalDelta += ResolveTurnStartHealthDelta(healthEffect.GetTurnStartHealthDelta());
                 }
             }
             return totalDelta;
