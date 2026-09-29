@@ -30,7 +30,7 @@ namespace Windy.Srpg.Game.Buffs
             BuffEffectRegistry.Register("dark_sanctuary", () => new DarkSanctuaryEffect());
             BuffEffectRegistry.Register("slow", () => new SlowEffect());
             BuffEffectRegistry.Register("movement_cap_0", () => new MovementCapZeroEffect());
-            BuffEffectRegistry.Register("ice_spikes_slow", () => new MovementPenaltyEffect(2f));
+            BuffEffectRegistry.Register("ice_spikes_slow", () => new MovementPenaltyEffect(3f));
             isRegistered = true;
         }
 

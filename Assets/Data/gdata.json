@@ -937,7 +937,7 @@
       {
         "Id": "ice_spikes",
         "Name": "Ice Spikes",
-        "Description": "Deal magic damage to all enemies in a 2-tile radius and inflict Speed/Movement -2 for one turn.",
+        "Description": "Deal magic damage to all enemies in a 2-tile radius and inflict Movement -3 for one turn.",
         "Category": "AreaSpell",
         "TargetingType": "AreaCell",
         "RequiredWeaponType": "Any",
@@ -1780,14 +1780,11 @@
       {
         "Id": "ice_spikes_slow",
         "Name": "Frozen",
-        "Description": "Speed and Movement -2 for one turn.",
+        "Description": "Movement -3 for one turn.",
         "Duration": 1,
         "Category": "Weakening",
         "MaxStacks": 1,
         "Removable": true,
-        "PrimaryStatModifiers": {
-          "Speed": -2
-        },
         "EffectId": "ice_spikes_slow"
       },
       {
