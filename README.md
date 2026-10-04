@@ -1,117 +1,76 @@
 # Turn Based Strategy
 
-A Unity tactical RPG with grid movement, turn-based combat, character progression, campaign persistence, and chapter-based battles.
+A Unity tactical RPG built around grid battles, a persistent party, and chapter progression. Players deploy units, move across terrain, and use weapons, skills, items, and positioning to meet each chapter's victory condition. The project includes an overworld, a shop, and Unity editor tools for building maps and managing game data.
 
-## Requirements
+## Open the project
 
-- Unity `6000.4.1f1`
-- .NET 9 SDK for the standalone development and verification tools
-- Open this repository as the Unity project root—the folder containing `Assets/`, `Packages/`, and `ProjectSettings/`
+Use Unity **6000.4.1f1** and open this folder as the project root (the folder containing `Assets`, `Packages`, and `ProjectSettings`).
 
-## Current Architecture
+- Open `Assets/Scenes/OverworldMenu.unity` for the campaign entry point.
+- Open a scene in `Assets/Scenes/Level` to inspect a chapter or free battle directly.
+- Open `Assets/Scenes/PaintedMap.unity` to work on the development map.
 
-Battle logic uses a single scene-backed model:
+The campaign starts with Protagonist, Thunder, Flame, and Darkness, plus 1,000 gold. Deployment and inventory management happen before battle. Chapter completion updates progression and can add stock to the shop.
 
-- `CellGrid` owns battle initialization, deployment, turn flow, input states, and battle results.
-- `Unit` owns stats, movement, combat, equipment, skills, passives, buffs, and progression.
-- `Cell` owns tile geometry, occupancy, input events, and highlights.
-- `Player` implementations drive human and AI turns.
-- `Ability` components implement actions such as movement and attacks.
-- `GameplayInputController` is the central board-input path.
-- `CampaignSaveManager` and `CampaignSaveFactory` persist the roster and unit progression.
+## Gameplay systems
 
-The older parallel runtime/mirror grid has been removed. New battle features should extend the scene `CellGrid`, `Unit`, and `Cell` types directly.
+- **Grid combat:** Units preview a move before committing an action. Combat supports basic attacks, counterattacks, pursuit attacks, combat arts, healing, area spells, and post-action movement.
+- **Units and progression:** Units have Strength, Magic, Defense, Speed, and Luck, along with HP, MP, movement, equipment, weapon proficiencies, skills, passives, experience, and growth rates.
+- **Statuses and terrain:** Buffs and debuffs handle stat changes, damage over time, control effects, and terrain bonuses. Maps can include Forest, Throne, Magic Tile, Burning Terrain, and chapter-configured Black Fog. Death's Door gives player units a chance to survive a lethal hit at 0 or negative HP, with movement capped until they recover.
+- **Battle maps:** Rectangular multi-tile units occupy a full footprint for movement and targeting. An area effect applies once per unit even when it covers several occupied tiles. Maps can contain reinforcements; chapter data controls battle conditions, enemy order, fog, and clear rewards.
+- **Enemy turns:** AI selects actions and paths according to its attack and movement behavior. Enemies can be assigned an explicit turn order by unit ID, and groups can wait for coordinated attacks.
+- **Campaign:** The overworld tracks chapter unlocks and clears, roster progress, gold, inventory, and shop stock. Some chapters can be replayed; this is configured per chapter.
 
-## Implemented Systems
+## How the project is organized
 
-- Pending-move previews followed by action confirmation
-- Weapon attacks, combat arts, single-target skills, and area skills
-- Skills that do not end the unit's action are inherently limited to one use per turn
-- Inventory, equipment, trading, shops, and dropped-item handling
-- Equipped weapons and accessories can grant skills (`GrantedSkillIds`) and passives (`GrantedPassiveIds`) from `gdata.json`; those grants are removed on unequip and are not saved as learned abilities
-- Class and equip passives
-- Five-stat progression: Strength, Magic, Defense, Speed, and Luck; Magic also provides magical defense
-- EXP, level-ups, and growth-rate-based stat gains
-- Stackable buffs and debuffs with categories, duration refresh, cleansing, crowd control, and damage-over-time processing
-- Terrain effects with Throne, Forest, Magic Tile, two-round Burning Terrain, and chapter-configured Black Fog
-- Mouse/keyboard tile hover strip showing movement cost, terrain effects, duration, and Black Fog depth
-- Combat-aware enemy AI with attack/heal action modes and Move, Wait, WaitGroup, and NotMove movement modes
-- Pre-battle roster deployment and unit configuration
-- Campaign saves, chapter unlocking, replayable chapters, battle results, and victory progression
-- Unit preset inheritance with additive per-instance stat and loadout overrides
-- Rectangular multi-tile units with footprint-aware movement, occupancy, targeting, terrain, AI, reinforcements, camera focus, and tile-specific targeting indicators
+Battle state is represented by Unity scene objects. `CellGrid` owns the turn loop and battle state, `Cell` represents each tile, and `Unit` owns character state and combat behavior. There is no separate runtime copy of the board.
 
-The `colossus` enemy preset is a ready-to-place 3x3 example. Death's Door, Black Fog, buff-backed terrain bonuses and debuffs, terrain-effect presentation, and multi-tile scene behavior are implemented and awaiting broader Play Mode validation.
+| Area | Main responsibility |
+| --- | --- |
+| `Assets/Code/Grid` | Battle setup, deployment, turn flow, grid states, terrain, and Black Fog |
+| `Assets/Code/Units` | Stats, movement, footprints, combat, and progression |
+| `Assets/Code/Abilities` and `Assets/Code/Skills` | Player actions, pending action flow, targeting, and skill effects |
+| `Assets/Code/Passives` and `Assets/Code/Buffs` | Passive hooks and timed status effects |
+| `Assets/Code/Players` and `Assets/Code/AI` | Human and enemy turns and AI decisions |
+| `Assets/Code/Campaign`, `Assets/Code/Chapters`, and `Assets/Code/Overworld` | Saves, chapter rules, progression, and shop |
+| `Assets/Code/UI` and `Assets/Code/WorldUI` | Menus, previews, inspection, tile information, and world-space bars |
+| `Assets/Code/Editor` | Unity tools for maps, chapters, units, and saves |
 
-Death's Door preserves 0 or negative HP and caps movement at 1 until the unit is healed above 0 HP. It does not reduce primary stats or accumulate a lasting weakening penalty.
+Board input flows through `GameplayInputController` into `CellGrid` states. Movement is previewed before it is committed, so attack range, skill targeting, and terrain effects can use the proposed position. `Unit` is split across partial files for combat, movement, footprints, and other behavior.
 
-### Skill authoring
+## Content and saves
 
-Skill target legality is data-driven. Set `TargetingType` in `Assets/Data/gdata.json` to `Self`, `EnemyUnit`, `AllyUnit`, `AnyUnit`, `Cell`, or `AreaCell`; area skills also use `SelfImmune`, `AreaProfile.AffectsAllies`, and `AreaProfile.AffectsEnemies`. `SkillTargetValidator` applies those rules consistently for player input, previews, execution, and AI.
+Most gameplay definitions live in `Assets/Data/gdata.json`: items, skills, passives, buffs, and terrain effects. Friendly and enemy unit presets and tile presets live in `Assets/Data/Preset Data (Unit, Tile)`. Chapter scenes carry a `ChapterData` component for their name, unlock and replay rules, battle conditions, enemy order, Black Fog settings, and shop restocks. Display text is kept in `Assets/Data/game_text.csv`.
 
-Custom effects inherit `SkillEffectBase` and normally only implement the parameterless protected `Use()` method. The base class validates and binds the invocation before exposing the guaranteed `User`, `Target`, `Context`, and `Grid` properties. Override parameterless `MeetsAdditionalUseConditions()` only for mechanic-specific rules that cannot be expressed by the catalog, such as requiring missing HP, a completed action, a removable debuff, or sufficient sacrifice HP. Set `RequiresGrid` for displacement effects and `RequiresTarget` for per-target area effects instead of checking either value manually.
+Character effects are implemented in `SkillEffects.cs`, `PassiveEffects.cs`, and `BuffEffects.cs` under their respective code folders. The catalog provides the definition and effect ID; the effect class provides behavior that needs code. Keep short effect logic inline and locally readable.
 
-Status application is intentionally terse: use `ApplyStatusToTarget`, `ApplyStatusToSelf`, or `ApplyStatusToEnemies`, with the optional `stacks` argument. On-hit effects implement `IP_AttackHitEffect` and use its validated callback arguments directly. Effect implementations should not repeat null, ally/enemy, self, alive, duplicate-area-target, or context-validity checks, and should not call `CanUse` from `Use` or preview calculations.
+Saves are JSON files under Unity's `Application.persistentDataPath`. Scenes under `Assets/Scenes/Level` use the campaign save; `PaintedMap` and other non-level scenes use a separate debug save. The Save Editor defaults to the debug slot, so select **Campaign** there when editing campaign progress.
 
-Buff implementations live in `BuffEffects.cs` and inherit only `BuffEffectBase`, plus the capability interface that makes the effect participate in a particular system. `BuffEffectBase` owns lifecycle validation and exposes guaranteed `Owner`, `Entry`, `Source`, and `Stacks` state. Owner-bound callbacks such as turn-start health, movement caps, and survival guards do not receive redundant owner arguments; their owning lists are the validation boundary. Combat callbacks receive validated context arguments directly from the combat dispatcher.
+## Unity editor tools
 
-Effect classes are intended to be edited directly. Prefer straightforward, locally readable implementations: keep short logic inline, avoid extracting a private helper merely to hide a few lines, and minimize call-chain depth. A helper belongs in an effect API when it names a meaningful domain operation or is substantially reused?for example, skill status application and profile-based healing.
+The **Tools > Windy SRPG** menu includes:
 
-Passive implementations live in `PassiveEffects.cs`. `PassiveEffectBase` owns application, removal, owner binding, and turn-hook validation; implementations use the guaranteed `Owner` reference and override parameterless lifecycle hooks only when needed. Combat, healing, stat, and EXP callbacks are dispatched with valid arguments, so passive effects should contain only mechanic-specific conditions rather than repeated null, team, owner, or alive checks.
+- **Map Painter** for placing terrain, units, and reinforcements.
+- **Chapter Manager** for chapter settings and scene unit overrides.
+- **Unit Preset Creator** for creating unit presets.
+- **Save Editor** for changing roster, equipment, abilities, gold, shop stock, and cleared chapters.
+- **Sync All Level Scenes From PaintedMap** for shared scene setup.
 
-## Project Layout
+Selecting a unit placed in a scene opens its custom inspector for preset overrides and unit settings.
 
-- `Assets/Code` — gameplay code in the `com.windy.srpg.game` assembly
-- `Assets/Data/gdata.json` — unified item, skill, passive, buff, and terrain-effect catalog
-- `Assets/Data/Preset Data (Unit, Tile)` — friendly units, enemies, and tile presets
-- `Assets/Scenes/Level` — chapter and free-battle scenes
-- `Assets/Notes` — architecture and mechanic documentation
-- `Assets/Tools~` — standalone tuning and verification utilities excluded from Unity asset import
+## Development and documentation
 
-The main architecture reference is [`Assets/SUMMARY.md`](Assets/SUMMARY.md). Some newer mechanic details are documented separately under [`Assets/Notes`](Assets/Notes).
-
-## Opening The Project
-
-1. Open this folder in Unity `6000.4.1f1`.
-2. Load `Assets/Scenes/OverworldMenu.unity` to enter through chapter selection, or open a battle scene under `Assets/Scenes/Level` directly.
-3. Press Play.
-
-Current battle scenes are:
-
-- `Chapter 1.unity`
-- `Free Battle 1.unity`
-- `Chapter 2.unity`
-
-## Build and Verification
-
-Compile the main gameplay and editor assemblies:
+The gameplay and editor assemblies can be compiled outside Unity when the generated project files and Unity installation are available:
 
 ```powershell
-dotnet build com.windy.srpg.game.csproj
+dotnet build com.windy.srpg.game.csproj --no-restore
 dotnet build com.windy.srpg.game.editor.csproj --no-restore
 ```
 
-Run focused checks:
+`Assets/Tools~` contains focused checks and the Stat Gain Lab for exploring five-stat growth rates. These tools are excluded from Unity asset import and use the .NET SDK separately.
 
-```powershell
-dotnet run --project 'Assets/Tools~/DebuffChecks/DebuffChecks.csproj'
-dotnet run --project 'Assets/Tools~/PresetOverrideChecks/PresetOverrideChecks.csproj'
-dotnet run --project 'Assets/Tools~/SkillUsageChecks/SkillUsageChecks.csproj'
-dotnet run --project 'Assets/Tools~/TerrainEffectChecks/TerrainEffectChecks.csproj'
-```
-
-Run the five-stat growth preview from the command line:
-
-```powershell
-dotnet run --project 'Assets/Tools~/StatGainPreview/StatGainPreview.csproj' -- 20 20 20 20 20
-```
-
-Launch the interactive Windows Stat Gain Lab with:
-
-```powershell
-& 'Assets/Tools~/StatGainLab/Launch Stat Gain Lab.cmd'
-```
+For deeper implementation detail, see [the architecture summary](Assets/SUMMARY.md) and [mechanic notes](Assets/Notes). Those documents cover specific systems and design decisions beyond this overview.
 
 ## License
 
-This project is released under [The Unlicense](LICENSE).
+Released under [The Unlicense](LICENSE).

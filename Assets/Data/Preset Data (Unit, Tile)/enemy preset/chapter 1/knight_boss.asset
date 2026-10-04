@@ -31,14 +31,14 @@ MonoBehaviour:
   BaseLevel: 5
   WeaponProficiencies: -1
   BaseStats:
-    HitPoints: 40
+    HitPoints: 45
     ManaPoints: 15
     MovementPoints: 4
-    Strength: 10
-    Magic: 5
-    Defense: 10
-    Speed: 5
-    Luck: 5
+    Strength: 13
+    Magic: 8
+    Defense: 13
+    Speed: 8
+    Luck: 8
   GrowthRates:
     Strength: 20
     Magic: 20
@@ -49,6 +49,10 @@ MonoBehaviour:
   - ItemId: iron_claymore
     InitialCharges: -1
     IsDroppable: 0
+    ChargesInitialized: 1
+  - ItemId: bullion_m
+    InitialCharges: -1
+    IsDroppable: 1
     ChargesInitialized: 1
   StartingSkills: []
   StartingClassPassives: []

@@ -56051,7 +56051,7 @@ MonoBehaviour:
   replayable: 0
   unlockRequiredChapterId: 0
   averageEnemyLevel: 3
-  blackFogTurn: 7
+  blackFogTurn: 6
   blackFogDirection: 3
   blackFogExpansionDistance: 2
   enemyPaintPresets:
@@ -56081,7 +56081,7 @@ MonoBehaviour:
   - mage_4_12
   battleConditions:
   - Result: 0
-    Kind: 0
+    Kind: 2
   - Result: 1
     Kind: 1
   shopRestockOnClear: []
