@@ -46,7 +46,7 @@ MonoBehaviour:
     Speed: 15
     Luck: 20
   StartingInventory:
-  - ItemId: mace
+  - ItemId: nurse_mace
     InitialCharges: -1
     IsDroppable: 0
     ChargesInitialized: 1

@@ -182,6 +182,8 @@ namespace Windy.Srpg.Game.Units
 
     public interface IP_AttackNeverMisses { }
 
+    public interface IP_PreventCounterattackOnInitiate { }
+
     public interface IP_TakeDamageChange
     {
         void TakeDamageChange(DamageChangeContext context);

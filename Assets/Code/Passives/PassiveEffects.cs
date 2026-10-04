@@ -89,16 +89,7 @@ namespace Windy.Srpg.Game.Passives
             }
         }
 
-        private sealed class HegemonyEffect : PassiveEffectBase, IP_AttackHitEffect
-        {
-            public void OnAttackHit(Unit attacker, Unit defender, int damageDealt, bool isBasicAttack)
-            {
-                if (isBasicAttack)
-                {
-                    defender.AddBuffById("punished", attacker);
-                }
-            }
-        }
+        private sealed class HegemonyEffect : PassiveEffectBase, IP_PreventCounterattackOnInitiate { }
 
         private sealed class PenetrateEffect : PassiveEffectBase, IP_DamageChange
         {

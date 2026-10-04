@@ -146,8 +146,10 @@ namespace Windy.Srpg.Game.Inventory
     {
         public WeaponType WeaponType = WeaponType.Melee;
         public DamageType DamageType = DamageType.Physical;
-        [Tooltip("When enabled, attack power uses both Strength and Magic. Damage mitigation still follows DamageType.")]
-        public bool HybridScaling;
+        [Tooltip("When enabled, add Strength to attack power. Damage mitigation still follows DamageType.")]
+        public bool BonusDamageFromStrength;
+        [Tooltip("When enabled, add Defense to attack power. Damage mitigation still follows DamageType.")]
+        public bool BonusDamageFromDefense;
         public int Might = 0;
         public int MinRange = 1;
         public int MaxRange = 1;

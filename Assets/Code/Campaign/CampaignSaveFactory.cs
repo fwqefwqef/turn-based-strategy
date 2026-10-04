@@ -12,7 +12,7 @@ namespace Windy.Srpg.Game.Campaign
 {
     public static class CampaignSaveFactory
     {
-        public const int CurrentSaveVersion = 13;
+        public const int CurrentSaveVersion = 14;
         public const int StartingGold = 1000;
 
         private static readonly string[] StartingUnitPresetIds =
@@ -305,6 +305,10 @@ namespace Windy.Srpg.Game.Campaign
             {
                 ApplyPermanentPassiveAndShopkeepRework(save);
             }
+            if (save.Version < 14)
+            {
+                RestoreShopkeepPunish(save);
+            }
             save.Version = Mathf.Max(CurrentSaveVersion, save.Version);
             return save;
         }
@@ -350,6 +354,27 @@ namespace Windy.Srpg.Game.Campaign
                         AddPassive(unit, "flight");
                         break;
                 }
+            }
+        }
+
+        private static void RestoreShopkeepPunish(CampaignSaveData save)
+        {
+            foreach (OwnedUnitSaveData unit in save.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
+            {
+                if (unit == null || !string.Equals(
+                    !string.IsNullOrWhiteSpace(unit.VisualId) ? unit.VisualId : unit.UnitId,
+                    "shopkeep", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                unit.SkillIds = (unit.SkillIds ?? Array.Empty<string>())
+                    .Where(id => !string.Equals(id, "return_to_hell", StringComparison.OrdinalIgnoreCase))
+                    .Append("punish")
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                AddPassive(unit, "sadist");
+                AddPassive(unit, "hegemony");
             }
         }
 

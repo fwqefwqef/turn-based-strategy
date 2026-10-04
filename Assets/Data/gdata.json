@@ -25,11 +25,11 @@
       {
         "Id": "ice_whip",
         "Name": "Ice Whip",
-        "Description": "A 1-2 range magical whip that scales with both Strength and Magic.",
+        "Description": "A 1-2 range magic weapon. Deals bonus damage equal to Strength.",
         "Value": 100,
         "WeaponType": "Magic",
         "DamageType": "Magic",
-        "HybridScaling": true,
+        "BonusDamageFromStrength": true,
         "Might": 3,
         "MinRange": 1,
         "MaxRange": 2,
@@ -44,10 +44,11 @@
       {
         "Id": "nurse_mace",
         "Name": "Mace",
-        "Description": "A sturdy 1-range mace.",
+        "Description": "A sturdy 1-range mace. Deals bonus damage equal to Defense.",
         "Value": 100,
         "WeaponType": "Melee",
         "DamageType": "Physical",
+        "BonusDamageFromDefense": true,
         "Might": 6,
         "MinRange": 1,
         "MaxRange": 1,
@@ -1662,7 +1663,7 @@
       {
         "Id": "hegemony",
         "Name": "Hegemony",
-        "Description": "On a successful basic attack, reduce the target's Movement to 0 for one turn.",
+        "Description": "When initiating combat, the target cannot counterattack.",
         "Cost": 0,
         "EffectId": "hegemony"
       },
@@ -1782,7 +1783,7 @@
         "Name": "Frozen",
         "Description": "Movement -3 for one turn.",
         "Duration": 1,
-        "Category": "Weakening",
+        "Category": "CC",
         "MaxStacks": 1,
         "Removable": true,
         "EffectId": "ice_spikes_slow"

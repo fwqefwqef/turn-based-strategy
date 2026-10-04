@@ -52,7 +52,7 @@ MonoBehaviour:
     ChargesInitialized: 1
   StartingSkills:
   - SkillId: ice_spikes
-  - SkillId: return_to_hell
+  - SkillId: punish
   StartingClassPassives:
   - PassiveId: sadist
   - PassiveId: hegemony

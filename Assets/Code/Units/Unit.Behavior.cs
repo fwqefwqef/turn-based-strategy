@@ -1678,7 +1678,7 @@ namespace Windy.Srpg.Game.Units
                     yield return new WaitForSeconds(combatSequenceStartDelaySeconds);
                 }
 
-                var preCombatContext = new CombatSequenceContext(this, unitToAttack, attackProfile.PreventsCounterattack);
+                var preCombatContext = new CombatSequenceContext(this, unitToAttack, attackProfile.PreventsCounterattack || PreventsCounterattackOnInitiate);
                 InvokeBeforeCombatSequenceAsAttacker(this, preCombatContext);
                 InvokeBeforeCombatSequenceAsDefender(unitToAttack, preCombatContext);
 
@@ -1771,7 +1771,7 @@ namespace Windy.Srpg.Game.Units
 
                 if (sequenceStarted)
                 {
-                    var combatSequenceContext = new CombatSequenceContext(this, unitToAttack, attackProfile.PreventsCounterattack);
+                    var combatSequenceContext = new CombatSequenceContext(this, unitToAttack, attackProfile.PreventsCounterattack || PreventsCounterattackOnInitiate);
                     InvokeAfterCombatSequenceAsAttacker(this, combatSequenceContext);
                     InvokeAfterCombatSequenceAsDefender(unitToAttack, combatSequenceContext);
                     CombatSequenceEnded?.Invoke(this, new CombatSequenceEventArgs(this, unitToAttack));
@@ -1796,7 +1796,7 @@ namespace Windy.Srpg.Game.Units
 
                 if (sequenceStarted)
                 {
-                    var combatSequenceContext = new CombatSequenceContext(this, unitToAttack, attackProfile.PreventsCounterattack);
+                    var combatSequenceContext = new CombatSequenceContext(this, unitToAttack, attackProfile.PreventsCounterattack || PreventsCounterattackOnInitiate);
                     InvokeAfterCombatSequenceAsAttacker(this, combatSequenceContext);
                     InvokeAfterCombatSequenceAsDefender(unitToAttack, combatSequenceContext);
                     CombatSequenceEnded?.Invoke(this, new CombatSequenceEventArgs(this, unitToAttack));
@@ -2384,6 +2384,7 @@ namespace Windy.Srpg.Game.Units
                 && CanCounterAttack
                 && IsAliveForBattle
                 && aggressor != null
+                && !aggressor.PreventsCounterattackOnInitiate
                 && aggressor.IsAliveForBattle
                 && IsAggressorInCounterRange(aggressor);
         }

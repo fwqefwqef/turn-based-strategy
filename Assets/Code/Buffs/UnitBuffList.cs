@@ -83,8 +83,9 @@ namespace Windy.Srpg.Game.Buffs
 
         public void EndOwnerTurn()
         {
-            // Pain ages with actual ticks; CC must survive a complete upcoming turn.
-            if (Category != BuffCategory.Pain && (Category != BuffCategory.CC || controlTurnStarted))
+            // Pain ages with actual ticks; control and weakening debuffs must cover a full owner turn.
+            if (Category != BuffCategory.Pain
+                && ((Category != BuffCategory.CC && Category != BuffCategory.Weakening) || controlTurnStarted))
                 DecrementDuration();
             controlTurnStarted = false;
         }
@@ -213,7 +214,11 @@ namespace Windy.Srpg.Game.Buffs
 
                 entry.EffectInstance?.OnTurnEnd(owner, entry);
                 entry.EndOwnerTurn();
-                if (entry.Category == BuffCategory.CC && entry.HasExpired()) RemoveBuff(entry);
+                // Debuffs stop affecting the unit as soon as their final owner turn ends.
+                // Beneficial buffs remain until the next turn starts so they cover the enemy phase.
+                if ((entry.Category == BuffCategory.CC || entry.Category == BuffCategory.Weakening)
+                    && entry.HasExpired())
+                    RemoveBuff(entry);
             }
         }
 

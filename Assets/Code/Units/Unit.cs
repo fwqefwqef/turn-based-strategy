@@ -67,6 +67,7 @@ namespace Windy.Srpg.Game.Units
         public bool IsActionBlocked => BuffList != null && BuffList.GetActiveEffects().Any(effect => effect is IP_ActionBlocker);
         public bool HasRemovableDebuffs => BuffList != null && BuffList.Entries.Any(entry => entry.Removable && entry.Category != BuffCategory.Buff);
         public bool HasVantage => PassiveList != null && PassiveList.GetActiveEffects().Any(effect => effect is IP_Vantage);
+        public bool PreventsCounterattackOnInitiate => PassiveList != null && PassiveList.GetActiveEffects().Any(effect => effect is IP_PreventCounterattackOnInitiate);
         public bool IsAtDeathsDoor => BuffList != null && BuffList.HasBuff(DeathsDoorBuffId);
         public bool IsAliveForBattle => HitPoints > 0 || IsAtDeathsDoor;
         public bool AttacksCannotMiss => PassiveList?.GetActiveEffects().Any(effect => effect is IP_AttackNeverMisses) == true;
@@ -924,9 +925,13 @@ namespace Windy.Srpg.Game.Units
             bool isMagic = GetIsMagicForWeapon(weapon);
             int strength = BaseStrength + primaryModifiers.Strength;
             int magic = BaseMagic + primaryModifiers.Magic;
-            int offensiveStat = (weapon.HybridScaling || hybridScalingOverride)
-                ? strength + magic
-                : (isMagic ? magic : strength);
+            int offensiveStat = isMagic ? magic : strength;
+            if (weapon.BonusDamageFromStrength)
+                offensiveStat += strength;
+            else if (hybridScalingOverride)
+                offensiveStat += isMagic ? strength : magic;
+            if (weapon.BonusDamageFromDefense)
+                offensiveStat += BaseDefense + primaryModifiers.Defense;
             return offensiveStat + weapon.Might + primaryModifiers.Attack;
         }
 
@@ -948,6 +953,11 @@ namespace Windy.Srpg.Game.Units
             }
 
             return weapon.Crit + GetSecondaryStatModifiers().Crit + GetLuckForWeapon(weapon) * CritPerLuck;
+        }
+
+        public int GetCritForSkill(int skillCrit)
+        {
+            return skillCrit + GetSecondaryStatModifiers().Crit + Luck * CritPerLuck;
         }
 
         public int GetNumHitsForWeapon(WeaponData weapon)

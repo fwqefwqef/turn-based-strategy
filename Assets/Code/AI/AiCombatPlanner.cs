@@ -727,7 +727,7 @@ namespace Windy.Srpg.Game.AI
             {
                 Damage = offensiveStat + data.AttackProfile.Might,
                 Accuracy = actor.Speed * Unit.AccuracyPerSpeedPoint + data.AttackProfile.Accuracy,
-                Crit = actor.Luck * 5 + data.AttackProfile.Crit,
+                Crit = actor.GetCritForSkill(data.AttackProfile.Crit),
                 NumHits = Mathf.Max(1, data.AttackProfile.NumHits),
                 PursuitSpeed = actor.Speed,
                 IsMagic = isMagic,

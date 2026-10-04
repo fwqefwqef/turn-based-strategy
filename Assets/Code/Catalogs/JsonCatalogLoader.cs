@@ -194,7 +194,8 @@ namespace Windy.Srpg.Game.Catalogs
         public int Value = 100;
         public string WeaponType = nameof(Windy.Srpg.Game.Inventory.WeaponType.Melee);
         public string DamageType = nameof(Windy.Srpg.Game.Inventory.DamageType.Physical);
-        public bool HybridScaling;
+        public bool BonusDamageFromStrength;
+        public bool BonusDamageFromDefense;
         public int Might;
         public int MinRange = 1;
         public int MaxRange = 1;
@@ -219,7 +220,8 @@ namespace Windy.Srpg.Game.Catalogs
                 Value = Value,
                 WeaponType = CatalogResourceLoader.ParseEnum(WeaponType, Windy.Srpg.Game.Inventory.WeaponType.Melee),
                 DamageType = CatalogResourceLoader.ParseEnum(DamageType, Windy.Srpg.Game.Inventory.DamageType.Physical),
-                HybridScaling = HybridScaling,
+                BonusDamageFromStrength = BonusDamageFromStrength,
+                BonusDamageFromDefense = BonusDamageFromDefense,
                 Might = Might,
                 MinRange = MinRange,
                 MaxRange = MaxRange,

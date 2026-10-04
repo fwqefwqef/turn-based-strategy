@@ -2934,7 +2934,7 @@ namespace Windy.Srpg.Game.Abilities
             {
                 Damage = offensiveStat + data.AttackProfile.Might,
                 Accuracy = UnitReference.Speed * Unit.AccuracyPerSpeedPoint + data.AttackProfile.Accuracy,
-                Crit = UnitReference.Luck * 5 + data.AttackProfile.Crit,
+                Crit = UnitReference.GetCritForSkill(data.AttackProfile.Crit),
                 NumHits = Mathf.Max(1, data.AttackProfile.NumHits),
                 PursuitSpeed = UnitReference.Speed,
                 IsMagic = isMagic,
