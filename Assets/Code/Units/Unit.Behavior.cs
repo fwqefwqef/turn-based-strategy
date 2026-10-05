@@ -86,6 +86,7 @@ namespace Windy.Srpg.Game.Units
             actionAiMode = UnitActionAiMode.Attack;
             movementAiMode = UnitMovementAiMode.Move;
             waitGroupId = 0;
+            aiGoalTiles = new List<Vector2Int>();
             aiWaitTriggered = false;
         }
         private void NormalizeProgressionState(bool notifyListeners = false)
@@ -867,6 +868,7 @@ namespace Windy.Srpg.Game.Units
             actionAiMode = PresetOverrides.ResolveActionAiMode(preset.ActionAiMode);
             movementAiMode = PresetOverrides.ResolveMovementAiMode(preset.MovementAiMode);
             waitGroupId = PresetOverrides.ResolveWaitGroupId(preset.WaitGroupId);
+            aiGoalTiles = PresetOverrides.ResolveGoalTiles(preset.GoalTiles);
             aiWaitTriggered = false;
             UnitStatBlock stats = PresetOverrides.ResolveStats(preset.BaseStats);
             MovementPoints = Mathf.Max(0f, stats.MovementPoints);

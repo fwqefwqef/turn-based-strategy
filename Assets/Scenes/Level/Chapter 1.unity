@@ -54908,7 +54908,19 @@ MonoBehaviour:
     Kind: 2
   - Result: 1
     Kind: 1
-  shopRestockOnClear: []
+  shopRestockOnClear:
+  - ItemId: strength_candy
+    Quantity: 1
+  - ItemId: magic_candy
+    Quantity: 1
+  - ItemId: defense_candy
+    Quantity: 1
+  - ItemId: speed_candy
+    Quantity: 1
+  - ItemId: luck_candy
+    Quantity: 1
+  - ItemId: movement_candy
+    Quantity: 1
 --- !u!4 &1626443379
 Transform:
   m_ObjectHideFlags: 0

@@ -46,13 +46,15 @@ namespace Windy.Srpg.Game.AI
             {
                 yield return WaitForPresentationCompletion();
 
+                if (grid == null || grid.GameFinished) yield break;
+
                 if (unit == null || !unit.IsAliveForBattle || !unit.CanStartActionThisTurn) continue;
                 AiDecisionAction[] actions = unit.GetComponentsInChildren<AiDecisionAction>(true)
                     ?? Array.Empty<AiDecisionAction>();
 
                 foreach (AiDecisionAction action in actions)
                 {
-                    if (action == null || unit == null || !unit.IsAliveForBattle || unit.IsActionBlocked)
+                    if (action == null || unit == null || grid.GameFinished || !unit.IsAliveForBattle || unit.IsActionBlocked)
                     {
                         break;
                     }
@@ -72,6 +74,8 @@ namespace Windy.Srpg.Game.AI
                         {
                             yield return execution;
                         }
+
+                        if (grid.GameFinished) yield break;
                     }
 
                     if (action == null || unit == null)

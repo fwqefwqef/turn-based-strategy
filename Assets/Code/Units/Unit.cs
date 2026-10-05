@@ -122,6 +122,7 @@ namespace Windy.Srpg.Game.Units
         internal UnitMovementAiMode movementAiMode = UnitMovementAiMode.Move;
         [SerializeField]
         internal int waitGroupId;
+        internal List<Vector2Int> aiGoalTiles = new List<Vector2Int>();
         [NonSerialized]
         internal bool aiWaitTriggered;
         [SerializeField]
@@ -159,6 +160,7 @@ namespace Windy.Srpg.Game.Units
         public UnitActionAiMode ActionAiMode => actionAiMode;
         public UnitMovementAiMode MovementAiMode => movementAiMode;
         public int WaitGroupId => Mathf.Max(0, waitGroupId);
+        public IReadOnlyList<Vector2Int> AiGoalTiles => aiGoalTiles;
         public bool IsAiWaitTriggered => aiWaitTriggered;
         public virtual bool HasUsableWeapon => GetActiveWeapon() != null;
         public virtual bool IsMagic => GetActiveWeapon()?.DamageType == DamageType.Magic;

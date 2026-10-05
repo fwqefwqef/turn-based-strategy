@@ -35,6 +35,14 @@ namespace Windy.Srpg.Game.Grid
         {
         }
 
+        public virtual void ApplyGoalOverlay(Cell cell)
+        {
+        }
+
+        public virtual void ClearGoalOverlay(Cell cell)
+        {
+        }
+
         public virtual void ShowCursorBorder(Cell cell, Color color)
         {
         }

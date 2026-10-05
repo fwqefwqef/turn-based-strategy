@@ -371,6 +371,16 @@ namespace Windy.Srpg.Game.Grid
             }
         }
 
+        public virtual void SetGoalOverlay(bool visible)
+        {
+            CacheHighlightersIfNeeded();
+            foreach (var highlighter in highlighters)
+            {
+                if (visible) highlighter?.ApplyGoalOverlay(this);
+                else highlighter?.ClearGoalOverlay(this);
+            }
+        }
+
         public virtual void ShowCursorBorder(Color color)
         {
             ShowCursorBorder(true, true, true, true, color);

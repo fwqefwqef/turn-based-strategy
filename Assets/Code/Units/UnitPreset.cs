@@ -20,6 +20,8 @@ namespace Windy.Srpg.Game.Units
         public UnitMovementAiMode MovementAiMode = UnitMovementAiMode.Move;
         public bool OverrideWaitGroupId;
         [Min(0)] public int WaitGroupId;
+        public bool OverrideGoalTiles;
+        public List<Vector2Int> GoalTiles = new List<Vector2Int>();
         public List<StartingInventoryItem> AdditionalInventory = new List<StartingInventoryItem>();
         public List<StartingSkillEntry> AdditionalSkills = new List<StartingSkillEntry>();
         public List<StartingPassiveEntry> AdditionalPassives = new List<StartingPassiveEntry>();
@@ -51,6 +53,13 @@ namespace Windy.Srpg.Game.Units
         public int ResolveWaitGroupId(int inherited)
         {
             return Mathf.Max(0, Enabled && OverrideWaitGroupId ? WaitGroupId : inherited);
+        }
+
+        public List<Vector2Int> ResolveGoalTiles(IEnumerable<Vector2Int> inherited)
+        {
+            return new List<Vector2Int>(Enabled && OverrideGoalTiles
+                ? GoalTiles != null ? GoalTiles : Enumerable.Empty<Vector2Int>()
+                : inherited ?? Enumerable.Empty<Vector2Int>());
         }
 
         public List<StartingInventoryItem> ResolveInventory(IEnumerable<StartingInventoryItem> inherited)
@@ -102,7 +111,8 @@ namespace Windy.Srpg.Game.Units
         Move,
         Wait,
         WaitGroup,
-        NotMove
+        NotMove,
+        Goal
     }
 
     [Serializable]
@@ -166,6 +176,8 @@ namespace Windy.Srpg.Game.Units
         public UnitActionAiMode ActionAiMode = UnitActionAiMode.Attack;
         public UnitMovementAiMode MovementAiMode = UnitMovementAiMode.Move;
         public int WaitGroupId = 0;
+        [Tooltip("Grid coordinates to reach. Goal movement uses the nearest reachable goal; a multi-tile unit reaches a goal when any footprint tile touches it.")]
+        public List<Vector2Int> GoalTiles = new List<Vector2Int>();
         [Header("Overcharge")]
         [Tooltip("Allows this preset's character-specific Overcharge profile to be used. Disabled by default.")]
         public bool EnableOvercharge;

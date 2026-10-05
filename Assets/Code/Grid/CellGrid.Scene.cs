@@ -961,6 +961,7 @@ namespace Windy.Srpg.Game.Grid
 
             // Static terrain belongs to the loaded map, so expose it during deployment and tile hover.
             InitializeTerrainEffectsForBattle();
+            ChapterData.FindForGrid(this)?.RefreshGoalTileHighlights(this);
             SceneLevelLoadingDone?.Invoke(this, EventArgs.Empty);
         }
 
@@ -1001,7 +1002,10 @@ namespace Windy.Srpg.Game.Grid
                 }
             }
 
-            RunTurnStartPresentationsThenPlay(kickPlayerPlay);
+            if (!RequestBattleOutcomeEvaluation())
+            {
+                RunTurnStartPresentationsThenPlay(kickPlayerPlay);
+            }
         }
 
         internal void CommitTurnTransition(

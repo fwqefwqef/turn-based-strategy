@@ -359,10 +359,15 @@ namespace Windy.Srpg.Game.Editor
         private List<TileEntry> BuildTileEntries()
         {
             List<TileEntry> entries = new List<TileEntry>();
+            ChapterData chapterData = ChapterData.FindForGrid(FindSceneComponent<CellGrid>());
+            var goalTiles = new HashSet<Vector2Int>(chapterData?.GoalTileCoordinates ?? Array.Empty<Vector2Int>());
 
             foreach (Cell cell in FindSceneComponents<Cell>())
             {
-                entries.Add(new TileEntry(cell, BuildCellLabel(cell), cell.Coordinates, new Color(0.2f, 0.8f, 0.35f)));
+                bool isGoal = goalTiles.Contains(cell.Coordinates);
+                string label = BuildCellLabel(cell) + (isGoal ? " - Goal" : string.Empty);
+                Color color = isGoal ? new Color(0.05f, 0.18f, 0.55f) : new Color(0.2f, 0.8f, 0.35f);
+                entries.Add(new TileEntry(cell, label, cell.Coordinates, color));
             }
 
             foreach (DeploymentSlot deploymentSlot in FindSceneComponents<DeploymentSlot>())
@@ -529,6 +534,28 @@ namespace Windy.Srpg.Game.Editor
 
         private void OnSceneGui(SceneView sceneView)
         {
+            ChapterData chapterData = ChapterData.FindForGrid(FindSceneComponent<CellGrid>());
+            if (chapterData != null)
+            {
+                var goals = new HashSet<Vector2Int>(chapterData.GoalTileCoordinates);
+                Handles.zTest = CompareFunction.Always;
+                foreach (Cell cell in FindSceneComponents<Cell>())
+                {
+                    if (!goals.Contains(cell.Coordinates)) continue;
+                    Bounds bounds = ResolveBounds(cell.transform);
+                    Vector3 center = bounds.center;
+                    float halfWidth = Mathf.Max(bounds.size.x, 0.8f) * 0.5f;
+                    float halfHeight = Mathf.Max(bounds.size.y, 0.8f) * 0.5f;
+                    Handles.DrawSolidRectangleWithOutline(new[]
+                    {
+                        center + new Vector3(-halfWidth, -halfHeight),
+                        center + new Vector3(-halfWidth, halfHeight),
+                        center + new Vector3(halfWidth, halfHeight),
+                        center + new Vector3(halfWidth, -halfHeight)
+                    }, new Color(0.02f, 0.10f, 0.42f, 0.35f), new Color(0.05f, 0.18f, 0.55f));
+                }
+            }
+
             Component selectedComponent = GetSelectedComponent();
             if (selectedComponent == null)
             {

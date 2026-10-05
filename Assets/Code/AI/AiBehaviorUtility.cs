@@ -21,6 +21,7 @@ namespace Windy.Srpg.Game.AI
                 UnitMovementAiMode.NotMove => false,
                 UnitMovementAiMode.Wait => ShouldAllowTriggeredMovement(unit, player, grid, EnsureWaitTriggered),
                 UnitMovementAiMode.WaitGroup => ShouldAllowTriggeredMovement(unit, player, grid, EnsureWaitGroupTriggered),
+                UnitMovementAiMode.Goal => true,
                 _ => true
             };
         }
@@ -36,6 +37,7 @@ namespace Windy.Srpg.Game.AI
             {
                 UnitMovementAiMode.Wait => EnsureWaitTriggered(unit, player, grid),
                 UnitMovementAiMode.WaitGroup => EnsureWaitGroupTriggered(unit, player, grid),
+                UnitMovementAiMode.Goal => AiGoalPlanner.TryPlan(unit, grid, out _, out bool attack) && attack,
                 _ => true
             };
         }

@@ -12,7 +12,7 @@ namespace Windy.Srpg.Game.Campaign
 {
     public static class CampaignSaveFactory
     {
-        public const int CurrentSaveVersion = 14;
+        public const int CurrentSaveVersion = 15;
         public const int StartingGold = 1000;
 
         private static readonly string[] StartingUnitPresetIds =
@@ -271,7 +271,7 @@ namespace Windy.Srpg.Game.Campaign
             };
         }
 
-        private static CampaignSaveData EnsureSaveInitialized(CampaignSaveData save)
+        public static CampaignSaveData EnsureSaveInitialized(CampaignSaveData save)
         {
             save ??= new CampaignSaveData();
             save.ClearedChapterIds = CampaignProgressUtility.NormalizeClearedChapterIds(save.ClearedChapterIds);
@@ -308,6 +308,10 @@ namespace Windy.Srpg.Game.Campaign
             if (save.Version < 14)
             {
                 RestoreShopkeepPunish(save);
+            }
+            if (save.Version < 15)
+            {
+                BackfillCandyStockForClearedChapters(save, missingOnly: true);
             }
             save.Version = Mathf.Max(CurrentSaveVersion, save.Version);
             return save;
@@ -444,7 +448,7 @@ namespace Windy.Srpg.Game.Campaign
                 .ToArray();
         }
 
-        private static void BackfillCandyStockForClearedChapters(CampaignSaveData save)
+        private static void BackfillCandyStockForClearedChapters(CampaignSaveData save, bool missingOnly = false)
         {
             string[] candyItemIds =
             {
@@ -464,11 +468,14 @@ namespace Windy.Srpg.Game.Campaign
                 return;
             }
 
-            ShopStockUtility.AddStock(save, candyItemIds.Select(itemId => new ShopStockEntryData
-            {
-                ItemId = itemId,
-                Quantity = clearedRestockCount
-            }));
+            ShopStockUtility.AddStock(save, candyItemIds
+                .Where(itemId => !missingOnly || !(save.ShopStockItems ?? Array.Empty<ShopStockEntryData>())
+                    .Any(entry => entry != null && string.Equals(entry.ItemId, itemId, StringComparison.OrdinalIgnoreCase)))
+                .Select(itemId => new ShopStockEntryData
+                {
+                    ItemId = itemId,
+                    Quantity = clearedRestockCount
+                }));
         }
 
         private static void AddNewCharacterSkills(CampaignSaveData save)

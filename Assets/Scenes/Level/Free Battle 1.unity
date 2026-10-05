@@ -47853,6 +47853,31 @@ PrefabInstance:
       propertyPath: spriteLayoutBaselineLocalScale.y
       value: 0.3
       objectReference: {fileID: 0}
+    - target: {fileID: 5651469253626581252, guid: 0350d7a25ab544b4eaf7371ec7bb537d,
+        type: 3}
+      propertyPath: presetOverrides.AdditionalInventory.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5651469253626581252, guid: 0350d7a25ab544b4eaf7371ec7bb537d,
+        type: 3}
+      propertyPath: presetOverrides.AdditionalInventory.Array.data[0].ItemId
+      value: bullion_s
+      objectReference: {fileID: 0}
+    - target: {fileID: 5651469253626581252, guid: 0350d7a25ab544b4eaf7371ec7bb537d,
+        type: 3}
+      propertyPath: presetOverrides.AdditionalInventory.Array.data[0].IsDroppable
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5651469253626581252, guid: 0350d7a25ab544b4eaf7371ec7bb537d,
+        type: 3}
+      propertyPath: presetOverrides.AdditionalInventory.Array.data[0].InitialCharges
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5651469253626581252, guid: 0350d7a25ab544b4eaf7371ec7bb537d,
+        type: 3}
+      propertyPath: presetOverrides.AdditionalInventory.Array.data[0].ChargesInitialized
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8526240998520843396, guid: 0350d7a25ab544b4eaf7371ec7bb537d,
         type: 3}
       propertyPath: m_LocalPosition.x

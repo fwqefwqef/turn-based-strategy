@@ -123,6 +123,10 @@ namespace Windy.Srpg.Game.Editor
                 overrides.FindPropertyRelative("OverrideWaitGroupId"),
                 overrides.FindPropertyRelative("WaitGroupId"),
                 "Wait Group");
+            DrawOptionalOverride(
+                overrides.FindPropertyRelative("OverrideGoalTiles"),
+                overrides.FindPropertyRelative("GoalTiles"),
+                "Goal Tiles");
         }
 
         private static void DrawOptionalOverride(
@@ -134,7 +138,7 @@ namespace Windy.Srpg.Game.Editor
             EditorGUILayout.PropertyField(enabledProperty, GUIContent.none, GUILayout.Width(18f));
             using (new EditorGUI.DisabledScope(!enabledProperty.boolValue && !enabledProperty.hasMultipleDifferentValues))
             {
-                EditorGUILayout.PropertyField(valueProperty, new GUIContent(label));
+                EditorGUILayout.PropertyField(valueProperty, new GUIContent(label), true);
             }
             EditorGUILayout.EndHorizontal();
 
@@ -239,6 +243,12 @@ namespace Windy.Srpg.Game.Editor
             EditorGUILayout.LabelField("Str / Mag / Def / Spd / Lck", $"{stats.Strength} / {stats.Magic} / {stats.Defense} / {stats.Speed} / {stats.Luck}");
             EditorGUILayout.LabelField("AI Attack / Movement", $"{actionAiMode} / {movementAiMode}");
             EditorGUILayout.LabelField("Wait Group", waitGroupId.ToString());
+            if (movementAiMode == UnitMovementAiMode.Goal)
+            {
+                EditorGUILayout.LabelField("Goal Tiles", string.Join(", ", overrides.ResolveGoalTiles(preset.GoalTiles)));
+                if (overrides.ResolveGoalTiles(preset.GoalTiles).Count == 0)
+                    EditorGUILayout.HelpBox("Goal movement needs at least one goal tile coordinate on the preset or unit override.", MessageType.Warning);
+            }
             var inventory = overrides.ResolveInventory(preset.StartingInventory);
             EditorGUILayout.LabelField("Inventory", string.Join(", ", inventory.Select(i => i.ItemId)), EditorStyles.wordWrappedLabel);
             EditorGUILayout.LabelField("Skills", string.Join(", ", overrides.ResolveSkills(preset.StartingSkills).Select(i => i.SkillId)), EditorStyles.wordWrappedLabel);

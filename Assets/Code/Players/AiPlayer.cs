@@ -48,6 +48,7 @@ namespace Windy.Srpg.Game.Players
 
             foreach (Unit unit in orderedUnits)
             {
+                if (cellGrid.GameFinished) yield break;
                 if (unit == null)
                 {
                     continue;
@@ -60,6 +61,7 @@ namespace Windy.Srpg.Game.Players
                 AiDecisionAction[] actions = unit.GetComponentsInChildren<AiDecisionAction>();
                 foreach (AiDecisionAction action in actions)
                 {
+                    if (cellGrid.GameFinished) yield break;
                     if (action == null || unit == null)
                     {
                         break;
@@ -79,6 +81,7 @@ namespace Windy.Srpg.Game.Players
                     {
                         yield return null;
                         yield return action.ExecuteDecision(this, unit, cellGrid);
+                        if (cellGrid.GameFinished) yield break;
                     }
 
                     if (action == null || unit == null)

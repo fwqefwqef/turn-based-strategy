@@ -196,7 +196,7 @@
         "Id": "knife",
         "Name": "Knife",
         "Description": "A light melee weapon that strikes twice.",
-        "Value": 100,
+        "Value": 400,
         "WeaponType": "Melee",
         "DamageType": "Physical",
         "Might": 1,
@@ -290,7 +290,7 @@
         "Id": "iron_bow",
         "Name": "Iron Bow",
         "Description": "A bow that fires attacks at range.",
-        "Value": 100,
+        "Value": 250,
         "WeaponType": "Ranged",
         "DamageType": "Physical",
         "Might": 5,
@@ -342,19 +342,37 @@
       {
         "Id": "potion",
         "Name": "Potion",
-        "Description": "Restores 20 HP.",
+        "Description": "Restores 20 HP. 2 Charges.",
         "Value": 100,
-        "Charges": 3,
+        "Charges": 2,
         "EffectId": "heal_20",
         "TargetType": "Self"
       },
       {
         "Id": "super_potion",
         "Name": "Super Potion",
-        "Description": "Restores 50 HP.",
-        "Value": 100,
-        "Charges": 3,
+        "Description": "Restores 50 HP. 2 Charges.",
+        "Value": 250,
+        "Charges": 2,
         "EffectId": "heal_50",
+        "TargetType": "Self"
+      },
+      {
+        "Id": "mana_potion",
+        "Name": "Mana Potion",
+        "Description": "Restores 10 MP. 2 Charges.",
+        "Value": 100,
+        "Charges": 2,
+        "EffectId": "restore_mp_10",
+        "TargetType": "Self"
+      },
+      {
+        "Id": "super_mana_potion",
+        "Name": "Super Mana Potion",
+        "Description": "Restores 25 MP. 2 Charges.",
+        "Value": 250,
+        "Charges": 2,
+        "EffectId": "restore_mp_25",
         "TargetType": "Self"
       },
       {
@@ -362,7 +380,7 @@
         "Name": "Invuln. Potion",
         "Description": "Grants invulnerability, reducing all damage taken to 1 for one turn.",
         "Value": 100,
-        "Charges": 3,
+        "Charges": 1,
         "EffectId": "apply_invulnerable_buff",
         "TargetType": "Self"
       },
@@ -633,7 +651,7 @@
         "RequiredWeaponType": "Any",
         "EndsTurn": false,
         "OncePerTurn": false,
-        "MpCost": 1,
+        "MpCost": 3,
         "EffectId": "storm_surge",
         "AttackProfile": {
           "Enabled": false,
@@ -1054,7 +1072,7 @@
         "EndsTurn": true,
         "OncePerTurn": false,
         "SelfImmune": true,
-        "MpCost": 9,
+        "MpCost": 12,
         "EffectId": "burn_area_targets",
         "AttackProfile": {
           "Enabled": true,
@@ -1088,7 +1106,7 @@
         "RequiredWeaponType": "Melee",
         "EndsTurn": true,
         "OncePerTurn": false,
-        "MpCost": 1,
+        "MpCost": 3,
         "EffectId": "clang",
         "AttackProfile": {
           "Enabled": true,
@@ -1751,7 +1769,7 @@
       {
         "Id": "burn",
         "Name": "Burn",
-        "Description": "Takes Pain damage equal to floor((caster STR + MAG) / 2) before each own turn for up to 2 ticks. Cannot stack.",
+        "Description": "Takes 5 Pain damage before each own turn for up to 2 ticks. Cannot stack.",
         "Duration": 2,
         "Category": "Pain",
         "MaxStacks": 1,

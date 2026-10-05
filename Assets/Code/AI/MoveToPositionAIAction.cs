@@ -83,6 +83,12 @@ namespace Windy.Srpg.Game.AI.Actions
                 return false;
             }
 
+            if (unit.MovementAiMode == UnitMovementAiMode.Goal)
+            {
+                bool hasGoal = AiGoalPlanner.TryPlan(unit, cellGrid, out topDestination, out _);
+                return hasGoal && topDestination != null && topDestination != unit.Cell;
+            }
+
             var evaluators = GetComponents<CellEvaluator>();
             foreach (var evaluator in evaluators)
             {

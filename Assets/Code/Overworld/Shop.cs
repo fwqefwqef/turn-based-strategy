@@ -44,11 +44,13 @@ namespace Windy.Srpg.Game.Overworld
         [Header("Save")]
         public Button SaveButton;
 
-        [SerializeField]
-        private ShopCatalogEntry[] builtInCatalog =
+        // Code-authored starting stock; serializing this array lets a scene override later code edits.
+        private static readonly ShopCatalogEntry[] BuiltInCatalog =
         {
             new ShopCatalogEntry { itemId = "potion", quantity = -1 },
+            new ShopCatalogEntry { itemId = "super_potion", quantity = 1 },
             new ShopCatalogEntry { itemId = "knife", quantity = 1 },
+            new ShopCatalogEntry { itemId = "iron_bow", quantity = 3 },
         };
 
         private static readonly HashSet<string> RetiredCatalogItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -114,9 +116,16 @@ namespace Windy.Srpg.Game.Overworld
                 hasUnsavedChanges = true;
             }
 
+            int loadedVersion = workingSave.Version;
+            workingSave = CampaignSaveFactory.EnsureSaveInitialized(workingSave);
+            if (workingSave.Version != loadedVersion)
+            {
+                hasUnsavedChanges = true;
+            }
+
             if (!workingSave.ShopStockInitialized)
             {
-                ShopStockUtility.AddStock(workingSave, (builtInCatalog ?? Array.Empty<ShopCatalogEntry>())
+                ShopStockUtility.AddStock(workingSave, BuiltInCatalog
                     .Where(entry => entry != null)
                     .Select(entry => new ShopStockEntryData { ItemId = entry.itemId, Quantity = entry.quantity }));
                 workingSave.ShopStockInitialized = true;
@@ -137,7 +146,7 @@ namespace Windy.Srpg.Game.Overworld
                 .Where(entry => entry != null && !RetiredCatalogItemIds.Contains(entry.ItemId))
                 .ToArray();
 
-            foreach (ShopCatalogEntry catalogEntry in builtInCatalog ?? Array.Empty<ShopCatalogEntry>())
+            foreach (ShopCatalogEntry catalogEntry in BuiltInCatalog)
             {
                 if (catalogEntry == null || string.IsNullOrWhiteSpace(catalogEntry.itemId))
                 {

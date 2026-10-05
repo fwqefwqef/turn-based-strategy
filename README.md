@@ -20,6 +20,7 @@ The campaign starts with Protagonist, Thunder, Flame, and Darkness, plus 1,000 g
 - **Battle maps:** Rectangular multi-tile units occupy a full footprint for movement and targeting. An area effect applies once per unit even when it covers several occupied tiles. Maps can contain reinforcements; chapter data controls battle conditions, enemy order, fog, and clear rewards.
 - **Enemy turns:** AI selects actions and paths according to its attack and movement behavior. Enemies can be assigned an explicit turn order by unit ID, and groups can wait for coordinated attacks.
 - **Campaign:** The overworld tracks chapter unlocks and clears, roster progress, gold, inventory, and shop stock. Some chapters can be replayed; this is configured per chapter.
+- **Audio:** Chapter Data optionally specifies a BGM intro and loop. The intro plays once, then the loop repeats; if no intro is assigned, the loop starts immediately. A persistent sound manager also provides overlapping, cue-based SFX playback for future combat sounds.
 
 ## How the project is organized
 
@@ -33,6 +34,7 @@ Battle state is represented by Unity scene objects. `CellGrid` owns the turn loo
 | `Assets/Code/Passives` and `Assets/Code/Buffs` | Passive hooks and timed status effects |
 | `Assets/Code/Players` and `Assets/Code/AI` | Human and enemy turns and AI decisions |
 | `Assets/Code/Campaign`, `Assets/Code/Chapters`, and `Assets/Code/Overworld` | Saves, chapter rules, progression, and shop |
+| `Assets/Code/Audio` | Chapter music playback and reusable SFX cues |
 | `Assets/Code/UI` and `Assets/Code/WorldUI` | Menus, previews, inspection, tile information, and world-space bars |
 | `Assets/Code/Editor` | Unity tools for maps, chapters, units, and saves |
 
@@ -43,6 +45,8 @@ Board input flows through `GameplayInputController` into `CellGrid` states. Move
 Most gameplay definitions live in `Assets/Data/gdata.json`: items, skills, passives, buffs, and terrain effects. Friendly and enemy unit presets and tile presets live in `Assets/Data/Preset Data (Unit, Tile)`. Chapter scenes carry a `ChapterData` component for their name, unlock and replay rules, battle conditions, enemy order, Black Fog settings, and shop restocks. Display text is kept in `Assets/Data/game_text.csv`.
 
 Character effects are implemented in `SkillEffects.cs`, `PassiveEffects.cs`, and `BuffEffects.cs` under their respective code folders. The catalog provides the definition and effect ID; the effect class provides behavior that needs code. Keep short effect logic inline and locally readable.
+
+To add chapter music, assign **Bgm Intro** (optional) and **Bgm Loop** in that scene's Chapter Data. The sound manager is created automatically at runtime and stops chapter music when leaving the scene. For SFX, create a **TBS > Audio > Sound Library** asset at `Assets/Resources/SoundLibrary.asset` and assign clips to its cues; gameplay code can call `SoundManager.Instance.PlaySfx(SoundCue.Attack)` (or pass an `AudioClip` directly). No SFX calls are wired to combat yet.
 
 Saves are JSON files under Unity's `Application.persistentDataPath`. Scenes under `Assets/Scenes/Level` use the campaign save; `PaintedMap` and other non-level scenes use a separate debug save. The Save Editor defaults to the debug slot, so select **Campaign** there when editing campaign progress.
 

@@ -19,7 +19,8 @@ namespace Windy.Srpg.Game.Chapters
     {
         DefeatAllEnemies,
         LoseAllAllies,
-        DefeatTheBoss
+        DefeatTheBoss,
+        UnitReachesGoal
     }
 
     public enum BlackFogDirection
@@ -37,6 +38,10 @@ namespace Windy.Srpg.Game.Chapters
 
         public ChapterBattleConditionResult Result;
         public ChapterBattleConditionKind Kind;
+        [Tooltip("Stable scene Unit IDs. Any listed living unit may trigger this goal condition.")]
+        public List<string> GoalUnitIds = new List<string>();
+        [Tooltip("Grid coordinates. Any listed tile may trigger this goal condition.")]
+        public List<Vector2Int> GoalTiles = new List<Vector2Int>();
 
         public ChapterBattleCondition()
         {
@@ -64,8 +69,23 @@ namespace Windy.Srpg.Game.Chapters
                 ChapterBattleConditionKind.DefeatAllEnemies => aliveAllies > 0 && aliveEnemies == 0,
                 ChapterBattleConditionKind.DefeatTheBoss => aliveAllies > 0 && grid.EnemyBossDefeated,
                 ChapterBattleConditionKind.LoseAllAllies => aliveAllies == 0,
+                ChapterBattleConditionKind.UnitReachesGoal => IsGoalReached(grid, aliveUnits),
                 _ => false
             };
+        }
+
+        private bool IsGoalReached(CellGrid grid, List<Unit> aliveUnits)
+        {
+            if (GoalUnitIds == null || GoalTiles == null || GoalUnitIds.Count == 0 || GoalTiles.Count == 0)
+            {
+                return false;
+            }
+
+            var ids = new HashSet<string>(GoalUnitIds.Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim()), StringComparer.OrdinalIgnoreCase);
+            var tiles = new HashSet<Vector2Int>(GoalTiles);
+            return aliveUnits.Any(unit => ids.Contains(unit.UnitId ?? string.Empty)
+                && unit.GetFootprintCells(unit.Cell, grid).Any(cell => cell != null && tiles.Contains(cell.Coordinates)));
         }
 
         public BattleOutcome BuildOutcome(CellGrid grid)
@@ -125,6 +145,11 @@ namespace Windy.Srpg.Game.Chapters
         [SerializeField] private bool replayable = true;
         [SerializeField] private float unlockRequiredChapterId;
         [SerializeField] private int averageEnemyLevel = 1;
+        [Header("Music")]
+        [SerializeField, Tooltip("Played once before the loop. Leave empty to start with the loop immediately.")]
+        private AudioClip bgmIntro;
+        [SerializeField, Tooltip("Starts after the intro and repeats until the chapter scene changes.")]
+        private AudioClip bgmLoop;
         [Header("Black Fog")]
         [SerializeField] private int blackFogTurn = 6;
         [SerializeField] private BlackFogDirection blackFogDirection = BlackFogDirection.Left;
@@ -143,6 +168,8 @@ namespace Windy.Srpg.Game.Chapters
         public bool Replayable => replayable;
         public float UnlockRequiredChapterId => Mathf.Max(0f, unlockRequiredChapterId);
         public int AverageEnemyLevel => Mathf.Max(1, averageEnemyLevel);
+        public AudioClip BgmIntro => bgmIntro;
+        public AudioClip BgmLoop => bgmLoop;
         public int BlackFogTurn => Mathf.Max(1, blackFogTurn);
         public BlackFogDirection BlackFogDirection => blackFogDirection;
         public int BlackFogExpansionDistance => Mathf.Max(1, blackFogExpansionDistance);
@@ -150,6 +177,21 @@ namespace Windy.Srpg.Game.Chapters
         public IReadOnlyList<string> EnemyTurnOrderUnitIds => enemyTurnOrderUnitIds ??= new List<string>();
         public IReadOnlyList<ChapterBattleCondition> BattleConditions => GetEffectiveBattleConditions();
         public IReadOnlyList<ShopStockEntryData> ShopRestockOnClear => shopRestockOnClear ??= new List<ShopStockEntryData>();
+        public IReadOnlyCollection<Vector2Int> GoalTileCoordinates => GetEffectiveBattleConditions()
+            .Where(condition => condition != null && condition.Kind == ChapterBattleConditionKind.UnitReachesGoal)
+            .SelectMany(condition => condition.GoalTiles ?? Enumerable.Empty<Vector2Int>())
+            .Distinct()
+            .ToList();
+
+        public void RefreshGoalTileHighlights(CellGrid grid)
+        {
+            if (grid == null) return;
+            var goals = new HashSet<Vector2Int>(GoalTileCoordinates);
+            foreach (Cell cell in grid.GetAllCells())
+            {
+                if (cell != null) cell.SetGoalOverlay(goals.Contains(cell.Coordinates));
+            }
+        }
 
         public IReadOnlyList<Unit> OrderEnemyUnits(IEnumerable<Unit> units)
         {

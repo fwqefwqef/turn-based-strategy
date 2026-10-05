@@ -4,12 +4,18 @@
 
 # Vertical Slice: Design Chapters 1 and 2
 
-Chapter 1: A normal map.
-Wincondition: defeat the boss. Lose condition: All allies are defeated.
-
 Chapter 2: A boss map with the juggernaut.
-Wincondition: beat the juggernaut. Lose condition: Juggernaut defeats all allies / Juggernaut reaches the goal tile. Top -> Down.
+
+Level 7 Average levels
+
+Wincondition: beat the juggernaut. Lose condition: Juggernaut defeats all allies / Juggernaut reaches the finish tile. Top -> Down. There are 3 finish tiles placed horizontally
 2 Spawners, enemies spawn from top of the map.
+
+Juggernaut moves 2 tiles per action and if its movement is interrupted, it fires a 4-tile radius aoe around itself, targeting all units. Dealing heavy damage. 
+
+Horses spawn from the top and rush towards the finish tile.
+
+Slashers on the map apply bleed. Generals are tanky and hard to take down. Mages deal a lot of damage. They stand at the sidelines to disrupt the player from attacking the juggernaut.
 
 # Sprites
 Make Sprites for enemies, and characters
