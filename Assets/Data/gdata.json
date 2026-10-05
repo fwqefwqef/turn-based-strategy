@@ -649,7 +649,7 @@
         "Category": "Spell",
         "TargetingType": "Self",
         "RequiredWeaponType": "Any",
-        "EndsTurn": false,
+        "EndsTurn": true,
         "OncePerTurn": false,
         "MpCost": 3,
         "EffectId": "storm_surge",
@@ -868,8 +868,8 @@
           "Enabled": true,
           "IsMagic": false,
           "HybridScaling": false,
-          "Might": 0,
-          "Accuracy": 0,
+          "Might": 3,
+          "Accuracy": 10,
           "Crit": 0,
           "MinRange": 0,
           "MaxRange": 0,
@@ -944,13 +944,46 @@
           "Enabled": true,
           "IsMagic": false,
           "HybridScaling": false,
-          "Might": 0,
-          "Accuracy": 0,
+          "Might": 3,
+          "Accuracy": 10,
           "Crit": 0,
           "MinRange": 0,
           "MaxRange": 0,
           "NumHits": 1,
           "PreventsCounterattack": false
+        }
+      },
+      {
+        "Id": "explosion",
+        "Name": "Explosion",
+        "Description": "Blast every other unit within four tiles of the caster's footprint center.",
+        "Category": "AreaSpell",
+        "TargetingType": "AreaCell",
+        "RequiredWeaponType": "Any",
+        "EndsTurn": true,
+        "OncePerTurn": false,
+        "SelfImmune": true,
+        "MpCost": 20,
+        "AttackProfile": {
+          "Enabled": true,
+          "IsMagic": false,
+          "Might": 15,
+          "Accuracy": 100,
+          "Crit": 0,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "NumHits": 1,
+          "PreventsCounterattack": true
+        },
+        "AreaProfile": {
+          "Enabled": true,
+          "Shape": "Centered",
+          "CenterOnCasterFootprint": true,
+          "MinRange": 0,
+          "MaxRange": 0,
+          "Radius": 4,
+          "AffectsAllies": true,
+          "AffectsEnemies": true
         }
       },
       {
@@ -1712,6 +1745,13 @@
         "Description": "Ignore terrain movement costs and traverse untraversable terrain.",
         "Cost": 0,
         "EffectId": "flight"
+      },
+      {
+        "Id": "juggernaut",
+        "Name": "Juggernaut",
+        "Description": "Immune to crowd-control (CC) debuffs.",
+        "Cost": 0,
+        "EffectId": "juggernaut"
       },
       {
         "Id": "deep_breath",

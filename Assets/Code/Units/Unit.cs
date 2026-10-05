@@ -125,6 +125,8 @@ namespace Windy.Srpg.Game.Units
         internal List<Vector2Int> aiGoalTiles = new List<Vector2Int>();
         [NonSerialized]
         internal bool aiWaitTriggered;
+        [NonSerialized]
+        internal bool aiGoalReached;
         [SerializeField]
         internal int baseStrength;
         [SerializeField]
@@ -1107,7 +1109,6 @@ namespace Windy.Srpg.Game.Units
             brain.AddComponent<AttackAIAction>();
 
             brain.AddComponent<DamageCellEvaluator>();
-            brain.AddComponent<DamageUnitEvaluator>();
         }
 
         #endregion
@@ -1129,8 +1130,11 @@ namespace Windy.Srpg.Game.Units
         [SerializeField]
         internal bool participatesInDeploymentRoster = true;
 
-        [SerializeField]
+        [SerializeField, HideInInspector]
         internal bool includeInOwnedUnitSave = true;
+
+        [SerializeField, Tooltip("If this friendly unit survives a chapter victory, add it to the campaign's owned units.")]
+        internal bool recruitOnChapterClear;
 
         public bool ExcludedFromBattle
         {
@@ -1148,6 +1152,12 @@ namespace Windy.Srpg.Game.Units
         {
             get => includeInOwnedUnitSave;
             set => includeInOwnedUnitSave = value;
+        }
+
+        public bool RecruitOnChapterClear
+        {
+            get => recruitOnChapterClear;
+            set => recruitOnChapterClear = value;
         }
 
         [SerializeField, HideInInspector]

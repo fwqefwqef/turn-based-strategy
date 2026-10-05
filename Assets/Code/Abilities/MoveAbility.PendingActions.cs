@@ -802,6 +802,13 @@ namespace Windy.Srpg.Game.Abilities
                 return results;
             }
 
+            if (skill.Data.AreaProfile.CenterOnCasterFootprint)
+            {
+                Cell center = SkillRangeUtility.GetCasterFootprintCenter(UnitReference, actingCell, cellGrid);
+                if (center != null) results.Add(center);
+                return results;
+            }
+
             if (maxRange == 0)
             {
                 results.Add(actingCell);

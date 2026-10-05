@@ -14,6 +14,17 @@ namespace Windy.Srpg.Game.AI
     {
         private const float Epsilon = 0.001f;
 
+        internal static bool HasReachedGoal(Unit unit, CellGrid grid)
+        {
+            if (unit?.aiGoalReached == true) return true;
+            if (unit?.Cell == null || grid == null || unit.AiGoalTiles == null || unit.AiGoalTiles.Count == 0)
+                return false;
+
+            unit.aiGoalReached = unit.GetFootprintCells(unit.Cell, grid)
+                .Any(cell => cell != null && unit.AiGoalTiles.Contains(cell.Coordinates));
+            return unit.aiGoalReached;
+        }
+
         internal static bool TryPlan(Unit unit, CellGrid grid, out Cell destination, out bool attack)
         {
             destination = unit?.Cell;
@@ -22,6 +33,8 @@ namespace Windy.Srpg.Game.AI
             {
                 return false;
             }
+
+            if (HasReachedGoal(unit, grid)) return false;
 
             List<Cell> cells = grid.GetAllCells();
             var goalCoordinates = new HashSet<Vector2Int>(unit.AiGoalTiles);

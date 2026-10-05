@@ -83,7 +83,8 @@ namespace Windy.Srpg.Game.AI.Actions
                 return false;
             }
 
-            if (unit.MovementAiMode == UnitMovementAiMode.Goal)
+            if (unit.MovementAiMode == UnitMovementAiMode.Goal
+                && !AiGoalPlanner.HasReachedGoal(unit, cellGrid))
             {
                 bool hasGoal = AiGoalPlanner.TryPlan(unit, cellGrid, out topDestination, out _);
                 return hasGoal && topDestination != null && topDestination != unit.Cell;

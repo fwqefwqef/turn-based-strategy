@@ -1,5 +1,7 @@
 using System;
 using UnityEngine;
+using Windy.Srpg.Game.Grid;
+using Windy.Srpg.Game.Units;
 
 namespace Windy.Srpg.Game.Skills
 {
@@ -56,6 +58,7 @@ namespace Windy.Srpg.Game.Skills
     {
         public bool Enabled;
         public SkillAreaShape Shape;
+        public bool CenterOnCasterFootprint;
         public int MinRange;
         public int MaxRange;
         public int Radius;
@@ -125,6 +128,13 @@ namespace Windy.Srpg.Game.Skills
     public static class SkillRangeUtility
     {
         public const int InfiniteRangeThreshold = 11;
+
+        public static Cell GetCasterFootprintCenter(Unit user, Cell anchor, CellGrid grid)
+        {
+            if (user == null || anchor == null || grid == null) return null;
+            Vector2Int offset = new Vector2Int((user.FootprintWidth - 1) / 2, (user.FootprintHeight - 1) / 2);
+            return grid.FindCellByCoordinates(anchor.Coordinates + offset);
+        }
 
         public static void ApplyCombatArtRangeModifiers(
             int weaponMinRange,

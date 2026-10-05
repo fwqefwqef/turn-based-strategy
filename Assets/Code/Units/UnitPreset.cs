@@ -103,7 +103,9 @@ namespace Windy.Srpg.Game.Units
     public enum UnitActionAiMode
     {
         Attack,
-        Heal
+        Heal,
+        ExplodeWhenGoalObstructed,
+        NotAttack
     }
 
     public enum UnitMovementAiMode

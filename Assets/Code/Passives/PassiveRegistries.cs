@@ -42,6 +42,10 @@ namespace Windy.Srpg.Game.Passives
     {
     }
 
+    public interface IP_CrowdControlImmunity
+    {
+    }
+
     public interface IP_SpellMaxRangeModifier
     {
         int GetSpellMaxRangeModifier(Unit unit, SkillData skill);

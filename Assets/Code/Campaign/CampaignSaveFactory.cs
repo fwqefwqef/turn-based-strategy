@@ -69,6 +69,11 @@ namespace Windy.Srpg.Game.Campaign
                 }
             }
 
+            foreach (string lostUnitId in existingSave?.PermanentlyLostUnitIds ?? Array.Empty<string>())
+            {
+                if (!string.IsNullOrWhiteSpace(lostUnitId)) existingUnitIds.Add(lostUnitId.Trim());
+            }
+
             OwnedUnitSaveData[] starterUnits = presets
                 .Where(preset => !string.IsNullOrWhiteSpace(preset.PresetId)
                     && !existingUnitIds.Contains(preset.PresetId.Trim()))
@@ -96,6 +101,8 @@ namespace Windy.Srpg.Game.Campaign
             CampaignSaveData baseSave = EnsureSaveInitialized(existingSave ?? new CampaignSaveData());
             List<OwnedUnitSaveData> savedUnits = new List<OwnedUnitSaveData>();
             Dictionary<string, int> indexByUnitId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> lostUnitIds = new HashSet<string>(
+                baseSave.PermanentlyLostUnitIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 
             foreach (OwnedUnitSaveData existingUnit in baseSave.OwnedUnits ?? Array.Empty<OwnedUnitSaveData>())
             {
@@ -121,11 +128,13 @@ namespace Windy.Srpg.Game.Campaign
                 if (indexByUnitId.TryGetValue(unitId, out int existingIndex))
                 {
                     savedUnits[existingIndex] = clonedUnit;
+                    lostUnitIds.Remove(unitId);
                     continue;
                 }
 
                 indexByUnitId[unitId] = savedUnits.Count;
                 savedUnits.Add(clonedUnit);
+                lostUnitIds.Remove(unitId);
             }
 
             return new CampaignSaveData
@@ -137,7 +146,8 @@ namespace Windy.Srpg.Game.Campaign
                 ShopStockInitialized = baseSave.ShopStockInitialized,
                 ShopStockItems = ShopStockUtility.CloneAndMerge(baseSave.ShopStockItems),
                 DeploymentRosterUnitIds = NormalizeRoster(deploymentRosterUnitIds ?? baseSave.DeploymentRosterUnitIds),
-                OwnedUnits = savedUnits.ToArray()
+                OwnedUnits = savedUnits.ToArray(),
+                PermanentlyLostUnitIds = lostUnitIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToArray()
             };
         }
 
@@ -274,6 +284,12 @@ namespace Windy.Srpg.Game.Campaign
         public static CampaignSaveData EnsureSaveInitialized(CampaignSaveData save)
         {
             save ??= new CampaignSaveData();
+            save.PermanentlyLostUnitIds = (save.PermanentlyLostUnitIds ?? Array.Empty<string>())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
             save.ClearedChapterIds = CampaignProgressUtility.NormalizeClearedChapterIds(save.ClearedChapterIds);
             save.ShopStockItems = ShopStockUtility.CloneAndMerge(save.ShopStockItems);
             NormalizeClassPassives(save);

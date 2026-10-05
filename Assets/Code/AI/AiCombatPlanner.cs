@@ -195,6 +195,11 @@ namespace Windy.Srpg.Game.AI
                 .ToList();
 
             List<AiCombatPlan> options = new List<AiCombatPlan>();
+            if (actionMode == UnitActionAiMode.NotAttack)
+            {
+                return options;
+            }
+
             if (enemyUnits.Count == 0 && actionMode != UnitActionAiMode.Heal)
             {
                 return options;
@@ -211,6 +216,24 @@ namespace Windy.Srpg.Game.AI
                 {
                     return options;
                 }
+            }
+
+            if (actionMode == UnitActionAiMode.ExplodeWhenGoalObstructed)
+            {
+                // Explode only when the blockade actually stopped movement short; a unit
+                // that spent all of its movement this turn was not interrupted.
+                if (actor.MovementPoints >= 1f
+                    && !AiGoalPlanner.HasReachedGoal(actor, grid)
+                    && AiGoalPlanner.TryPlan(actor, grid, out _, out bool obstructed)
+                    && obstructed)
+                {
+                    foreach (Skill skill in actor.SkillList?.Entries ?? Array.Empty<Skill>())
+                    {
+                        if (skill?.Data?.Id == "explosion" && actor.CanUseSkill(skill))
+                            AddAreaSkillPlans(actor, actingCell, grid, skill, enemyUnits, options);
+                    }
+                }
+                return options;
             }
 
             AddWeaponAttackPlans(actor, actingCell, grid, enemyUnits, options);
@@ -328,7 +351,7 @@ namespace Windy.Srpg.Game.AI
 
         private static void AddAreaSkillPlans(Unit actor, Cell actingCell, CellGrid grid, Skill skill, IReadOnlyList<Unit> enemies, ICollection<AiCombatPlan> options)
         {
-            foreach (Cell centerCell in GetAreaSkillCandidateCenters(skill, actingCell, grid))
+            foreach (Cell centerCell in GetAreaSkillCandidateCenters(actor, skill, actingCell, grid))
             {
                 List<Unit> affectedTargets = GetAreaSkillTargets(actor, skill, centerCell, actingCell, grid);
                 List<Unit> affectedEnemies = affectedTargets
@@ -373,7 +396,7 @@ namespace Windy.Srpg.Game.AI
 
         private static void AddAreaHealingPlans(Unit actor, Cell actingCell, CellGrid grid, Skill skill, IReadOnlyList<Unit> allies, ICollection<AiCombatPlan> options)
         {
-            foreach (Cell centerCell in GetAreaSkillCandidateCenters(skill, actingCell, grid))
+            foreach (Cell centerCell in GetAreaSkillCandidateCenters(actor, skill, actingCell, grid))
             {
                 List<Unit> affectedTargets = GetAreaSkillTargets(actor, skill, centerCell, actingCell, grid);
                 List<Unit> affectedAllies = affectedTargets
@@ -855,7 +878,7 @@ namespace Windy.Srpg.Game.AI
             return canUse && totalHealingAmount > 0;
         }
 
-        private static List<Cell> GetAreaSkillCandidateCenters(Skill skill, Cell actingCell, CellGrid grid)
+        private static List<Cell> GetAreaSkillCandidateCenters(Unit actor, Skill skill, Cell actingCell, CellGrid grid)
         {
             List<Cell> allCells = grid?.GetAllCells() ?? new List<Cell>();
             if (skill?.Data == null || actingCell == null || allCells.Count == 0)
@@ -864,6 +887,11 @@ namespace Windy.Srpg.Game.AI
             }
 
             SkillData data = skill.Data;
+            if (data.AreaProfile.CenterOnCasterFootprint)
+            {
+                Cell center = SkillRangeUtility.GetCasterFootprintCenter(actor, actingCell, grid);
+                return center != null ? new List<Cell> { center } : new List<Cell>();
+            }
             int minRange = Mathf.Max(0, data.AreaProfile.MinRange);
             int maxRange = ResolveAreaSkillMaxRange(data, actingCell, grid);
 

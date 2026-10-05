@@ -142,6 +142,11 @@ namespace Windy.Srpg.Game.Buffs
                 return null;
             }
 
+            if (data.Category == BuffCategory.CC && owner.PassiveList?.IsImmuneToCrowdControl == true)
+            {
+                return null;
+            }
+
             data.MaxStacks = Mathf.Max(1, data.MaxStacks);
             BuffRegistry.Register(data);
 

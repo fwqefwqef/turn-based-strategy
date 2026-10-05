@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 using Windy.Srpg.Game.Grid;
 using Windy.Srpg.Game.Units;
 using Windy.Srpg.Game.Campaign;
@@ -38,8 +39,9 @@ namespace Windy.Srpg.Game.Chapters
 
         public ChapterBattleConditionResult Result;
         public ChapterBattleConditionKind Kind;
-        [Tooltip("Stable scene Unit IDs. Any listed living unit may trigger this goal condition.")]
-        public List<string> GoalUnitIds = new List<string>();
+        [FormerlySerializedAs("GoalUnitIds")]
+        [Tooltip("Unit preset IDs (for example, horse). Any living unit using a listed preset may trigger this goal condition.")]
+        public List<string> GoalPresetIds = new List<string>();
         [Tooltip("Grid coordinates. Any listed tile may trigger this goal condition.")]
         public List<Vector2Int> GoalTiles = new List<Vector2Int>();
 
@@ -76,15 +78,15 @@ namespace Windy.Srpg.Game.Chapters
 
         private bool IsGoalReached(CellGrid grid, List<Unit> aliveUnits)
         {
-            if (GoalUnitIds == null || GoalTiles == null || GoalUnitIds.Count == 0 || GoalTiles.Count == 0)
+            if (GoalPresetIds == null || GoalTiles == null || GoalPresetIds.Count == 0 || GoalTiles.Count == 0)
             {
                 return false;
             }
 
-            var ids = new HashSet<string>(GoalUnitIds.Where(id => !string.IsNullOrWhiteSpace(id))
+            var ids = new HashSet<string>(GoalPresetIds.Where(id => !string.IsNullOrWhiteSpace(id))
                 .Select(id => id.Trim()), StringComparer.OrdinalIgnoreCase);
             var tiles = new HashSet<Vector2Int>(GoalTiles);
-            return aliveUnits.Any(unit => ids.Contains(unit.UnitId ?? string.Empty)
+            return aliveUnits.Any(unit => ids.Contains(unit.AssignedPreset?.PresetId ?? string.Empty)
                 && unit.GetFootprintCells(unit.Cell, grid).Any(cell => cell != null && tiles.Contains(cell.Coordinates)));
         }
 

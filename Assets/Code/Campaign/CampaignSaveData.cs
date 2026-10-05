@@ -12,6 +12,7 @@ namespace Windy.Srpg.Game.Campaign
         public int Gold = CampaignSaveFactory.StartingGold;
         public float[] ClearedChapterIds = Array.Empty<float>();
         public OwnedUnitSaveData[] OwnedUnits = Array.Empty<OwnedUnitSaveData>();
+        public string[] PermanentlyLostUnitIds = Array.Empty<string>();
         public string[] DeploymentRosterUnitIds = Array.Empty<string>();
         public SavedInventoryEntryData[] StorageItems = Array.Empty<SavedInventoryEntryData>();
         public bool ShopStockInitialized;

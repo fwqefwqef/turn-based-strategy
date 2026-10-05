@@ -23,7 +23,6 @@ Each AI-controlled unit has child components called `AiDecisionAction`s. The def
 - `MoveToPositionAIAction`
 - `AttackAIAction`
 - `DamageCellEvaluator`
-- `DamageUnitEvaluator`
 
 The current default flow is:
 
@@ -607,15 +606,14 @@ When debug mode is on:
 
 ## Current Dormant/Legacy Hooks
 
-`DamageUnitEvaluator` still exists and is still added by `Unit.Reset()`, but the current default `AttackAIAction` does not use `UnitEvaluator` components. Target/action choice goes through `AiCombatPlanner`.
+Target/action choice goes through `AiCombatPlanner`; there are no unit-scoring evaluator components.
 
 `DamageCellEvaluator` is active because `MoveToPositionAIAction` asks for `CellEvaluator` components.
 
 If you want custom target selection outside the planner, you would either:
 
 - modify `AiCombatPlanner`,
-- write a new `AiDecisionAction`,
-- or revive/use `UnitEvaluator` in a custom action.
+- or write a new `AiDecisionAction`.
 
 ## Where To Change Behavior
 

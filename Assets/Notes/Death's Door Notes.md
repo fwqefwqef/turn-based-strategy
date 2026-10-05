@@ -42,7 +42,7 @@ Bastion needs at least 9 healing to reach 1 HP and leave Death's Door.
 
 ## Penalty
 
-Death's Door caps movement at 1 while active. It does not lower Strength, Magic, Defense, Speed, or Luck, and repeated entries do not accumulate a separate penalty.
+Death's Door caps movement at 1 while active. It does not lower Strength, Magic, Defense, Speed, or Luck, and repeated entries do not accumulate a separate penalty. Healing out of Death's Door restores the withheld movement immediately: the unit gets its full movement minus whatever it already spent this turn.
 
 ## Suggested Implementation Shape
 

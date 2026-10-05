@@ -273,6 +273,9 @@ namespace Windy.Srpg.Game.Passives
         public bool CanTraverseUntraversableTerrain => Entries.Any(entry =>
             entry?.EffectInstance is IP_TraverseUntraversableTerrain);
 
+        public bool IsImmuneToCrowdControl => Entries.Any(entry =>
+            entry?.EffectInstance is IP_CrowdControlImmunity);
+
         public int GetSpellMaxRangeModifier(SkillData skill)
         {
             if (skill == null) return 0;

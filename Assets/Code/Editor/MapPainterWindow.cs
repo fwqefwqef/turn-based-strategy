@@ -1055,6 +1055,7 @@ namespace Windy.Srpg.Game.Editor
             unit.ExcludedFromBattle = false;
             unit.ParticipatesInDeploymentRoster = participatesInDeploymentRoster;
             unit.IncludeInOwnedUnitSave = includeInOwnedUnitSave;
+            unit.RecruitOnChapterClear = false;
 
             UnitPresetField?.SetValue(unit, preset);
 

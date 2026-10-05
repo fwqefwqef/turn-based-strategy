@@ -40,6 +40,7 @@ namespace Windy.Srpg.Game.Passives
             PassiveEffectRegistry.Register("nurse_compassion", () => new NurseCompassionEffect());
             PassiveEffectRegistry.Register("apotheosis", () => new ApotheosisEffect());
             PassiveEffectRegistry.Register("flight", () => new FlightEffect());
+            PassiveEffectRegistry.Register("juggernaut", () => new JuggernautEffect());
             isRegistered = true;
         }
 
@@ -125,6 +126,10 @@ namespace Windy.Srpg.Game.Passives
         }
 
         private sealed class FlightEffect : PassiveEffectBase, IP_IgnoreTerrainMovementCost, IP_TraverseUntraversableTerrain
+        {
+        }
+
+        private sealed class JuggernautEffect : PassiveEffectBase, IP_CrowdControlImmunity
         {
         }
 

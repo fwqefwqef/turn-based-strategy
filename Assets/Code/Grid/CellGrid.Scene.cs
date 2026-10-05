@@ -3,6 +3,7 @@ using System.Linq;
 using System;
 using UnityEngine;
 using Windy.Srpg.Game.Abilities;
+using Windy.Srpg.Game.AI;
 using Windy.Srpg.Game.Campaign;
 using Windy.Srpg.Game.Chapters;
 using Windy.Srpg.Game.Grid.States;
@@ -199,6 +200,12 @@ namespace Windy.Srpg.Game.Grid
             if (defender == null)
             {
                 return;
+            }
+
+            RecordFallenAlliedUnit(defender);
+            if (defender.PlayerId != 0 && defender.IsBoss)
+            {
+                EnemyBossDefeated = true;
             }
 
             AwardDroppableItems(e.Attacker, defender);
@@ -438,7 +445,22 @@ namespace Windy.Srpg.Game.Grid
         {
             if (sender is Unit customUnit)
             {
+                RecordFallenAlliedUnit(customUnit);
                 customUnit.DestroyedInCombat -= OnUnitDestroyed;
+            }
+        }
+
+        private void RecordFallenAlliedUnit(Unit unit)
+        {
+            if (unit == null || unit.PlayerNumber != 0) return;
+
+            if (unit.RecruitOnChapterClear && recruitSaveIds.TryGetValue(unit, out string recruitId))
+            {
+                fallenAlliedUnitIds.Add(recruitId);
+            }
+            else if (unit.IncludeInOwnedUnitSave && !string.IsNullOrWhiteSpace(unit.UnitId))
+            {
+                fallenAlliedUnitIds.Add(unit.UnitId.Trim());
             }
         }
 
@@ -591,6 +613,15 @@ namespace Windy.Srpg.Game.Grid
             customUnit.Initialize();
             customUnit.EnsureSceneCellBinding();
 
+            if (customUnit.PlayerNumber == 0 && customUnit.RecruitOnChapterClear && customUnit.Cell != null)
+            {
+                string presetId = customUnit.AssignedPreset?.PresetId ?? customUnit.VisualId ?? "unit";
+                string chapterId = (ChapterData.FindForGrid(this)?.ChapterId ?? 0f)
+                    .ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+                Vector2Int start = customUnit.Cell.Coordinates;
+                recruitSaveIds[customUnit] = $"{presetId}_chapter_{chapterId}_{start.x}_{start.y}";
+            }
+
             customUnit.UnitClicked += OnSceneUnitClicked;
             customUnit.UnitHighlighted += OnSceneUnitHighlighted;
             customUnit.UnitDehighlighted += OnSceneUnitDehighlighted;
@@ -641,6 +672,7 @@ namespace Windy.Srpg.Game.Grid
             spawnedUnit.ExcludedFromBattle = false;
             spawnedUnit.ParticipatesInDeploymentRoster = false;
             spawnedUnit.IncludeInOwnedUnitSave = false;
+            spawnedUnit.RecruitOnChapterClear = false;
             spawnedUnit.name = !string.IsNullOrWhiteSpace(preset.UnitName)
                 ? preset.UnitName
                 : preset.name;
@@ -751,6 +783,11 @@ namespace Windy.Srpg.Game.Grid
         internal void NotifyOccupancyChanged()
         {
             occupancyRevision++;
+            foreach (Unit unit in registeredUnits)
+            {
+                if (unit != null && unit.MovementAiMode == UnitMovementAiMode.Goal && !unit.ExcludedFromBattle)
+                    AiGoalPlanner.HasReachedGoal(unit, this);
+            }
             RefreshTerrainEffectsForOccupancyChange();
         }
 
@@ -828,6 +865,8 @@ namespace Windy.Srpg.Game.Grid
         // --- Scene battle loop and turn sync ---
         private readonly List<Cell> sceneCells = new List<Cell>();
         private readonly List<Unit> registeredUnits = new List<Unit>();
+        private readonly HashSet<string> fallenAlliedUnitIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<Unit, string> recruitSaveIds = new Dictionary<Unit, string>();
         private readonly List<Player> scenePlayers = new List<Player>();
         private readonly List<IBattleTurnPlayer> sceneTurnPlayers = new List<IBattleTurnPlayer>();
         private readonly HashSet<Cell> wiredSceneCells = new HashSet<Cell>();
@@ -902,6 +941,8 @@ namespace Windy.Srpg.Game.Grid
             cellByCoordinate.Clear();
             cachedCoordinateCellCount = -1;
             registeredUnits.Clear();
+            fallenAlliedUnitIds.Clear();
+            recruitSaveIds.Clear();
 
             if (PlayersParent != null)
             {
@@ -1256,6 +1297,8 @@ namespace Windy.Srpg.Game.Grid
             {
                 return;
             }
+
+            RecordFallenAlliedUnit(unit);
 
             if (unit.PlayerId != 0 && unit.IsBoss)
             {

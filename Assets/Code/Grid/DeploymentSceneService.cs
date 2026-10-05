@@ -277,6 +277,7 @@ namespace Windy.Srpg.Game.Grid
                 clonedUnit.ExcludedFromBattle = true;
                 clonedUnit.ParticipatesInDeploymentRoster = true;
                 clonedUnit.IncludeInOwnedUnitSave = true;
+                clonedUnit.RecruitOnChapterClear = false;
                 deploymentUnits.Add(clonedUnit);
             }
         }

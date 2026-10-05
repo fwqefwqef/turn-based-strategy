@@ -48,15 +48,20 @@ namespace Windy.Srpg.Game.Grid
                     .Where(unit => unit != null && !string.IsNullOrWhiteSpace(unit.UnitId))
                     .Select(unit => unit.UnitId.Trim()),
                 StringComparer.OrdinalIgnoreCase);
-            List<Unit> deployedUnits = GetAllUnits()
+            List<Unit> survivingAllies = GetAllUnits()
                 .Where(unit => unit != null
                     && unit.PlayerNumber == 0
+                    && !unit.ExcludedFromBattle
+                    && unit.IsAliveForBattle)
+                .Distinct()
+                .ToList();
+            List<Unit> deployedUnits = survivingAllies
+                .Where(unit => !unit.RecruitOnChapterClear
                     && unit.IncludeInOwnedUnitSave
                     && ownedUnitIds.Contains(unit.UnitId?.Trim() ?? string.Empty))
-                .ToList()
-                ;
+                .ToList();
 
-            if (deployedUnits.Count == 0)
+            if (deployedUnits.Count == 0 && !markCurrentChapterCleared)
             {
                 return;
             }
@@ -75,6 +80,45 @@ namespace Windy.Srpg.Game.Grid
             if (markCurrentChapterCleared)
             {
                 ChapterData chapterData = ChapterData.FindForGrid(this);
+                var fallenOwnedIds = new HashSet<string>(fallenAlliedUnitIds.Where(ownedUnitIds.Contains),
+                    StringComparer.OrdinalIgnoreCase);
+                if (fallenOwnedIds.Count > 0)
+                {
+                    save.OwnedUnits = save.OwnedUnits
+                        .Where(unit => unit != null && !fallenOwnedIds.Contains(unit.UnitId))
+                        .ToArray();
+                    save.PermanentlyLostUnitIds = (save.PermanentlyLostUnitIds ?? Array.Empty<string>())
+                        .Concat(fallenOwnedIds)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+                    save.DeploymentRosterUnitIds = (save.DeploymentRosterUnitIds ?? Array.Empty<string>())
+                        .Select(id => fallenOwnedIds.Contains(id ?? string.Empty) ? string.Empty : id)
+                        .ToArray();
+                }
+
+                var knownIds = new HashSet<string>(save.OwnedUnits.Select(unit => unit.UnitId),
+                    StringComparer.OrdinalIgnoreCase);
+                var permanentlyLostIds = new HashSet<string>(
+                    save.PermanentlyLostUnitIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+                var recruits = new List<OwnedUnitSaveData>();
+                foreach (Unit ally in survivingAllies.Where(unit => unit.RecruitOnChapterClear))
+                {
+                    if (!recruitSaveIds.TryGetValue(ally, out string recruitId) || string.IsNullOrWhiteSpace(recruitId))
+                    {
+                        continue;
+                    }
+
+                    if (permanentlyLostIds.Contains(recruitId) || !knownIds.Add(recruitId)) continue;
+                    OwnedUnitSaveData recruit = ally.CaptureOwnedUnitSaveData();
+                    recruit.UnitId = recruitId;
+                    recruits.Add(recruit);
+                }
+
+                if (recruits.Count > 0)
+                {
+                    save = CampaignSaveFactory.MergeOwnedUnits(save, recruits);
+                }
+
                 if (chapterData != null)
                 {
                     bool wasAlreadyCleared = CampaignProgressUtility.IsChapterCleared(save, chapterData.ChapterId);

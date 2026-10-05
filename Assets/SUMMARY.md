@@ -205,7 +205,7 @@ Acting position during pending move uses `Unit.PreviewCell` (where the unit *wil
 | 8    | `Precalculate(...)` / `ShouldExecute(...)`                                                | evaluator setup                                                                                         |
 | 9    | `ExecuteDecision(...)` → coroutine                                                        | e.g. `MoveToPositionAIAction`                                                                           |
 | 10   | Move                                                                                      | `CellEvaluator.Evaluate(Cell, Unit, Player, CellGrid)` → best `Cell`; `MoveAbility.AIExecute(CellGrid)` |
-| 11   | Attack                                                                                    | `UnitEvaluator.Evaluate(Unit, Unit, Player, CellGrid)` → best target; `unit.AttackHandler(Unit)`        |
+| 11   | Attack                                                                                    | `AiCombatPlanner.TryFindBestPlan(...)` → best plan; `unit.AttackHandler(Unit)` or skill execution|
 | 12   | Done                                                                                      | `onComplete()` → `cellGrid.RequestEndTurn()`                                                            |
 
 
@@ -346,12 +346,10 @@ Reactive mode does **not** call `Act()`. Active execution wraps `Act()` in `Abil
 | `AiTurnOrdering`         | Sorts AI units by movement-freedom heuristic.                                                              |
 | `AiDebugInfo`            | Debug overlay metadata for tile scoring.                                                                   |
 | `AIAction`               | Bridges `AiDecisionAction` to legacy `Player`-typed execute API.                                           |
-| `AttackAIAction`         | Picks best in-range enemy via `DamageUnitEvaluator`; calls `Unit.AttackHandler`.                           |
+| `AttackAIAction`         | Runs the best `AiCombatPlanner` plan (weapon attack, skill, or area skill).                               |
 | `MoveToPositionAIAction` | Picks best reachable cell via `DamageCellEvaluator`; calls `MoveAbility.AIExecute`.                        |
 | `CellEvaluator`          | Abstract tile scorer for movement AI.                                                                      |
 | `DamageCellEvaluator`    | Damage-at-cell heuristic.                                                                                  |
-| `UnitEvaluator`          | Abstract unit scorer for attack AI.                                                                        |
-| `DamageUnitEvaluator`    | Normalized dry-attack damage scoring.                                                                      |
 
 
 ### Buffs (`Windy.Srpg.Game.Buffs`)
@@ -656,7 +654,7 @@ interface IBattleEndCondition {
 Windy.Srpg.Game.Abilities      Ability, MoveAbility, AttackAbility, AbilityExecutionFlow
 Windy.Srpg.Game.AI             AiDecisionAction, AiTurnRunner, AiTurnOrdering
 Windy.Srpg.Game.AI.Actions     AIAction, AttackAIAction, MoveToPositionAIAction
-Windy.Srpg.Game.AI.Evaluators  CellEvaluator, UnitEvaluator, damage variants
+Windy.Srpg.Game.AI.Evaluators  CellEvaluator, DamageCellEvaluator
 Windy.Srpg.Game.Buffs          buff data, runtime, registries
 Windy.Srpg.Game.CameraControl  GameplayCameraController
 Windy.Srpg.Game.Campaign       save data, manager, factory

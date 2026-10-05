@@ -37,7 +37,8 @@ namespace Windy.Srpg.Game.AI
             {
                 UnitMovementAiMode.Wait => EnsureWaitTriggered(unit, player, grid),
                 UnitMovementAiMode.WaitGroup => EnsureWaitGroupTriggered(unit, player, grid),
-                UnitMovementAiMode.Goal => AiGoalPlanner.TryPlan(unit, grid, out _, out bool attack) && attack,
+                UnitMovementAiMode.Goal => AiGoalPlanner.HasReachedGoal(unit, grid)
+                    || (AiGoalPlanner.TryPlan(unit, grid, out _, out bool attack) && attack),
                 _ => true
             };
         }

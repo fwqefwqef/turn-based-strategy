@@ -312,6 +312,12 @@ namespace Windy.Srpg.Game.Grid
             }
 
             SkillData data = skill.Data;
+            if (data.AreaProfile.CenterOnCasterFootprint)
+            {
+                Cell center = SkillRangeUtility.GetCasterFootprintCenter(unit, originCell, grid);
+                if (center != null) results.Add(center);
+                return results;
+            }
             int minRange = Mathf.Max(0, data.AreaProfile.MinRange);
             int maxRange = ResolveAreaSkillMaxRange(data, originCell, allCells);
 

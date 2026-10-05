@@ -27,6 +27,8 @@ namespace Windy.Srpg.Game.Editor
         private Vector2 tileScrollPosition;
         private Vector2 unitScrollPosition;
         private Vector2 detailsScrollPosition;
+        private Vector2 chapterScrollPosition;
+        private Vector2 windowScrollPosition;
         private UnityEngine.Object selectedObject;
         private bool includeInactiveObjects = true;
 
@@ -54,17 +56,23 @@ namespace Windy.Srpg.Game.Editor
 
             CellGrid cellGrid = FindSceneComponent<CellGrid>();
             ChapterData chapterData = ChapterData.FindForGrid(cellGrid) ?? FindSceneComponent<ChapterData>();
+            float chapterHeight = Mathf.Clamp(position.height * 0.4f, 180f, 420f);
+            float paneHeight = Mathf.Max(200f, position.height - chapterHeight - 42f);
 
+            windowScrollPosition = EditorGUILayout.BeginScrollView(windowScrollPosition);
+            chapterScrollPosition = EditorGUILayout.BeginScrollView(chapterScrollPosition, GUILayout.Height(chapterHeight));
             DrawChapterDataSection(cellGrid, chapterData);
+            EditorGUILayout.EndScrollView();
 
             EditorGUILayout.Space(8f);
-            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginHorizontal(GUILayout.Height(paneHeight));
             DrawTileList();
             EditorGUILayout.Space(6f);
             DrawUnitList(cellGrid);
             EditorGUILayout.Space(6f);
             DrawSelectedObjectInspector();
             EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndScrollView();
         }
 
         private void DrawToolbar()
@@ -119,6 +127,24 @@ namespace Windy.Srpg.Game.Editor
                 }
 
                 DrawSerializedObject(chapterData, drawScriptField: false);
+
+                foreach (ChapterBattleCondition condition in chapterData.BattleConditions)
+                {
+                    if (condition == null || condition.Kind != ChapterBattleConditionKind.UnitReachesGoal) continue;
+                    var sceneUnits = GetSceneUnits(cellGrid);
+                    var knownIds = new HashSet<string>(sceneUnits
+                        .Where(unit => !string.IsNullOrWhiteSpace(unit.AssignedPreset?.PresetId))
+                        .Select(unit => unit.AssignedPreset.PresetId), StringComparer.OrdinalIgnoreCase);
+                    string[] unknownIds = (condition.GoalPresetIds ?? new List<string>())
+                        .Where(id => !string.IsNullOrWhiteSpace(id) && !knownIds.Contains(id.Trim()))
+                        .ToArray();
+                    if (unknownIds.Length > 0)
+                    {
+                        EditorGUILayout.HelpBox(
+                            $"Goal condition has unknown preset IDs: {string.Join(", ", unknownIds)}. Use the preset IDs shown in the Units list below.",
+                            MessageType.Warning);
+                    }
+                }
             }
         }
 
@@ -226,7 +252,7 @@ namespace Windy.Srpg.Game.Editor
 
         private void DrawSelectedObjectInspector()
         {
-            using (new EditorGUILayout.VerticalScope())
+            using (new EditorGUILayout.VerticalScope(GUILayout.MinWidth(300f)))
             {
                 EditorGUILayout.LabelField("Selected Data", EditorStyles.boldLabel);
                 detailsScrollPosition = EditorGUILayout.BeginScrollView(detailsScrollPosition, EditorStyles.helpBox);
@@ -439,7 +465,8 @@ namespace Windy.Srpg.Game.Editor
             string unitName = string.IsNullOrWhiteSpace(unit.unitName) ? unit.name : unit.unitName;
             string cellLabel = unit.Cell != null ? FormatCoordinate(unit.Cell.Coordinates) : FormatPosition(unit.transform.position);
             string excludedLabel = unit.ExcludedFromBattle ? " - Excluded" : string.Empty;
-            return $"{unitName} - P{unit.PlayerNumber} - Lv {unit.Level} - {cellLabel}{excludedLabel}";
+            string presetId = unit.AssignedPreset?.PresetId ?? "(none)";
+            return $"{unitName} - Preset {presetId} - P{unit.PlayerNumber} - Lv {unit.Level} - {cellLabel}{excludedLabel}";
         }
 
         private static string FormatCoordinate(Vector2Int coordinate)

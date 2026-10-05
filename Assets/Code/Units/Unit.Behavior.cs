@@ -88,6 +88,7 @@ namespace Windy.Srpg.Game.Units
             waitGroupId = 0;
             aiGoalTiles = new List<Vector2Int>();
             aiWaitTriggered = false;
+            aiGoalReached = false;
         }
         private void NormalizeProgressionState(bool notifyListeners = false)
         {
@@ -309,6 +310,8 @@ namespace Windy.Srpg.Game.Units
         }
         private void OnValidate()
         {
+            if (!Application.isPlaying && PlayerNumber == 0 && recruitOnChapterClear)
+                participatesInDeploymentRoster = false;
             ApplyPresetInEditor();
             ApplyDefaultUnitName();
             NormalizeProgressionState();
@@ -474,7 +477,11 @@ namespace Windy.Srpg.Game.Units
                 return;
             }
 
+            // Turn-start reset stored the capped total, so restore the movement the cap withheld.
+            float spentMovement = Mathf.Max(0f, ComputedTotalMovementPoints - MovementPoints);
             BuffList.RemoveBuff(deathDoorEntry);
+            MovementPoints = Mathf.Max(0f, ComputedTotalMovementPoints - spentMovement);
+            cachedPaths = null;
             BattleLog.Log("Combat", $"{name} recovers from Death's Door. (unitId={UnitID})");
             RaiseBuffsChanged();
             RaiseStatsChanged();
@@ -746,9 +753,10 @@ namespace Windy.Srpg.Game.Units
                 {
                     HitPoints = BaseHitPoints,
                     ManaPoints = BaseManaPoints,
-                    // Persist the underlying value only. Temporary buffs, terrain, and overcharge
-                    // modifiers are already included in ComputedTotalMovementPoints.
-                    MovementPoints = Mathf.Max(0, Mathf.RoundToInt(MovementPoints)),
+                    // Save base movement, not remaining movement or a temporary status cap
+                    // such as Death's Door. The uncapped total is stored separately.
+                    MovementPoints = Mathf.Max(0, Mathf.RoundToInt(
+                        hasInitializedTurnState ? customTotalMovementPoints : movementPointsStorage)),
                     Strength = BaseStrength,
                     Defense = BaseDefense,
                     Magic = BaseMagic,
@@ -870,6 +878,7 @@ namespace Windy.Srpg.Game.Units
             waitGroupId = PresetOverrides.ResolveWaitGroupId(preset.WaitGroupId);
             aiGoalTiles = PresetOverrides.ResolveGoalTiles(preset.GoalTiles);
             aiWaitTriggered = false;
+            aiGoalReached = false;
             UnitStatBlock stats = PresetOverrides.ResolveStats(preset.BaseStats);
             MovementPoints = Mathf.Max(0f, stats.MovementPoints);
 
@@ -1037,7 +1046,11 @@ namespace Windy.Srpg.Game.Units
                 case PermanentStatKind.Defense: baseDefense += amount; break;
                 case PermanentStatKind.Speed: baseSpeed += amount; break;
                 case PermanentStatKind.Luck: baseLuck += amount; break;
-                case PermanentStatKind.Movement: MovementPoints = Mathf.Max(0f, MovementPoints + amount); break;
+                case PermanentStatKind.Movement:
+                    movementPointsStorage = Mathf.Max(0f, movementPointsStorage + amount);
+                    if (hasInitializedTurnState)
+                        customTotalMovementPoints = Mathf.Max(0f, customTotalMovementPoints + amount);
+                    break;
             }
 
             RefreshHealthState();

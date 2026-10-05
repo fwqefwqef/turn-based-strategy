@@ -439,6 +439,7 @@ namespace Windy.Srpg.Game.Catalogs
     {
         public bool Enabled;
         public string Shape = nameof(SkillAreaShape.Centered);
+        public bool CenterOnCasterFootprint;
         public int MinRange;
         public int MaxRange;
         public int Radius;
@@ -453,6 +454,7 @@ namespace Windy.Srpg.Game.Catalogs
             {
                 Enabled = Enabled,
                 Shape = CatalogResourceLoader.ParseEnum(Shape, SkillAreaShape.Centered),
+                CenterOnCasterFootprint = CenterOnCasterFootprint,
                 MinRange = MinRange,
                 MaxRange = MaxRange,
                 Radius = Radius,
